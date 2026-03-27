@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="進捗トラッカー">
+  <title>大学進捗トラッカー</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <h1>📚 大学進捗トラッカー</h1>
+    <div class="date" id="header-date"></div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="main">
+
+    <!-- 今日ページ -->
+    <div class="page active" id="page-today">
+      <div id="today-alerts"></div>
+
+      <div class="card">
+        <div class="card-title">📋 今日の時間割</div>
+        <div id="today-timetable"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 今日の科目と進捗</div>
+        <div id="today-subjects"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📅 今週のスケジュール</div>
+        <div class="week-grid" id="week-grid"></div>
+      </div>
+    </div>
+
+    <!-- 科目ページ -->
+    <div class="page" id="page-subjects">
+      <div class="card">
+        <div class="card-title">📖 科目一覧・コマ記録</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">
+          ボタンをタップしてコマの完了を記録できます。<br>
+          🟡枠＝今日の目標コマ数
+        </div>
+      </div>
+      <div id="subjects-list"></div>
+    </div>
+
+    <!-- 学期ページ -->
+    <div class="page" id="page-semester">
+      <div id="semester-content"></div>
+    </div>
+
+  </main>
+
+  <!-- ナビゲーション -->
+  <nav class="nav">
+    <button class="nav-btn active" data-page="today">
+      <span class="icon">🏠</span>
+      今日
+    </button>
+    <button class="nav-btn" data-page="subjects">
+      <span class="icon">📖</span>
+      科目
+    </button>
+    <button class="nav-btn" data-page="semester">
+      <span class="icon">📊</span>
+      学期
+    </button>
+  </nav>
+
+  <script src="./data/schedule.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
+```
+
+保存したら、いよいよ動作確認です！
+
+---
+
+## ステップ5：ローカルで確認する
+
+VS Codeのターミナルで以下を入力してください。
+```
+npx serve .
