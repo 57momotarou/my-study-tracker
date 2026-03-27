@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>初期設定 - 大学進捗トラッカー</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      padding: 24px 16px;
+      color: #1f2937;
+    }
+    h1 { font-size: 20px; margin-bottom: 6px; }
+    p { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card h2 { font-size: 15px; margin-bottom: 12px; }
+    #qrcode {
+      display: flex;
+      justify-content: center;
+      margin: 16px 0;
+    }
+    #qrcode img { width: 220px; height: 220px; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 12px;
+    }
+    .btn:hover { background: #1d4ed8; }
+    .url-box {
+      background: #f3f4f6;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 11px;
+      word-break: break-all;
+      color: #6b7280;
+      margin-top: 8px;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .step-num {
+      background: #2563eb;
+      color: white;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>📱 iPhoneへデータ転送</h1>
+  <p>このページはPCでのみ使用します。QRコードをiPhoneで読み取ってください。</p>
+
+  <div class="card">
+    <h2>📋 使い方</h2>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>このページをPCのブラウザで開く</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>下のQRコードをiPhoneカメラで読み取る</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>iPhoneのSafariで自動的にデータが保存される</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div>メインページに移動して科目が表示されればOK！</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔲 QRコード</h2>
+    <div id="qrcode"></div>
+    <div class="url-box" id="url-display">URLを生成中...</div>
+    <button class="btn" onclick="regenerate()">🔄 QRコードを再生成</button>
+  </div>
+
+  <script src="./data/schedule.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    let qrInstance = null;
+
+    function generateURL() {
+      const data = {
+        subjects: SUBJECTS,
+        weeklyPlan: WEEKLY_PLAN
+      };
+      const json = JSON.stringify(data);
+      const encoded = btoa(encodeURIComponent(json));
+      const baseURL = 'https://57momotarou.github.io/benkyouganbaru/';
+      return `${baseURL}?data=${encoded}`;
+    }
+
+function regenerate() {
+  const url = generateURL();
+  document.getElementById('url-display').textContent = url;
+
+  const qrDiv = document.getElementById('qrcode');
+  qrDiv.innerHTML = '<canvas id="qr-canvas"></canvas>';
+
+  QRCode.toCanvas(
+    document.getElementById('qr-canvas'),
+    url,
+    { width: 220, margin: 2 },
+    function(error) {
+      if (error) console.error(error);
+    }
+  );
+}
+    // 自動生成
+    window.onload = () => regenerate();
+  </script>
+</body>
+</html>
