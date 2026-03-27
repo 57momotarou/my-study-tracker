@@ -1,13 +1,11 @@
-const CACHE_NAME = 'cyber-tracker-v1';
+const CACHE_NAME = 'cyber-tracker-v2';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
-  './app.js',
-  './data/schedule.js'
+  './app.js'
 ];
 
-// インストール時にキャッシュし、即座にアクティブ化
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
@@ -15,24 +13,19 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// 古いキャッシュを削除し、即座に全クライアントを制御
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    )
   );
+  self.clients.claim();
 });
 
-// ネットワーク優先（更新を即反映）、失敗時はキャッシュから返す
 self.addEventListener('fetch', event => {
+  // http/httpsのみキャッシュ対象にする
+  if (!event.request.url.startsWith('http')) return;
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });

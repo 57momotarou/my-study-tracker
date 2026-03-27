@@ -108,8 +108,7 @@
   </div>
 
   <script src="./data/schedule.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script>
+ <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
     let qrInstance = null;
 
     function generateURL() {
@@ -123,23 +122,22 @@
       return `${baseURL}?data=${encoded}`;
     }
 
-    function regenerate() {
-      const url = generateURL();
-      document.getElementById('url-display').textContent = url;
+function regenerate() {
+  const url = generateURL();
+  document.getElementById('url-display').textContent = url;
 
-      const qrDiv = document.getElementById('qrcode');
-      qrDiv.innerHTML = '';
+  const qrDiv = document.getElementById('qrcode');
+  qrDiv.innerHTML = '<canvas id="qr-canvas"></canvas>';
 
-      new QRCode(qrDiv, {
-        text: url,
-        width: 220,
-        height: 220,
-        colorDark: '#1f2937',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-      });
+  QRCode.toCanvas(
+    document.getElementById('qr-canvas'),
+    url,
+    { width: 220, margin: 2 },
+    function(error) {
+      if (error) console.error(error);
     }
-
+  );
+}
     // 自動生成
     window.onload = () => regenerate();
   </script>
