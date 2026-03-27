@@ -1,12 +1,6 @@
 // ==========================================
-// 初期化
+// 科目データ取得（localStorageまたはschedule.js）
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-  initApp();
-});
-
-// localStorageから科目データを読み込む
-// なければ data/schedule.js のデータを使う（PC環境用）
 function getSubjects() {
   const saved = localStorage.getItem('cyber-tracker-subjects');
   return saved ? JSON.parse(saved) : (typeof SUBJECTS !== 'undefined' ? SUBJECTS : []);
@@ -17,8 +11,14 @@ function getWeeklyPlan() {
   return saved ? JSON.parse(saved) : (typeof WEEKLY_PLAN !== 'undefined' ? WEEKLY_PLAN : []);
 }
 
+// ==========================================
+// 初期化
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+});
+
 function initApp() {
-  // URLパラメータからデータを読み込む（iPhone初回セットアップ用）
   loadFromURL();
   loadProgress();
   renderHeader();
@@ -28,23 +28,6 @@ function initApp() {
   renderSemester();
   setupNav();
   registerSW();
-}
-
-function loadFromURL() {
-  const params = new URLSearchParams(window.location.search);
-  const data = params.get('data');
-  if (!data) return;
-  try {
-    const json = decodeURIComponent(atob(data));
-    const parsed = JSON.parse(json);
-    localStorage.setItem('cyber-tracker-subjects', JSON.stringify(parsed.subjects));
-    localStorage.setItem('cyber-tracker-weekly', JSON.stringify(parsed.weeklyPlan));
-    // URLパラメータを消してリダイレクト
-    window.history.replaceState({}, '', './index.html');
-    alert('✅ 科目データを保存しました！');
-  } catch(e) {
-    console.error('データの読み込みに失敗しました', e);
-  }
 }
 
 // ==========================================
@@ -57,6 +40,25 @@ function registerSW() {
 }
 
 // ==========================================
+// URLパラメータからデータを読み込む（iPhone初回セットアップ用）
+// ==========================================
+function loadFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const data = params.get('data');
+  if (!data) return;
+  try {
+    const json = decodeURIComponent(atob(data));
+    const parsed = JSON.parse(json);
+    localStorage.setItem('cyber-tracker-subjects', JSON.stringify(parsed.subjects));
+    localStorage.setItem('cyber-tracker-weekly', JSON.stringify(parsed.weeklyPlan));
+    window.history.replaceState({}, '', './index.html');
+    alert('✅ 科目データを保存しました！');
+  } catch(e) {
+    console.error('データの読み込みに失敗しました', e);
+  }
+}
+
+// ==========================================
 // 進捗データ（localStorage）
 // ==========================================
 let progress = {};
@@ -64,7 +66,7 @@ let progress = {};
 function loadProgress() {
   const saved = localStorage.getItem('cyber-tracker-progress');
   progress = saved ? JSON.parse(saved) : {};
-  SUBJECTS.forEach(s => {
+  getSubjects().forEach(s => {
     if (!progress[s.id]) {
       progress[s.id] = { completedLessons: 0 };
     }
@@ -125,14 +127,14 @@ function renderHeader() {
 function renderToday() {
   const today = new Date();
   const dow = today.getDay();
-  const plan = WEEKLY_PLAN[dow];
+  const plan = getWeeklyPlan()[dow];
   const container = document.getElementById('today-subjects');
   container.innerHTML = '';
 
   // アラート（締め切りチェック）
   const alerts = document.getElementById('today-alerts');
   alerts.innerHTML = '';
-  SUBJECTS.forEach(s => {
+  getSubjects().forEach(s => {
     const target = getTodayTarget(s);
     const done = getCompletedLessons(s.id);
     const behind = target - done;
@@ -149,7 +151,7 @@ function renderToday() {
     }
   });
 
-  if (plan.isRest) {
+  if (!plan || plan.isRest) {
     container.innerHTML = `
       <div style="text-align:center;padding:32px;color:#9ca3af;">
         <div style="font-size:48px">😴</div>
@@ -160,7 +162,7 @@ function renderToday() {
   }
 
   plan.subjects.forEach(subjectId => {
-    const s = SUBJECTS.find(x => x.id === subjectId);
+    const s = getSubjects().find(x => x.id === subjectId);
     if (!s) return;
     const done = getCompletedLessons(s.id);
     const target = getTodayTarget(s);
@@ -197,12 +199,12 @@ function renderToday() {
       <div style="background:#f3f4f6;border-radius:8px;padding:10px;">
         <div>🌞 <b>昼休み（12:00〜13:00）</b></div>
         <div style="margin-left:20px;margin-top:4px;">
-          ${plan.subjects[0] ? `・${SUBJECTS.find(x=>x.id===plan.subjects[0])?.name}：1章視聴（約15分）＋課題` : ''}
+          ${plan.subjects[0] ? `・${getSubjects().find(x=>x.id===plan.subjects[0])?.name}：1章視聴（約15分）＋課題` : ''}
         </div>
         <div style="margin-top:8px;">🌙 <b>夜（18:30〜22:00）</b></div>
         <div style="margin-left:20px;margin-top:4px;">
           ${plan.subjects.map(id => {
-            const s = SUBJECTS.find(x => x.id === id);
+            const s = getSubjects().find(x => x.id === id);
             return s ? `・${s.name}：1コマ（約90分）` : '';
           }).join('<br>')}
         </div>
@@ -218,7 +220,7 @@ function renderWeek() {
   const container = document.getElementById('week-grid');
   container.innerHTML = '';
 
-  WEEKLY_PLAN.forEach(plan => {
+  getWeeklyPlan().forEach(plan => {
     const isToday = plan.day === today;
     let html = `<div class="week-day ${isToday ? 'today' : ''} ${plan.isRest ? 'rest' : ''}">`;
     html += `<div class="week-day-label">${plan.label}</div>`;
@@ -226,7 +228,7 @@ function renderWeek() {
       html += `<div class="week-day-subject">休</div>`;
     } else {
       plan.subjects.forEach(id => {
-        const s = SUBJECTS.find(x => x.id === id);
+        const s = getSubjects().find(x => x.id === id);
         if (s) {
           html += `<div class="week-day-subject" style="background:${s.color}22;color:${s.color}">${s.name.slice(0, 4)}</div>`;
         }
@@ -244,8 +246,22 @@ function renderSubjects() {
   const container = document.getElementById('subjects-list');
   container.innerHTML = '';
 
+  // 科目データがない場合
+  if (getSubjects().length === 0) {
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:32px;">
+        <div style="font-size:48px">📭</div>
+        <div style="font-weight:600;margin-top:8px;">科目データがありません</div>
+        <div style="font-size:13px;color:#6b7280;margin-top:4px;">
+          PCで setup.html を開いてQRコードをスキャンしてください
+        </div>
+      </div>`;
+    return;
+  }
+
   ['専門', '教養', '外国語'].forEach(type => {
-    const list = SUBJECTS.filter(s => s.type === type);
+    const list = getSubjects().filter(s => s.type === type);
+    if (list.length === 0) return;
     container.innerHTML += `<div class="section-title">${type}科目</div>`;
 
     list.forEach(s => {
@@ -301,9 +317,10 @@ function renderSubjects() {
 // ==========================================
 function renderSemester() {
   const container = document.getElementById('semester-content');
-  const totalLessons = SUBJECTS.reduce((a, s) => a + s.totalLessons, 0);
-  const totalDone = SUBJECTS.reduce((a, s) => a + getCompletedLessons(s.id), 0);
-  const totalPct = Math.round((totalDone / totalLessons) * 100);
+  const subjects = getSubjects();
+  const totalLessons = subjects.reduce((a, s) => a + s.totalLessons, 0);
+  const totalDone = subjects.reduce((a, s) => a + getCompletedLessons(s.id), 0);
+  const totalPct = totalLessons > 0 ? Math.round((totalDone / totalLessons) * 100) : 0;
 
   container.innerHTML = `
     <div class="card">
@@ -337,7 +354,7 @@ function renderSemester() {
 
     <div class="card">
       <div class="card-title">📚 科目別進捗サマリー</div>
-      ${SUBJECTS.map(s => {
+      ${subjects.map(s => {
         const done = getCompletedLessons(s.id);
         const pct = Math.round((done / s.totalLessons) * 100);
         return `
