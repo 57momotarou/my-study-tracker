@@ -47,15 +47,20 @@ function saveState() {
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('./sw.js').then(reg => {
-    // 新しいSWがインストールされたら自動でページをリロード
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated') {
-          window.location.reload();
-        }
+        if (newWorker.state === 'activated') window.location.reload();
       });
     });
+  });
+
+  // 起動時にSWへ「更新チェック」を明示的に指示する
+  navigator.serviceWorker.ready.then(reg => reg.update());
+
+  // SW側から「新バージョン適用済み」メッセージを受け取ったらリロード
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data === 'RELOAD') window.location.reload();
   });
 }
 
