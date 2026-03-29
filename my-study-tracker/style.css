@@ -1,0 +1,560 @@
+/* ============================================================
+   my-study-tracker - Style
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0e1a;
+  --bg2: #111827;
+  --bg3: #1f2937;
+  --border: #2d3748;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --amber: #f59e0b;
+  --amber2: #d97706;
+  --amber-dim: rgba(245,158,11,0.12);
+  --green: #10b981;
+  --green-dim: rgba(16,185,129,0.12);
+  --purple: #8b5cf6;
+  --purple-dim: rgba(139,92,246,0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.1);
+  --blue: #3b82f6;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --nav-h: 68px;
+  --header-h: 54px;
+}
+
+html { background: var(--bg); }
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-top: var(--header-h);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── ヘッダー ── */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: rgba(10,14,26,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  z-index: 200;
+  padding-top: env(safe-area-inset-top);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 100%;
+}
+
+.header-logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: -0.5px;
+  margin-right: 10px;
+}
+
+.header-semester {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg3);
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+}
+
+.header-credits {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+/* ── ナビゲーション ── */
+.nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(10,14,26,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 200;
+}
+
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  color: var(--text3);
+  font-size: 10px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.nav-btn svg {
+  width: 22px;
+  height: 22px;
+  transition: stroke 0.2s;
+}
+
+.nav-btn.active {
+  color: var(--amber);
+}
+
+/* ── メインコンテンツ ── */
+.main {
+  padding: 12px 14px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── カード ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* ── アラート ── */
+.alert {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 8px;
+  border-left: 3px solid;
+}
+.alert-danger { background: var(--red-dim); border-color: var(--red); color: #fca5a5; }
+.alert-warn { background: var(--amber-dim); border-color: var(--amber); color: #fcd34d; }
+
+/* ── 今日の時間割 ── */
+.timetable-section { margin-bottom: 10px; }
+.timetable-label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 6px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.today-subject-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.today-subject-item:last-child { border-bottom: none; }
+
+.today-subject-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.today-subject-info { flex: 1; min-width: 0; }
+.today-subject-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-subject-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.today-subject-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.badge-ok { background: rgba(16,185,129,0.15); color: var(--green); }
+.badge-warn { background: var(--amber-dim); color: var(--amber); }
+.badge-danger { background: var(--red-dim); color: var(--red); }
+
+/* ── プログレスバー ── */
+.prog-wrap {
+  background: var(--bg3);
+  border-radius: 99px;
+  height: 6px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.prog-bar {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── 週間ストリップ ── */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.week-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  font-size: 10px;
+}
+
+.week-cell.is-today {
+  background: var(--amber-dim);
+  border-color: var(--amber);
+}
+
+.week-cell.is-rest { opacity: 0.4; }
+
+.week-day-label { color: var(--text3); font-weight: 700; }
+.week-cell.is-today .week-day-label { color: var(--amber); }
+
+.week-subject-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* ── 学期タブ（ヘッダー直下に固定） ── */
+.semester-tabs {
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  right: 0;
+  z-index: 150;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 14px;
+  background: rgba(10,14,26,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.semester-tabs::-webkit-scrollbar { display: none; }
+
+/* 科目ページは学期タブの高さ分だけ追加でパディング */
+#page-subjects {
+  padding-top: 52px;
+}
+
+.sem-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text3);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.2s;
+}
+.sem-tab.active {
+  background: var(--amber);
+  color: #000;
+  border-color: var(--amber);
+  font-weight: 700;
+}
+
+/* ── フィルターボタン ── */
+.filter-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text3);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.15s;
+}
+.filter-btn.active { font-weight: 600; }
+.filter-btn.f-all.active { background: var(--bg3); color: var(--text); border-color: var(--text2); }
+.filter-btn.f-専門.active { background: var(--amber-dim); color: var(--amber); border-color: var(--amber); }
+.filter-btn.f-教養.active { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+.filter-btn.f-外国語.active { background: var(--purple-dim); color: var(--purple); border-color: var(--purple); }
+
+/* ── 科目リスト（選択画面） ── */
+.subject-group-title {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 1px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 14px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.subject-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(45,55,72,0.5);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.subject-row:last-child { border-bottom: none; }
+
+.subject-row-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.subject-row-check svg { display: none; }
+.subject-row.checked .subject-row-check {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+.subject-row.checked .subject-row-check svg { display: block; }
+
+.subject-row-info { flex: 1; min-width: 0; }
+.subject-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subject-row-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.subject-row-credits {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+/* ── 選択済み科目サマリー ── */
+.enrolled-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.enrolled-item:last-child { border-bottom: none; }
+.enrolled-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.enrolled-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.enrolled-credits { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text3); }
+
+.enrolled-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.stat-box {
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  text-align: center;
+}
+.stat-box-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+}
+.stat-box-label { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* ── バッジ画面 ── */
+.badge-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.badge-summary-item {
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 10px 6px;
+  text-align: center;
+}
+.badge-summary-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+.badge-summary-label { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+.badge-section-title {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.badge-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.badge-card.earned {
+  border-color: currentColor;
+}
+
+.badge-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.badge-info { flex: 1; min-width: 0; }
+.badge-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.badge-meta { font-size: 11px; color: var(--text3); }
+.badge-level-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-family: 'Space Mono', monospace;
+}
+.badge-progress-text {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* ── 進捗画面 ── */
+.progress-subject-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.ps-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.ps-name { font-size: 14px; font-weight: 700; flex: 1; }
+.ps-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ps-meta { font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+
+.lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+}
+.lesson-btn {
+  aspect-ratio: 1;
+  border-radius: 5px;
+  border: none;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--bg3);
+  color: var(--text3);
+  transition: all 0.15s;
+  font-family: 'Space Mono', monospace;
+}
+.lesson-btn.done { color: #000; }
+.lesson-btn.today-target {
+  box-shadow: 0 0 0 2px var(--amber);
+}
+
+/* ── 空状態 ── */
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text3);
+}
+.empty-state-icon { font-size: 40px; margin-bottom: 10px; }
+.empty-state-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text2); }
+.empty-state-sub { font-size: 12px; }
+
+/* ── スクロールバー ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
