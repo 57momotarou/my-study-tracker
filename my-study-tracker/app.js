@@ -341,9 +341,22 @@ function renderSubjectsPage() {
   });
 
   const enrolled = getEnrolledCodes(state.currentSemesterId);
-  const filtered = state.activeSubjectFilter === 'all'
+
+  // 他の学期で選択済みのコードを収集（今の学期は除く）
+  const enrolledInOtherSems = new Set();
+  SEMESTERS.forEach(sem => {
+    if (sem.id === state.currentSemesterId) return;
+    getEnrolledCodes(sem.id).forEach(code => enrolledInOtherSems.add(code));
+  });
+
+  const baseList = state.activeSubjectFilter === 'all'
     ? ALL_SUBJECTS
     : ALL_SUBJECTS.filter(s => s.category === state.activeSubjectFilter);
+
+  // 他学期で選択済みの科目は非表示（ただし今の学期で選択済みなら表示）
+  const filtered = baseList.filter(s =>
+    !enrolledInOtherSems.has(s.code) || enrolled.includes(s.code)
+  );
 
   const groups = {};
   filtered.forEach(s => {
