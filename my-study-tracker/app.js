@@ -4,16 +4,16 @@
 
 // ── ストレージキー ──
 const KEYS = {
-  enrollments: 'cp-enrollments',   // { semesterId: [code, ...] }
-  progress: 'cp-progress',         // { code: completedLessons }
+  enrollments: 'cp-enrollments',
+  progress: 'cp-progress',
   currentSem: 'cp-current-sem',
 };
 
 // ── 状態 ──
 let state = {
   currentSemesterId: 1,
-  enrollments: {},  // semId -> [code]
-  progress: {},     // code -> number
+  enrollments: {},
+  progress: {},
   activeSubjectFilter: 'all',
 };
 
@@ -45,7 +45,19 @@ function saveState() {
 }
 
 function registerSW() {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') window.location.reload();
+      });
+    });
+  });
+  navigator.serviceWorker.ready.then(reg => reg.update());
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data === 'RELOAD') window.location.reload();
+  });
 }
 
 // ============================================================
@@ -112,15 +124,61 @@ function getCategoryColor(category) {
   return (CATEGORY_CONFIG[category] || {}).color || '#64748b';
 }
 
-// 今日の目標コマ数
-function getTodayTarget(subject, semester) {
-  const today = new Date();
+// ============================================================
+// 出席認定期限ベースのノルマ計算
+// ============================================================
+
+// 学期の最初の締切曜日（木or火）の日付を返す
+function getFirstDeadline(subject, semester) {
   const start = new Date(semester.start);
-  const end = new Date(semester.end);
-  const totalDays = Math.max(1, Math.ceil((end - start) / 86400000));
-  const passedDays = Math.max(0, Math.ceil((today - start) / 86400000));
-  const ratio = Math.min(1, passedDays / totalDays);
-  return Math.ceil(subject.lessons * ratio);
+  const deadlineDow = subject.deadline_type === '専門' ? 4 : 2; // 木=4, 火=2
+  const daysToFirst = (deadlineDow - start.getDay() + 7) % 7;
+  const first = new Date(start);
+  first.setDate(start.getDate() + daysToFirst);
+  first.setHours(12, 0, 0, 0);
+  return first;
+}
+
+// コマnの出席認定期限（第n週の締切日 + 2週間）
+function getLessonDeadline(lessonNum, subject, semester) {
+  const first = getFirstDeadline(subject, semester);
+  const dl = new Date(first);
+  dl.setDate(first.getDate() + (lessonNum - 1) * 7 + 14);
+  return dl;
+}
+
+// 今日時点で期限が過ぎているコマ数
+function getTodayTarget(subject, semester) {
+  const now = new Date();
+  let count = 0;
+  for (let n = 1; n <= subject.lessons; n++) {
+    if (getLessonDeadline(n, subject, semester) <= now) count++;
+    else break;
+  }
+  return count;
+}
+
+// 今週末の締切までに完了すべき推奨コマ数
+function getTodayRecommended(subject, semester) {
+  const now = new Date();
+  const deadlineDow = subject.deadline_type === '専門' ? 4 : 2;
+  const todayDow = now.getDay();
+  const daysToDeadline = (deadlineDow - todayDow + 7) % 7;
+  const thisWeekDeadline = new Date(now);
+  thisWeekDeadline.setDate(now.getDate() + daysToDeadline);
+  thisWeekDeadline.setHours(12, 0, 0, 0);
+
+  let count = 0;
+  for (let n = 1; n <= subject.lessons; n++) {
+    if (getLessonDeadline(n, subject, semester) <= thisWeekDeadline) count++;
+    else break;
+  }
+  return Math.max(count, getTodayTarget(subject, semester));
+}
+
+// コマnが遅刻（期限切れ）かどうか
+function isLessonLate(lessonNum, subject, semester) {
+  return getLessonDeadline(lessonNum, subject, semester) < new Date();
 }
 
 // ============================================================
@@ -137,32 +195,25 @@ function renderHeader() {
 // ============================================================
 function renderToday() {
   const today = new Date();
-  const dow = today.getDay(); // 0=日
+  const dow = today.getDay();
   const sem = getCurrentSemester();
   const subjects = getEnrolledSubjects(sem.id);
   const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
-  // 日付
   document.getElementById('today-date').textContent =
     today.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
-  // 今日の科目（専門=木曜、教養/外国語=火曜、土日=なし）
-  let todaySubjects = [];
-  if (dow === 4) todaySubjects = subjects.filter(s => s.deadline_type === '専門');
-  else if (dow === 2) todaySubjects = subjects.filter(s => s.deadline_type !== '専門');
-  else if (dow !== 0 && dow !== 6) todaySubjects = subjects; // 平日は全科目を学習対象に
-
-  // アラート
+  // アラート（遅刻コマ警告）
   const alertsEl = document.getElementById('today-alerts');
   alertsEl.innerHTML = '';
   subjects.forEach(s => {
     const target = getTodayTarget(s, sem);
     const done = getCompletedLessons(s.code);
-    const behind = target - done;
-    if (behind >= 3) {
-      alertsEl.innerHTML += `<div class="alert alert-danger">⚠️ <b>${s.name}</b>が${behind}コマ遅れています</div>`;
-    } else if (behind >= 1) {
-      alertsEl.innerHTML += `<div class="alert alert-warn">📌 <b>${s.name}</b>が${behind}コマ遅れ気味です</div>`;
+    const late = target - done;
+    if (late >= 3) {
+      alertsEl.innerHTML += `<div class="alert alert-danger">⚠️ <b>${s.name}</b> 遅刻${late}コマ！繰り越し優先で取り組みましょう</div>`;
+    } else if (late >= 1) {
+      alertsEl.innerHTML += `<div class="alert alert-warn">📌 <b>${s.name}</b> ${late}コマが遅刻中 — 優先して受講してください</div>`;
     }
   });
 
@@ -178,17 +229,19 @@ function renderToday() {
       const rows = subs.map(s => {
         const done = getCompletedLessons(s.code);
         const target = getTodayTarget(s, sem);
+        const recommended = getTodayRecommended(s, sem);
         const pct = Math.round(done / s.lessons * 100);
-        const behind = target - done;
+        const late = Math.max(0, target - done);
+        const needThisWeek = Math.max(0, recommended - done);
         let badgeClass = 'badge-ok', badgeText = '✅ OK';
-        if (behind >= 3) { badgeClass = 'badge-danger'; badgeText = `🔴 ${behind}コマ遅れ`; }
-        else if (behind >= 1) { badgeClass = 'badge-warn'; badgeText = `🟡 ${behind}コマ遅れ`; }
+        if (late >= 1) { badgeClass = 'badge-danger'; badgeText = `🔴 遅刻${late}コマ`; }
+        else if (needThisWeek >= 1) { badgeClass = 'badge-warn'; badgeText = `🟡 今週あと${needThisWeek}コマ`; }
         return `
           <div class="today-subject-item">
             <div class="today-subject-dot" style="background:${getCategoryColor(s.category)}"></div>
             <div class="today-subject-info">
               <div class="today-subject-name">${s.name}</div>
-              <div class="today-subject-meta">${s.credits}単位 ・ ${done}/${s.lessons}コマ</div>
+              <div class="today-subject-meta">${s.credits}単位 ・ ${done}/${s.lessons}コマ完了${late > 0 ? ` ・ <span style="color:var(--red)">遅刻${late}コマ</span>` : ''}</div>
               <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${getCategoryColor(s.category)}"></div></div>
             </div>
             <span class="today-subject-badge ${badgeClass}">${badgeText}</span>
@@ -259,7 +312,6 @@ function renderToday() {
 // 科目タブ
 // ============================================================
 function renderSubjectsPage() {
-  // 学期タブ
   const tabsEl = document.getElementById('semester-tabs');
   tabsEl.innerHTML = '';
   SEMESTERS.forEach(sem => {
@@ -275,7 +327,6 @@ function renderSubjectsPage() {
     tabsEl.appendChild(btn);
   });
 
-  // フィルター
   const filterEl = document.getElementById('subject-filters');
   filterEl.innerHTML = '';
   [{ key: 'all', label: 'すべて' }, { key: '専門', label: '💻 専門' }, { key: '教養', label: '🌿 教養' }, { key: '外国語', label: '🌐 外国語' }].forEach(f => {
@@ -289,13 +340,11 @@ function renderSubjectsPage() {
     filterEl.appendChild(btn);
   });
 
-  // 科目リスト
   const enrolled = getEnrolledCodes(state.currentSemesterId);
   const filtered = state.activeSubjectFilter === 'all'
     ? ALL_SUBJECTS
     : ALL_SUBJECTS.filter(s => s.category === state.activeSubjectFilter);
 
-  // グループ化
   const groups = {};
   filtered.forEach(s => {
     const key = `${s.category} / ${s.type}`;
@@ -310,13 +359,16 @@ function renderSubjectsPage() {
     subjects.forEach(s => {
       const isChecked = enrolled.includes(s.code);
       const color = getCategoryColor(s.category);
+      const openTag = s.open_type === '一斉'
+        ? `<span style="font-size:10px;color:var(--blue);margin-left:4px;">○一斉</span>`
+        : '';
       listEl.innerHTML += `
-        <div class="subject-row ${isChecked ? 'checked' : ''}" data-code="${s.code}" style="${isChecked ? `--check-color:${color}` : ''}">
+        <div class="subject-row ${isChecked ? 'checked' : ''}" data-code="${s.code}">
           <div class="subject-row-check" style="${isChecked ? `background:${color};border-color:${color}` : ''}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div class="subject-row-info">
-            <div class="subject-row-name">${s.name}</div>
+            <div class="subject-row-name">${s.name}${openTag}</div>
             <div class="subject-row-meta">${s.code} ・ ${s.type} ・${s.lessons}回</div>
           </div>
           <div class="subject-row-credits">${s.credits}単位</div>
@@ -324,7 +376,6 @@ function renderSubjectsPage() {
     });
   });
 
-  // クリックイベント
   listEl.querySelectorAll('.subject-row').forEach(row => {
     row.addEventListener('click', () => {
       const code = row.dataset.code;
@@ -339,7 +390,6 @@ function renderSubjectsPage() {
     });
   });
 
-  // 選択済みサマリー
   renderEnrolledSummary();
 }
 
@@ -387,23 +437,17 @@ function renderEnrolledSummary() {
 // バッジタブ
 // ============================================================
 function renderBadgesPage() {
-  // 全履修コードを収集
   const allCodes = new Set();
   SEMESTERS.forEach(sem => getEnrolledCodes(sem.id).forEach(c => allCodes.add(c)));
 
-  // バッジ取得状況チェック
   function isBadgeEarned(badge) {
     if (!badge.requirements) return false;
     const req = badge.requirements;
-    // 先修バッジチェック
     if (req.prerequisite) {
       const prereq = BADGES.find(b => b.id === req.prerequisite);
       if (prereq && !isBadgeEarned(prereq)) return false;
     }
-    // 必要科目チェック
-    if (req.codes) {
-      return req.codes.every(c => allCodes.has(c));
-    }
+    if (req.codes) return req.codes.every(c => allCodes.has(c));
     return false;
   }
 
@@ -444,10 +488,8 @@ function renderBadgesPage() {
       合計 ${earned.length} / ${BADGES.length} バッジ取得済み
     </div>`;
 
-  // バッジ一覧
   const containerEl = document.getElementById('badge-list-container');
   containerEl.innerHTML = '';
-
   const categories = [...new Set(BADGES.map(b => b.category))];
   categories.forEach(cat => {
     const catBadges = BADGES.filter(b => b.category === cat);
@@ -483,7 +525,6 @@ function renderBadgesPage() {
 // 進捗タブ
 // ============================================================
 function renderProgressPage() {
-  // 学期セレクター
   const selectorEl = document.getElementById('semester-progress-selector');
   selectorEl.innerHTML = '';
   SEMESTERS.forEach(sem => {
@@ -514,27 +555,41 @@ function renderProgressPage() {
   subjects.forEach(s => {
     const done = getCompletedLessons(s.code);
     const target = getTodayTarget(s, sem);
+    const recommended = getTodayRecommended(s, sem);
     const pct = Math.round(done / s.lessons * 100);
-    const behind = target - done;
+    const late = Math.max(0, target - done);
     const color = getCategoryColor(s.category);
+    const openLabel = s.open_type === '一斉' ? '一斉' : '順次';
 
-    let statusText = '✅ 順調';
+    let statusText = '✅ 出席認定 順調';
     let statusColor = 'var(--green)';
-    if (behind >= 3) { statusText = `🔴 ${behind}コマ遅れ`; statusColor = 'var(--red)'; }
-    else if (behind >= 1) { statusText = `🟡 ${behind}コマ遅れ`; statusColor = 'var(--amber)'; }
+    if (late >= 1) {
+      statusText = `🔴 遅刻${late}コマ — 繰り越し優先で受講を`;
+      statusColor = 'var(--red)';
+    } else if (recommended > done) {
+      statusText = `🟡 今週あと${recommended - done}コマで出席認定`;
+      statusColor = 'var(--amber)';
+    }
 
-    // コマボタン
     let btnHtml = '<div class="lesson-grid">';
     for (let i = 1; i <= s.lessons; i++) {
       const isDone = i <= done;
-      const isTarget = i === target;
-      btnHtml += `
-        <button class="lesson-btn ${isDone ? 'done' : ''} ${isTarget ? 'today-target' : ''}"
-          onclick="toggleLesson('${s.code}', ${i}, ${semId})"
-          style="${isDone ? `background:${color};color:#000` : ''}"
-        >${i}</button>`;
+      const isLate = !isDone && isLessonLate(i, s, sem);
+      const isThisWeek = !isDone && !isLate && i <= recommended;
+      let btnStyle = '';
+      if (isDone) btnStyle = `background:${color};color:#000`;
+      else if (isLate) btnStyle = `background:var(--red-dim);color:var(--red);border:1px solid var(--red)`;
+      else if (isThisWeek) btnStyle = `background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)`;
+      btnHtml += `<button class="lesson-btn${isDone ? ' done' : ''}" onclick="toggleLesson('${s.code}', ${i}, ${semId})" style="${btnStyle}">${i}</button>`;
     }
     btnHtml += '</div>';
+
+    const legend = `
+      <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--text3)">
+        <span><span style="color:${color}">■</span> 完了</span>
+        <span><span style="color:var(--red)">■</span> 遅刻</span>
+        <span><span style="color:var(--amber)">■</span> 今週期限</span>
+      </div>`;
 
     listEl.innerHTML += `
       <div class="progress-subject-card">
@@ -548,11 +603,12 @@ function renderProgressPage() {
           </div>
           <div class="ps-pct" style="color:${color}">${pct}%</div>
         </div>
-        <div class="ps-meta">${done} / ${s.lessons} コマ完了 ・ 今日の目標: ${target}コマ</div>
+        <div class="ps-meta">${done} / ${s.lessons} コマ完了 ・ <span style="color:var(--text3)">${openLabel}開講</span>${late > 0 ? ` ・ <span style="color:var(--red)">遅刻${late}コマ</span>` : ''}</div>
         <div class="prog-wrap">
           <div class="prog-bar" style="width:${pct}%;background:${color}"></div>
         </div>
         ${btnHtml}
+        ${legend}
       </div>`;
   });
 }
