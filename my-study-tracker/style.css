@@ -34,8 +34,8 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
-  padding-top: calc(var(--header-h) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-top: var(--header-h);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -43,7 +43,7 @@ body {
 .header {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: calc(var(--header-h) + env(safe-area-inset-top));
+  height: var(--header-h);
   background: rgba(10,14,26,0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -269,7 +269,7 @@ body {
 /* ── 学期タブ（ヘッダー直下に固定） ── */
 .semester-tabs {
   position: fixed;
-  top: calc(var(--header-h) + env(safe-area-inset-top));
+  top: var(--header-h);
   left: 0;
   right: 0;
   z-index: 150;
@@ -286,10 +286,7 @@ body {
 }
 .semester-tabs::-webkit-scrollbar { display: none; }
 
-/* 科目ページは学期タブの高さ分だけ追加でパディング */
-#page-subjects {
-  padding-top: 72px;
-}
+
 
 .sem-tab {
   flex-shrink: 0;
@@ -558,3 +555,17 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* ── 設定ページ ── */
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text2);
+  padding: 16px 2px 8px;
+  letter-spacing: 0.5px;
+}
+
+/* 設定ページは学期タブ分の余白（#page-subjectsと同じ） */
+#page-settings {
+  padding-top: 72px;
+}

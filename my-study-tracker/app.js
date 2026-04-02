@@ -72,7 +72,7 @@ function setupNav() {
       btn.classList.add('active');
       document.getElementById(`page-${target}`).classList.add('active');
       if (target === 'today') renderToday();
-      if (target === 'subjects') renderSubjectsPage();
+      if (target === 'settings') renderSettingsPage();
       if (target === 'badges') renderBadgesPage();
       if (target === 'progress') renderProgressPage();
     });
@@ -85,7 +85,7 @@ function setupNav() {
 function render() {
   renderHeader();
   renderToday();
-  renderSubjectsPage();
+  renderSettingsPage();
   renderBadgesPage();
   renderProgressPage();
 }
@@ -311,7 +311,7 @@ function renderToday() {
 // ============================================================
 // 科目タブ
 // ============================================================
-function renderSubjectsPage() {
+function renderSettingsPage() {
   const tabsEl = document.getElementById('semester-tabs');
   tabsEl.innerHTML = '';
   SEMESTERS.forEach(sem => {
@@ -322,7 +322,7 @@ function renderSubjectsPage() {
       state.currentSemesterId = sem.id;
       saveState();
       renderHeader();
-      renderSubjectsPage();
+      renderSettingsPage();
     });
     tabsEl.appendChild(btn);
   });
@@ -335,7 +335,7 @@ function renderSubjectsPage() {
     btn.textContent = f.label;
     btn.addEventListener('click', () => {
       state.activeSubjectFilter = f.key;
-      renderSubjectsPage();
+      renderSettingsPage();
     });
     filterEl.appendChild(btn);
   });
@@ -399,7 +399,7 @@ function renderSubjectsPage() {
       else state.enrollments[semId].push(code);
       saveState();
       renderHeader();
-      renderSubjectsPage();
+      renderSettingsPage();
     });
   });
 
