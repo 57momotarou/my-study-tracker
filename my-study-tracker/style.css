@@ -78,11 +78,20 @@ body {
   border: 1px solid var(--border);
 }
 
-.header-credits {
-  font-family: 'Space Mono', monospace;
-  font-size: 13px;
+.header-settings-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s;
+}
+.header-settings-btn:active {
   color: var(--amber);
-  font-weight: 700;
 }
 
 /* ── ナビゲーション ── */
