@@ -35,7 +35,7 @@ body {
   color: var(--text);
   min-height: 100vh;
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  padding-top: var(--header-h);
+  padding-top: calc(var(--header-h) + env(safe-area-inset-top));
   -webkit-font-smoothing: antialiased;
 }
 
@@ -43,7 +43,7 @@ body {
 .header {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: var(--header-h);
+  height: calc(var(--header-h) + env(safe-area-inset-top));
   background: rgba(10,14,26,0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -278,7 +278,7 @@ body {
 /* ── 学期タブ（ヘッダー直下に固定） ── */
 .semester-tabs {
   position: fixed;
-  top: var(--header-h);
+  top: calc(var(--header-h) + env(safe-area-inset-top));
   left: 0;
   right: 0;
   z-index: 150;
@@ -574,7 +574,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* 設定ページは学期タブ分の余白（#page-subjectsと同じ） */
+/* 設定ページは学期タブの高さ分だけ追加でパディング */
 #page-settings {
-  padding-top: 72px;
+  padding-top: 56px;
 }
