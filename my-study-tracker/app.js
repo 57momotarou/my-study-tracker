@@ -125,29 +125,62 @@ function getCategoryColor(category) {
 }
 
 // ============================================================
-// 出席認定期限ベースのノルマ計算
+// 出席認定期限ベースのノルマ計算（テーブル参照方式）
 // ============================================================
 
-// 学期の最初の締切曜日（木or火）の日付を返す
-function getFirstDeadline(subject, semester) {
+// 科目と学期から該当する出席認定テーブルキーを返す
+function getAttendanceKey(subject, semester) {
+  if (!semester.attendance) return null;
+  if (subject.code === 'SD302E') return 'academic_writing';
+  if (subject.code === 'SD101E') return 'study_skill';
+  if (subject.deadline_type === '外国語') return 'gaikokugo';
+  if (subject.deadline_type === '専門') {
+    return subject.open_type === '一斉' ? 'senmon_issai' : 'senmon_jyunji';
+  }
+  if (subject.deadline_type === '教養') {
+    if (subject.is_enshu) return 'kyoyo_enshu';
+    if (subject.term === '前期') return 'kyoyo_zenki';
+    if (subject.term === '後期') return 'kyoyo_koki';
+  }
+  return null;
+}
+
+// コマnの出席認定締切日時を返す（Dateオブジェクト）
+function getLessonDeadline(lessonNum, subject, semester) {
+  const key = getAttendanceKey(subject, semester);
+  if (key && semester.attendance && semester.attendance[key]) {
+    const table = semester.attendance[key];
+    const entry = table[lessonNum];
+    if (entry) {
+      const dateStr = typeof entry === 'string' ? entry : entry.end;
+      return new Date(dateStr);
+    }
+  }
+  // テーブルがない学期（秋学期以降）は従来の計算式にフォールバック
   const start = new Date(semester.start);
-  const deadlineDow = subject.deadline_type === '専門' ? 4 : 2; // 木=4, 火=2
+  const deadlineDow = subject.deadline_type === '専門' ? 4 : 2;
   const daysToFirst = (deadlineDow - start.getDay() + 7) % 7;
   const first = new Date(start);
   first.setDate(start.getDate() + daysToFirst);
   first.setHours(12, 0, 0, 0);
-  return first;
-}
-
-// コマnの出席認定期限（第n週の締切日 + 2週間）
-function getLessonDeadline(lessonNum, subject, semester) {
-  const first = getFirstDeadline(subject, semester);
   const dl = new Date(first);
   dl.setDate(first.getDate() + (lessonNum - 1) * 7 + 14);
   return dl;
 }
 
-// 今日時点で期限が過ぎているコマ数
+// コマnがすでに受講可能かどうか（順次開講の場合、開講前は受講不可）
+function isLessonAvailable(lessonNum, subject, semester) {
+  const key = getAttendanceKey(subject, semester);
+  if (key && semester.attendance && semester.attendance[key]) {
+    const entry = semester.attendance[key][lessonNum];
+    if (entry && typeof entry === 'object' && entry.start) {
+      return new Date(entry.start) <= new Date();
+    }
+  }
+  return true; // テーブルなし or 一斉開講は常に受講可能
+}
+
+// 今日時点で期限が過ぎているコマ数（遅刻コマ数の基準）
 function getTodayTarget(subject, semester) {
   const now = new Date();
   let count = 0;
@@ -158,19 +191,16 @@ function getTodayTarget(subject, semester) {
   return count;
 }
 
-// 今週末の締切までに完了すべき推奨コマ数
+// 今週中に締切が来るコマ数（推奨完了コマ数）
 function getTodayRecommended(subject, semester) {
   const now = new Date();
-  const deadlineDow = subject.deadline_type === '専門' ? 4 : 2;
-  const todayDow = now.getDay();
-  const daysToDeadline = (deadlineDow - todayDow + 7) % 7;
-  const thisWeekDeadline = new Date(now);
-  thisWeekDeadline.setDate(now.getDate() + daysToDeadline);
-  thisWeekDeadline.setHours(12, 0, 0, 0);
+  // 今から7日以内に締切が来るコマを推奨対象に
+  const weekLater = new Date(now);
+  weekLater.setDate(now.getDate() + 7);
 
   let count = 0;
   for (let n = 1; n <= subject.lessons; n++) {
-    if (getLessonDeadline(n, subject, semester) <= thisWeekDeadline) count++;
+    if (getLessonDeadline(n, subject, semester) <= weekLater) count++;
     else break;
   }
   return Math.max(count, getTodayTarget(subject, semester));
@@ -589,10 +619,12 @@ function renderProgressPage() {
       const isDone = i <= done;
       const isLate = !isDone && isLessonLate(i, s, sem);
       const isThisWeek = !isDone && !isLate && i <= recommended;
+      const notYet = !isDone && !isLate && !isThisWeek && !isLessonAvailable(i, s, sem);
       let btnStyle = '';
       if (isDone) btnStyle = `background:${color};color:#000`;
       else if (isLate) btnStyle = `background:var(--red-dim);color:var(--red);border:1px solid var(--red)`;
       else if (isThisWeek) btnStyle = `background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)`;
+      else if (notYet) btnStyle = `opacity:0.3`;
       btnHtml += `<button class="lesson-btn${isDone ? ' done' : ''}" onclick="toggleLesson('${s.code}', ${i}, ${semId})" style="${btnStyle}">${i}</button>`;
     }
     btnHtml += '</div>';
@@ -602,6 +634,7 @@ function renderProgressPage() {
         <span><span style="color:${color}">■</span> 完了</span>
         <span><span style="color:var(--red)">■</span> 遅刻</span>
         <span><span style="color:var(--amber)">■</span> 今週期限</span>
+        <span style="opacity:0.4">■ 未開講</span>
       </div>`;
 
     listEl.innerHTML += `
