@@ -277,16 +277,15 @@ body {
 
 /* ── 学期タブ（ヘッダー直下に固定） ── */
 .semester-tabs {
-  position: fixed;
-  top: calc(var(--header-h) + env(safe-area-inset-top));
-  left: 0;
-  right: 0;
+  position: sticky;
+  top: 0;
   z-index: 150;
   display: flex;
   gap: 6px;
   overflow-x: auto;
   padding: 8px 14px;
-  background: rgba(10,14,26,0.95);
+  margin: 0 -14px;
+  background: rgba(10,14,26,0.98);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -574,7 +573,4 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* 設定ページは学期タブの高さ分だけ追加でパディング */
-#page-settings {
-  padding-top: 56px;
-}
+
