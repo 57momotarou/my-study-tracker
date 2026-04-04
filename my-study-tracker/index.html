@@ -18,10 +18,6 @@
     <div class="header-inner">
       <div class="header-left">
         <span class="header-logo">my-study-tracker</span>
-        <button class="header-semester-btn" id="header-semester-btn" aria-label="学期切り替え">
-          <span id="header-semester">読み込み中...</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10" style="margin-left:3px;opacity:0.6"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
       </div>
       <div class="header-right">
         <button class="header-settings-btn" id="header-settings-btn" aria-label="設定">
@@ -29,39 +25,30 @@
         </button>
       </div>
     </div>
+    <!-- 学期選択タブ：ヘッダー直下に横並びで常時表示 -->
+    <div class="header-sem-row" id="header-sem-row"></div>
   </header>
-
-  <!-- 学期切り替えドロワー（横並びスクロール） -->
-  <div id="semester-drawer-overlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5)" onclick="closeSemesterDrawer()"></div>
-  <div id="semester-drawer" style="display:none;position:fixed;top:calc(var(--header-h) + env(safe-area-inset-top));left:0;right:0;z-index:301;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px 14px">
-    <div style="font-size:10px;color:var(--amber);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:10px">SELECT SEMESTER</div>
-    <div id="semester-drawer-list" class="semester-drawer-list"></div>
-  </div>
 
   <main class="main">
 
     <!-- ===== 今日タブ ===== -->
     <div class="page active" id="page-today">
       <div id="today-alerts"></div>
-
       <div class="card">
         <div class="card-label">TODAY</div>
         <div class="card-title" id="today-date"></div>
         <div id="today-timetable"></div>
       </div>
-
       <div class="card">
         <div class="card-label">THIS WEEK</div>
         <div class="card-title">今週のスケジュール</div>
         <div class="week-strip" id="week-strip"></div>
       </div>
-
       <div class="card">
         <div class="card-label">ADVANCE</div>
         <div class="card-title">先取りおすすめ</div>
         <div id="today-advance"></div>
       </div>
-
       <div class="card">
         <div class="card-label">UPCOMING</div>
         <div class="card-title">迫っている締切</div>
@@ -113,6 +100,12 @@
     <!-- ===== 設定タブ ===== -->
     <div class="page" id="page-settings">
       <div class="semester-tabs" id="semester-tabs"></div>
+      <!-- 卒業単位チェッカー -->
+      <div class="card" id="graduation-checker">
+        <div class="card-label">GRADUATION</div>
+        <div class="card-title">卒業単位チェッカー</div>
+        <div id="graduation-content"></div>
+      </div>
       <div class="card" id="subject-selection-area">
         <div class="card-label">ENROLLMENT</div>
         <div class="card-title">履修科目を選択</div>

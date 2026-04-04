@@ -24,7 +24,7 @@
   --radius: 14px;
   --radius-sm: 8px;
   --nav-h: 84px;
-  --header-h: 54px;
+  --header-h: 88px;
 }
 
 html { background: var(--bg); }
@@ -592,42 +592,49 @@ body {
   padding: 10px 14px;
 }
 
-/* ── ヘッダー学期ボタン ── */
-.header-semester-btn {
-  display: flex;
-  align-items: center;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text3);
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 99px;
-  cursor: pointer;
-  font-family: 'Noto Sans JP', sans-serif;
-  transition: border-color 0.15s, color 0.15s;
-  white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
-}
-.header-semester-btn:active {
-  border-color: var(--amber);
-  color: var(--amber);
+/* ── ヘッダー（2段） ── */
+.header {
+  height: calc(var(--header-h) + env(safe-area-inset-top)) !important;
 }
 
-/* ── 学期ドロワー：横スクロール横並び ── */
-.semester-drawer-list {
+/* ── ヘッダー学期タブ行 ── */
+.header-sem-row {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding-bottom: 2px;
+  padding: 0 14px 8px;
 }
-.semester-drawer-list::-webkit-scrollbar { display: none; }
+.header-sem-row::-webkit-scrollbar { display: none; }
 
-/* ── タップハイライト除去 ── */
+/* ── ヘッダー学期タブボタン ── */
+.header-sem-btn {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text3);
+  font-size: 11px;
+  font-weight: 400;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s;
+}
+.header-sem-btn.active {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #000;
+  font-weight: 700;
+}
+
+/* タップハイライト除去 */
+.lesson-btn,
 .today-subject-card,
-.progress-subject-card,
-.lesson-btn {
+.progress-subject-card {
   -webkit-tap-highlight-color: transparent;
 }

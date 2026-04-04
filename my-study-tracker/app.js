@@ -30,7 +30,6 @@ function loadState() {
     state.progress = p ? JSON.parse(p) : {};
     const c = localStorage.getItem(KEYS.currentSem);
     state.currentSemesterId = c ? parseInt(c) : 1;
-    // 移行処理：旧コマ単位→章単位
     let migrated = false;
     Object.keys(state.progress).forEach(code => {
       const val = state.progress[code];
@@ -73,10 +72,6 @@ function setupNav() {
     renderSettingsPage();
   });
 
-  document.getElementById('header-semester-btn').addEventListener('click', () => {
-    toggleSemesterDrawer();
-  });
-
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.page;
@@ -94,7 +89,7 @@ function setupNav() {
 }
 
 function render() {
-  renderHeader();
+  renderSemesterTabs();
   renderToday();
   renderSchedulePage();
   renderSettingsPage();
@@ -103,43 +98,23 @@ function render() {
 }
 
 // ============================================================
-// 学期切り替えドロワー（横並びピルボタン）
+// ヘッダー直下の学期タブ（常時横並び表示）
 // ============================================================
-function toggleSemesterDrawer() {
-  const drawer  = document.getElementById('semester-drawer');
-  const overlay = document.getElementById('semester-drawer-overlay');
-  if (drawer.style.display !== 'none') {
-    closeSemesterDrawer();
-    return;
-  }
-  const listEl = document.getElementById('semester-drawer-list');
-  listEl.innerHTML = '';
+function renderSemesterTabs() {
+  const el = document.getElementById('header-sem-row');
+  if (!el) return;
+  el.innerHTML = '';
   SEMESTERS.forEach(sem => {
     const isCurrent = sem.id === state.currentSemesterId;
-    const codes = getEnrolledCodes(sem.id);
     const btn = document.createElement('button');
-    // 横並びピルボタンスタイル
-    btn.style.cssText = `
-      flex-shrink:0;
-      padding:8px 16px;
-      border-radius:99px;
-      border:1px solid ${isCurrent ? 'var(--amber)' : 'var(--border)'};
-      background:${isCurrent ? 'var(--amber)' : 'var(--bg3)'};
-      color:${isCurrent ? '#000' : 'var(--text2)'};
-      font-size:12px;font-weight:${isCurrent ? '700' : '400'};
-      font-family:'Noto Sans JP',sans-serif;
-      cursor:pointer;white-space:nowrap;
-      display:inline-flex;align-items:center;gap:6px;
-    `;
-    const countSpan = codes.length
-      ? `<span style="font-size:10px;opacity:0.7">${codes.length}科目</span>`
-      : '';
-    btn.innerHTML = sem.name + countSpan;
+    btn.className = 'header-sem-btn' + (isCurrent ? ' active' : '');
+    btn.textContent = sem.name.replace('年度', '').replace('学期', 'S');
+    btn.title = sem.name;
     btn.addEventListener('click', () => {
       state.currentSemesterId = sem.id;
       saveState();
-      closeSemesterDrawer();
-      renderHeader();
+      renderSemesterTabs();
+      // 現在表示中ページを再描画
       const activePage = document.querySelector('.page.active');
       if (activePage) {
         const id = activePage.id;
@@ -147,17 +122,11 @@ function toggleSemesterDrawer() {
         if (id === 'page-progress') renderProgressPage();
         if (id === 'page-schedule') renderSchedulePage();
         if (id === 'page-badges')   renderBadgesPage();
+        if (id === 'page-settings') renderSettingsPage();
       }
     });
-    listEl.appendChild(btn);
+    el.appendChild(btn);
   });
-  drawer.style.display  = 'block';
-  overlay.style.display = 'block';
-}
-
-function closeSemesterDrawer() {
-  document.getElementById('semester-drawer').style.display  = 'none';
-  document.getElementById('semester-drawer-overlay').style.display = 'none';
 }
 
 // ============================================================
@@ -180,9 +149,6 @@ function getCompletedLessons(code) {
 function getCategoryColor(category) {
   return (CATEGORY_CONFIG[category] || {}).color || '#64748b';
 }
-function renderHeader() {
-  document.getElementById('header-semester').textContent = getCurrentSemester().name;
-}
 
 // ============================================================
 // 章記録（1コマ=4章）
@@ -203,13 +169,18 @@ function toggleLesson(code, lessonNum, semId) {
 }
 
 // ============================================================
-// 章グリッド共通ビルダー（今日・進捗・先取り共通）
+// 章グリッド共通ビルダー
+// ※ グリッド内のボタンクリックが親（アコーディオントグル）に
+//   伝播しないよう、wrapperに stopPropagation を設定
 // ============================================================
 function buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended, color) {
-  const CPL = 4;
+  const CPL     = 4;
   const wrapper = document.createElement('div');
-  let html = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:8px">';
+  // ★ イベント伝播を止める（これがタップ競合の根本修正）
+  wrapper.addEventListener('click', e => e.stopPropagation());
+  wrapper.addEventListener('touchend', e => e.stopPropagation());
 
+  let html = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:8px">';
   for (let lesson = 1; lesson <= s.lessons; lesson++) {
     const lateLesson = isLessonLate(lesson, s, sem);
     const thisWeek   = lesson <= recommended && lesson > doneLessons;
@@ -250,5 +221,11 @@ function buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended,
         font-family:'Noto Sans JP',sans-serif;">締切一覧</button>
     </div>`;
   wrapper.innerHTML = html;
+
+  // innerHTML で生成したボタンにも stopPropagation を適用
+  wrapper.querySelectorAll('.lesson-btn').forEach(btn => {
+    btn.addEventListener('click', e => e.stopPropagation());
+  });
+
   return wrapper;
 }
