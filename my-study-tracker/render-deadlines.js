@@ -8,7 +8,8 @@ function showDeadlineModal(subjectCode, semId) {
   const sem = SEMESTERS.find(s => s.id === semId);
   if (!s || !sem) return;
 
-  const done = getCompletedLessons(s.code);
+  const doneChapters = getCompletedLessons(s.code);
+  const done = Math.floor(doneChapters / 4); // コマ単位
   const color = getCategoryColor(s.category);
   const now = new Date();
 
@@ -62,7 +63,7 @@ function showDeadlineModal(subjectCode, semId) {
         <div>
           <div style="font-size:10px;font-family:'Space Mono',monospace;color:var(--amber);letter-spacing:2px;margin-bottom:4px">DEADLINES</div>
           <div style="font-size:15px;font-weight:700">${s.name}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">${done}/${s.lessons}コマ完了</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${done}/${s.lessons}コマ完了（第${doneChapters % 4 || 4}章${doneChapters % 4 > 0 ? "途中" : ""}）</div>
         </div>
         <button onclick="document.getElementById('deadline-modal').remove()" style="
           background:var(--bg3);border:none;color:var(--text2);

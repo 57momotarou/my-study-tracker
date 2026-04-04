@@ -30,74 +30,68 @@ function renderToday() {
   // 迫っている締切一覧
   renderUpcomingDeadlines(subjects, sem);
 
-  // 今日の時間割
+  // 今日の時間割（今日やるべき科目とペース）
   const ttEl = document.getElementById('today-timetable');
   if (subjects.length === 0) {
     ttEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">科目が登録されていません</div><div class="empty-state-sub">「設定」タブで今学期の科目を選択してください</div></div>`;
   } else {
-    const renderSection = (label, subs) => {
-      if (subs.length === 0) return '';
-      const rows = subs.map(s => {
-        const done = getCompletedLessons(s.code);
-        const target = getTodayTarget(s, sem);
-        const recommended = getTodayRecommended(s, sem);
-        const pct = Math.round(done / s.lessons * 100);
-        const late = Math.max(0, target - done);
-        const needThisWeek = Math.max(0, recommended - done);
-        let badgeClass = 'badge-ok', badgeText = '✅ OK';
-        if (late >= 1) { badgeClass = 'badge-danger'; badgeText = `🔴 遅刻${late}コマ`; }
-        else if (needThisWeek >= 1) { badgeClass = 'badge-warn'; badgeText = `🟡 今週あと${needThisWeek}コマ`; }
+    // 今日やるべき科目を優先度順に並べる
+    // 遅刻中 → 今週締切あり → その他
+    const CPL = 4; // chapters per lesson
+    const withPriority = subjects.map(s => {
+      const doneChapters = getCompletedLessons(s.code);
+      const doneLessons  = Math.floor(doneChapters / CPL);
+      const target       = getTodayTarget(s, sem);
+      const recommended  = getTodayRecommended(s, sem);
+      const late         = Math.max(0, target - doneLessons);
+      const needThisWeek = Math.max(0, recommended - doneLessons);
+      return { s, doneChapters, doneLessons, target, recommended, late, needThisWeek };
+    }).filter(({ late, needThisWeek }) => late > 0 || needThisWeek > 0)
+      .sort((a, b) => b.late - a.late || b.needThisWeek - a.needThisWeek);
+
+    if (withPriority.length === 0) {
+      ttEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--green);font-size:14px;font-weight:600">🎉 今週の出席認定はすべてOKです！</div>`;
+    } else {
+      ttEl.innerHTML = withPriority.map(({ s, doneChapters, doneLessons, late, needThisWeek, recommended }) => {
+        const color = getCategoryColor(s.category);
+        const totalChapters = s.lessons * CPL;
+        const pct = Math.round(doneChapters / totalChapters * 100);
+        const doneChInLesson = doneChapters % CPL;
+        const currentLabel = doneChInLesson > 0
+          ? `コマ${doneLessons + 1}第${doneChInLesson}章まで完了`
+          : doneLessons > 0 ? `コマ${doneLessons}まで完了` : '未受講';
+        let badgeClass, badgeText, paceText, paceColor;
+
+        if (late > 0) {
+          badgeClass = 'badge-danger';
+          badgeText  = `🔴 遅刻${late}コマ`;
+          const nextCh = doneChapters + 1;
+          const nextLesson = Math.ceil(nextCh / CPL);
+          const nextChInLesson = ((nextCh - 1) % CPL) + 1;
+          paceText   = `コマ${nextLesson}第${nextChInLesson}章から受講してください`;
+          paceColor  = 'var(--red)';
+        } else {
+          badgeClass = 'badge-warn';
+          badgeText  = `🟡 今週あと${needThisWeek}コマ`;
+          const goalChapters = recommended * CPL;
+          const goalLesson = recommended;
+          paceText   = `今週中にコマ${goalLesson}第${CPL}章まで完了で出席認定OK`;
+          paceColor  = 'var(--amber)';
+        }
+
         return `
           <div class="today-subject-item">
-            <div class="today-subject-dot" style="background:${getCategoryColor(s.category)}"></div>
+            <div class="today-subject-dot" style="background:${color}"></div>
             <div class="today-subject-info">
               <div class="today-subject-name">${s.name}</div>
-              <div class="today-subject-meta">${s.credits}単位 ・ ${done}/${s.lessons}コマ完了${late > 0 ? ` ・ <span style="color:var(--red)">遅刻${late}コマ</span>` : ''}</div>
-              <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${getCategoryColor(s.category)}"></div></div>
+              <div class="today-subject-meta">${done}/${s.lessons}コマ完了</div>
+              <div style="font-size:11px;color:${paceColor};margin-top:3px;font-weight:500">📖 ${paceText}</div>
+              <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>
             </div>
             <span class="today-subject-badge ${badgeClass}">${badgeText}</span>
           </div>`;
       }).join('');
-      return `<div class="timetable-section"><div class="timetable-label">${label}</div>${rows}</div>`;
-    };
-
-    const lunchSubs = dow === 4
-      ? subjects.filter(s => s.deadline_type === '専門').slice(0, 1)
-      : dow === 2
-        ? subjects.filter(s => s.deadline_type !== '専門').slice(0, 1)
-        : subjects.slice(0, 1);
-
-    const eveningSubs = dow === 4
-      ? subjects.filter(s => s.deadline_type === '専門')
-      : dow === 2
-        ? subjects.filter(s => s.deadline_type !== '専門')
-        : subjects;
-
-    ttEl.innerHTML =
-      renderSection('🌞 昼休み（12:00〜13:00）', lunchSubs) +
-      renderSection('🌙 夜（18:30〜）', eveningSubs);
-  }
-
-  // 週間ストリップ
-  const weekEl = document.getElementById('week-strip');
-  weekEl.innerHTML = '';
-  for (let d = 0; d < 7; d++) {
-    const isToday = d === dow;
-    const isRest = d === 0 || d === 6;
-    let dotHtml = '';
-    if (!isRest) {
-      const daySubjects = d === 4
-        ? subjects.filter(s => s.deadline_type === '専門').slice(0, 2)
-        : subjects.filter(s => s.deadline_type !== '専門').slice(0, 2);
-      dotHtml = daySubjects.map(s =>
-        `<div class="week-subject-dot" style="background:${getCategoryColor(s.category)}"></div>`
-      ).join('');
     }
-    weekEl.innerHTML += `
-      <div class="week-cell ${isToday ? 'is-today' : ''} ${isRest ? 'is-rest' : ''}">
-        <div class="week-day-label">${DOW_LABELS[d]}</div>
-        ${dotHtml || '<div style="height:6px"></div>'}
-      </div>`;
   }
 
   // 今期進捗
@@ -130,14 +124,13 @@ function renderUpcomingDeadlines(subjects, sem) {
   const now = new Date();
   const twoWeeksLater = new Date(now.getTime() + 14 * 86400000);
 
-  // 全科目・全コマから「未完了かつ2週間以内に締切が来るコマ」を収集
   const items = [];
   subjects.forEach(s => {
     const done = getCompletedLessons(s.code);
     for (let n = 1; n <= s.lessons; n++) {
-      if (n <= done) continue; // 完了済みはスキップ
+      if (n <= done) continue;
       const deadline = getLessonDeadline(n, s, sem);
-      if (deadline > twoWeeksLater) break; // 2週間超はスキップ
+      if (deadline > twoWeeksLater) break;
       const isLate = deadline < now;
       const daysLeft = Math.ceil((deadline - now) / 86400000);
       items.push({ s, n, deadline, isLate, daysLeft });
@@ -149,7 +142,6 @@ function renderUpcomingDeadlines(subjects, sem) {
     return;
   }
 
-  // 締切日でソート（遅刻→期限近い順）
   items.sort((a, b) => a.deadline - b.deadline);
 
   el.innerHTML = items.map(({ s, n, deadline, isLate, daysLeft }) => {
@@ -157,20 +149,16 @@ function renderUpcomingDeadlines(subjects, sem) {
     const dateStr = deadline.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
     let labelStyle, labelText, rowStyle = '';
     if (isLate) {
-      labelStyle = 'color:var(--red)';
-      labelText = '遅刻中';
+      labelStyle = 'color:var(--red)'; labelText = '遅刻中';
       rowStyle = 'border-left:3px solid var(--red);padding-left:10px';
     } else if (daysLeft <= 3) {
-      labelStyle = 'color:var(--red)';
-      labelText = `あと${daysLeft}日`;
+      labelStyle = 'color:var(--red)'; labelText = `あと${daysLeft}日`;
       rowStyle = 'border-left:3px solid var(--red);padding-left:10px';
     } else if (daysLeft <= 7) {
-      labelStyle = 'color:var(--amber)';
-      labelText = `あと${daysLeft}日`;
+      labelStyle = 'color:var(--amber)'; labelText = `あと${daysLeft}日`;
       rowStyle = 'border-left:3px solid var(--amber);padding-left:10px';
     } else {
-      labelStyle = 'color:var(--text3)';
-      labelText = `あと${daysLeft}日`;
+      labelStyle = 'color:var(--text3)'; labelText = `あと${daysLeft}日`;
       rowStyle = 'border-left:3px solid var(--border);padding-left:10px';
     }
     return `

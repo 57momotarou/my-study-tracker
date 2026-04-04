@@ -80,6 +80,30 @@
       </div>
     </div>
 
+    <!-- ===== スケジュールタブ ===== -->
+    <div class="page" id="page-schedule">
+
+      <div class="card">
+        <div class="card-label">SCHEDULE</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">スケジュール</div>
+          <div style="display:flex;gap:6px">
+            <button id="schedule-view-week" class="filter-btn f-all active" onclick="scheduleView='week';renderSchedulePage()">週</button>
+            <button id="schedule-view-month" class="filter-btn f-all" onclick="scheduleView='month';renderSchedulePage()">月</button>
+          </div>
+        </div>
+        <!-- 月ナビ -->
+        <div id="schedule-month-nav" style="display:none;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <button onclick="scheduleMonthOffset--;renderSchedulePage()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">‹</button>
+          <span id="schedule-month-label" style="font-size:14px;font-weight:700"></span>
+          <button onclick="scheduleMonthOffset++;renderSchedulePage()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">›</button>
+        </div>
+        <div id="schedule-week"></div>
+        <div id="schedule-month" style="display:none"></div>
+      </div>
+
+    </div>
+
     <!-- ===== バッジタブ ===== -->
     <div class="page" id="page-badges">
       <div class="card">
@@ -121,6 +145,7 @@
   <script src="./attendance.js"></script>
   <script src="./render-today.js"></script>
   <script src="./render-settings.js"></script>
+  <script src="./render-schedule.js"></script>
   <script src="./render-badges.js"></script>
   <script src="./render-progress.js"></script>
   <script src="./render-deadlines.js"></script>

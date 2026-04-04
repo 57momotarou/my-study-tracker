@@ -36,6 +36,17 @@ function loadState() {
     state.progress = p ? JSON.parse(p) : {};
     const c = localStorage.getItem(KEYS.currentSem);
     state.currentSemesterId = c ? parseInt(c) : 1;
+    // 移行処理：旧コマ単位（最大15）→ 新章単位（最大60）
+    // 値が章数の最大値(60)以下かつコマ数の最大値(15)以下なら旧データと判断して4倍に変換
+    let migrated = false;
+    Object.keys(state.progress).forEach(code => {
+      const val = state.progress[code];
+      if (val > 0 && val <= 15) {
+        state.progress[code] = val * 4;
+        migrated = true;
+      }
+    });
+    if (migrated) saveState();
   } catch(err) { console.error(err); }
 }
 
@@ -81,6 +92,7 @@ function setupNav() {
       btn.classList.add('active');
       document.getElementById(`page-${target}`).classList.add('active');
       if (target === 'today')    renderToday();
+      if (target === 'schedule') renderSchedulePage();
       if (target === 'settings') renderSettingsPage();
       if (target === 'badges')   renderBadgesPage();
       if (target === 'progress') renderProgressPage();
@@ -91,6 +103,7 @@ function setupNav() {
 function render() {
   renderHeader();
   renderToday();
+  renderSchedulePage();
   renderSettingsPage();
   renderBadgesPage();
   renderProgressPage();
@@ -139,15 +152,21 @@ function renderHeader() {
 }
 
 // ============================================================
-// コマ記録
+// 章記録（1コマ=4章、通し章番号で管理）
 // ============================================================
-function toggleLesson(code, lessonNum, semId) {
+function toggleChapter(code, chapterNum, semId) {
   const current = getCompletedLessons(code);
-  if (lessonNum === current + 1) state.progress[code] = lessonNum;
-  else if (lessonNum === current) state.progress[code] = lessonNum - 1;
+  if (chapterNum === current + 1) state.progress[code] = chapterNum;      // 次の章を完了
+  else if (chapterNum === current) state.progress[code] = chapterNum - 1; // 最後の章を取り消し
   else return;
   saveState();
   renderProgressPage();
   renderToday();
   renderBadgesPage();
+  if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
+}
+
+// 後方互換：旧toggleLesson呼び出しがあった場合のフォールバック
+function toggleLesson(code, lessonNum, semId) {
+  toggleChapter(code, lessonNum * 4, semId);
 }
