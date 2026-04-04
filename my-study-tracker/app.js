@@ -3,14 +3,12 @@
 // 初期化・状態管理・ナビゲーション・共通ヘルパー
 // ============================================================
 
-// ── ストレージキー ──
 const KEYS = {
   enrollments: 'cp-enrollments',
   progress: 'cp-progress',
   currentSem: 'cp-current-sem',
 };
 
-// ── 状態 ──
 let state = {
   currentSemesterId: 1,
   enrollments: {},
@@ -18,9 +16,6 @@ let state = {
   activeSubjectFilter: 'all',
 };
 
-// ============================================================
-// 初期化
-// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
   setupNav();
@@ -36,15 +31,11 @@ function loadState() {
     state.progress = p ? JSON.parse(p) : {};
     const c = localStorage.getItem(KEYS.currentSem);
     state.currentSemesterId = c ? parseInt(c) : 1;
-    // 移行処理：旧コマ単位（最大15）→ 新章単位（最大60）
-    // 値が章数の最大値(60)以下かつコマ数の最大値(15)以下なら旧データと判断して4倍に変換
+    // 移行処理：旧コマ単位→新章単位
     let migrated = false;
     Object.keys(state.progress).forEach(code => {
       const val = state.progress[code];
-      if (val > 0 && val <= 15) {
-        state.progress[code] = val * 4;
-        migrated = true;
-      }
+      if (val > 0 && val <= 15) { state.progress[code] = val * 4; migrated = true; }
     });
     if (migrated) saveState();
   } catch(err) { console.error(err); }
@@ -76,12 +67,16 @@ function registerSW() {
 // ナビゲーション
 // ============================================================
 function setupNav() {
-  // ヘッダー歯車ボタン → 設定ページへ（ナビのハイライトは外す）
   document.getElementById('header-settings-btn').addEventListener('click', () => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-settings').classList.add('active');
     renderSettingsPage();
+  });
+
+  // 学期切り替えボタン
+  document.getElementById('header-semester-btn').addEventListener('click', () => {
+    toggleSemesterDrawer();
   });
 
   document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -110,6 +105,63 @@ function render() {
 }
 
 // ============================================================
+// 学期切り替えドロワー
+// ============================================================
+function toggleSemesterDrawer() {
+  const drawer = document.getElementById('semester-drawer');
+  const overlay = document.getElementById('semester-drawer-overlay');
+  const isOpen = drawer.style.display !== 'none';
+  if (isOpen) {
+    closeSemesterDrawer();
+  } else {
+    // リストを構築
+    const listEl = document.getElementById('semester-drawer-list');
+    listEl.innerHTML = '';
+    SEMESTERS.forEach(sem => {
+      const isCurrent = sem.id === state.currentSemesterId;
+      const btn = document.createElement('button');
+      btn.style.cssText = `
+        width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:none;
+        background:${isCurrent ? 'var(--amber-dim)' : 'var(--bg3)'};
+        color:${isCurrent ? 'var(--amber)' : 'var(--text2)'};
+        font-size:13px;font-weight:${isCurrent ? '700' : '400'};
+        font-family:'Noto Sans JP',sans-serif;cursor:pointer;
+        display:flex;align-items:center;justify-content:space-between;
+      `;
+      const codes = getEnrolledCodes(sem.id);
+      btn.innerHTML = `
+        <span>${sem.name}</span>
+        <span style="font-size:11px;color:var(--text3)">${codes.length}科目</span>
+      `;
+      if (isCurrent) btn.innerHTML += `<span style="margin-left:4px;color:var(--amber)">✓</span>`;
+      btn.addEventListener('click', () => {
+        state.currentSemesterId = sem.id;
+        saveState();
+        closeSemesterDrawer();
+        renderHeader();
+        // 現在表示中のタブを再描画
+        const activePage = document.querySelector('.page.active');
+        if (activePage) {
+          const pageId = activePage.id;
+          if (pageId === 'page-today')    renderToday();
+          if (pageId === 'page-progress') renderProgressPage();
+          if (pageId === 'page-schedule') renderSchedulePage();
+          if (pageId === 'page-badges')   renderBadgesPage();
+        }
+      });
+      listEl.appendChild(btn);
+    });
+    drawer.style.display = 'block';
+    overlay.style.display = 'block';
+  }
+}
+
+function closeSemesterDrawer() {
+  document.getElementById('semester-drawer').style.display = 'none';
+  document.getElementById('semester-drawer-overlay').style.display = 'none';
+}
+
+// ============================================================
 // 共通ヘルパー
 // ============================================================
 function getCurrentSemester() {
@@ -133,12 +185,6 @@ function getTotalCredits(semId) {
   return getEnrolledSubjects(semId).reduce((a, s) => a + s.credits, 0);
 }
 
-function getTotalCreditsAll() {
-  let total = 0;
-  SEMESTERS.forEach(sem => total += getTotalCredits(sem.id));
-  return total;
-}
-
 function getCategoryColor(category) {
   return (CATEGORY_CONFIG[category] || {}).color || '#64748b';
 }
@@ -152,12 +198,12 @@ function renderHeader() {
 }
 
 // ============================================================
-// 章記録（1コマ=4章、通し章番号で管理）
+// 章記録（1コマ=4章）
 // ============================================================
 function toggleChapter(code, chapterNum, semId) {
   const current = getCompletedLessons(code);
-  if (chapterNum === current + 1) state.progress[code] = chapterNum;      // 次の章を完了
-  else if (chapterNum === current) state.progress[code] = chapterNum - 1; // 最後の章を取り消し
+  if (chapterNum === current + 1) state.progress[code] = chapterNum;
+  else if (chapterNum === current) state.progress[code] = chapterNum - 1;
   else return;
   saveState();
   renderProgressPage();
@@ -166,7 +212,6 @@ function toggleChapter(code, chapterNum, semId) {
   if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
 }
 
-// 後方互換：旧toggleLesson呼び出しがあった場合のフォールバック
 function toggleLesson(code, lessonNum, semId) {
   toggleChapter(code, lessonNum * 4, semId);
 }

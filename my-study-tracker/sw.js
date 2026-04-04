@@ -1,5 +1,5 @@
 // ★ デプロイのたびにここのバージョンを上げてください (v1 → v2 → v3 ...)
-const CACHE = 'my-study-tracker-v25';
+const CACHE = 'my-study-tracker-v26';
 const FILES = ['./', './index.html', './style.css', './app.js', './data.js', './manifest.json'];
 
 self.addEventListener('install', e => {

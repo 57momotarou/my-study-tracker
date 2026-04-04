@@ -32,87 +32,69 @@ function renderWeekSchedule(subjects, sem) {
   const now = new Date();
   const todayDow = now.getDay();
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - todayDow);
+  weekStart.setDate(now.getDate() - todayDow); // 日曜始まり
   weekStart.setHours(0, 0, 0, 0);
 
   const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
   const el = document.getElementById('schedule-week');
   el.innerHTML = '';
 
-  let totalDeadlines = 0;
-
   for (let d = 0; d < 7; d++) {
     const date = new Date(weekStart);
     date.setDate(weekStart.getDate() + d);
+    const dateEnd = new Date(date);
+    dateEnd.setHours(23, 59, 59, 999);
     const isToday = d === todayDow;
-    const isPast  = date < new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // この日が締切のコマを収集
     const deadlines = [];
     subjects.forEach(s => {
-      const doneLessons = Math.floor(getCompletedLessons(s.code) / 4);
+      const done = getCompletedLessons(s.code);
       for (let n = 1; n <= s.lessons; n++) {
         const dl = getLessonDeadline(n, s, sem);
+        // この日の12:00が締切のコマ
         if (dl.toDateString() === date.toDateString()) {
-          const isDone = n <= doneLessons;
+          const isDone = n <= done;
           const isLate = !isDone && dl < now;
           deadlines.push({ s, n, isDone, isLate });
         }
       }
     });
-    totalDeadlines += deadlines.length;
 
     const dayCard = document.createElement('div');
     dayCard.style.cssText = `
-      background:${isToday ? 'var(--amber-dim)' : isPast ? 'rgba(17,24,39,0.5)' : 'var(--bg2)'};
+      background:${isToday ? 'var(--amber-dim)' : 'var(--bg2)'};
       border:1px solid ${isToday ? 'var(--amber)' : 'var(--border)'};
       border-radius:var(--radius-sm);
       padding:10px 12px;
-      margin-bottom:6px;
-      opacity:${isPast && !isToday ? '0.7' : '1'};
+      margin-bottom:8px;
     `;
 
     const dateLabel = date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
-
-    // 締切科目の行HTML
-    const deadlineRows = deadlines.length === 0
-      ? `<div style="font-size:11px;color:var(--text3);padding:2px 0">締切なし</div>`
-      : deadlines.map(({ s, n, isDone, isLate }) => {
-          const color = getCategoryColor(s.category);
-          let statusIcon, statusStyle;
-          if (isDone)    { statusIcon = '✅'; statusStyle = `color:${color}`; }
-          else if (isLate) { statusIcon = '🔴'; statusStyle = 'color:var(--red)'; }
-          else             { statusIcon = '⏰'; statusStyle = 'color:var(--amber)'; }
-
-          return `
-            <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);">
-              <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
-                <div style="font-size:10px;color:var(--text3)">コマ${n} ・ 12:00締切</div>
-              </div>
-              <span style="font-size:13px;${statusStyle}">${statusIcon}</span>
-            </div>`;
-        }).join('');
-
     dayCard.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:${deadlines.length ? '8px' : '4px'}">
-        <span style="font-size:11px;font-weight:700;color:${isToday ? 'var(--amber)' : isPast ? 'var(--text3)' : 'var(--text2)'};font-family:'Space Mono',monospace;width:16px">${DOW_LABELS[d]}</span>
-        <span style="font-size:13px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--amber)' : isPast ? 'var(--text3)' : 'var(--text2)'}">${dateLabel}</span>
-        ${isToday ? '<span style="font-size:9px;background:var(--amber);color:#000;padding:1px 6px;border-radius:99px;font-weight:700;margin-left:auto">TODAY</span>' : ''}
-        ${deadlines.length > 0 && !isToday ? `<span style="font-size:9px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:99px;margin-left:auto">${deadlines.length}件</span>` : ''}
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:${deadlines.length ? '8px' : '0'}">
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:${isToday ? 'var(--amber)' : 'var(--text3)'};font-weight:700">${DOW_LABELS[d]}</span>
+        <span style="font-size:13px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--amber)' : 'var(--text2)'}">${dateLabel}</span>
+        ${isToday ? '<span style="font-size:10px;color:var(--amber);margin-left:auto">TODAY</span>' : ''}
       </div>
-      ${deadlineRows}`;
+      ${deadlines.length === 0
+        ? '<div style="font-size:11px;color:var(--text3)">締切なし</div>'
+        : deadlines.map(({ s, n, isDone, isLate }) => {
+            const color = getCategoryColor(s.category);
+            const status = isDone ? `<span style="color:${color};font-size:10px">✅完了</span>`
+                         : isLate ? `<span style="color:var(--red);font-size:10px">🔴遅刻</span>`
+                         : `<span style="color:var(--amber);font-size:10px">⏰期限</span>`;
+            return `
+              <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+                <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
+                <span style="font-size:12px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</span>
+                <span style="font-size:11px;color:var(--text3);flex-shrink:0">コマ${n}</span>
+                ${status}
+              </div>`;
+          }).join('')
+      }`;
 
     el.appendChild(dayCard);
-  }
-
-  // 今週に締切がない場合
-  if (totalDeadlines === 0) {
-    const note = document.createElement('div');
-    note.style.cssText = 'text-align:center;padding:12px;font-size:12px;color:var(--text3)';
-    note.textContent = '今週は締切のある科目がありません';
-    el.appendChild(note);
   }
 }
 
@@ -130,15 +112,15 @@ function renderMonthSchedule(subjects, sem) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   // 各日の締切コマを事前収集
-  const deadlineMap = {};
+  const deadlineMap = {}; // 'YYYY-M-D' → [{s, n, isDone, isLate}]
   subjects.forEach(s => {
-    const doneLessons = Math.floor(getCompletedLessons(s.code) / 4);
+    const done = getCompletedLessons(s.code);
     for (let n = 1; n <= s.lessons; n++) {
       const dl = getLessonDeadline(n, s, sem);
       if (dl.getFullYear() === year && dl.getMonth() === month) {
         const key = `${year}-${month}-${dl.getDate()}`;
         if (!deadlineMap[key]) deadlineMap[key] = [];
-        const isDone = n <= doneLessons;
+        const isDone = n <= done;
         const isLate = !isDone && dl < now;
         deadlineMap[key].push({ s, n, isDone, isLate });
       }
@@ -149,78 +131,52 @@ function renderMonthSchedule(subjects, sem) {
   const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
   let html = `
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px">
-      ${DOW_LABELS.map((d, i) => `<div style="text-align:center;font-size:10px;color:${i===0?'#ef4444':i===6?'#3b82f6':'var(--text3)'};padding:4px 0;font-weight:600">${d}</div>`).join('')}
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+      ${DOW_LABELS.map(d => `<div style="text-align:center;font-size:10px;color:var(--text3);padding:4px 0">${d}</div>`).join('')}
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
 
+  // 月初前の空白
   for (let i = 0; i < firstDow; i++) {
     html += `<div></div>`;
   }
 
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
-    const dow  = date.getDay();
     const isToday = date.toDateString() === now.toDateString();
-    const isPast  = date < new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const key = `${year}-${month}-${day}`;
     const items = deadlineMap[key] || [];
 
-    const hasLate    = items.some(i => i.isLate);
+    const hasLate = items.some(i => i.isLate);
     const hasPending = items.some(i => !i.isDone && !i.isLate);
-    const hasDone    = items.some(i => i.isDone);
+    const hasDone = items.some(i => i.isDone);
 
     let dotColor = '';
     if (hasLate) dotColor = 'var(--red)';
     else if (hasPending) dotColor = 'var(--amber)';
     else if (hasDone) dotColor = 'var(--green)';
 
-    const dayColor = isToday ? 'var(--amber)' : dow === 0 ? '#ef4444' : dow === 6 ? '#60a5fa' : isPast ? 'var(--text3)' : 'var(--text2)';
-
-    // 科目名ラベル（最大2件）
-    const subjectLabels = items.slice(0, 2).map(({ s, isDone, isLate }) => {
-      const c = isDone ? 'var(--green)' : isLate ? 'var(--red)' : 'var(--amber)';
-      const bg = isDone ? 'rgba(16,185,129,0.12)' : isLate ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
-      // 科目名を短縮（6文字まで）
-      const shortName = s.name.length > 5 ? s.name.slice(0, 5) + '…' : s.name;
-      return `<div style="font-size:8px;color:${c};background:${bg};border-radius:3px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${shortName}</div>`;
-    }).join('');
-
-    const moreLabel = items.length > 2 ? `<div style="font-size:8px;color:var(--text3)">+${items.length-2}</div>` : '';
-
     const itemsJson = encodeURIComponent(JSON.stringify(
       items.map(i => ({ name: i.s.name, n: i.n, isDone: i.isDone, isLate: i.isLate, cat: i.s.category }))
     ));
 
     html += `
-      <div onclick="${items.length ? `showDayDeadlines('${year}/${month+1}/${day}', '${itemsJson}')` : ''}"
+      <div onclick="showDayDeadlines('${year}/${month+1}/${day}', '${itemsJson}')"
         style="
-          min-height:52px;
+          aspect-ratio:1;
           border-radius:6px;
           background:${isToday ? 'var(--amber-dim)' : items.length ? 'var(--bg3)' : 'transparent'};
-          border:1px solid ${isToday ? 'var(--amber)' : items.length ? 'var(--border)' : 'transparent'};
-          padding:4px;
-          display:flex;flex-direction:column;gap:2px;
-          cursor:${items.length ? 'pointer' : 'default'};
-          opacity:${isPast && !isToday && !items.length ? '0.4' : '1'};
+          border:1px solid ${isToday ? 'var(--amber)' : 'var(--border)'};
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          gap:2px;cursor:${items.length ? 'pointer' : 'default'};
+          position:relative;
         ">
-        <span style="font-size:11px;font-weight:${isToday ? '700' : '500'};color:${dayColor};line-height:1.2">${day}</span>
-        ${dotColor ? `<div style="width:4px;height:4px;border-radius:50%;background:${dotColor}"></div>` : ''}
-        ${subjectLabels}
-        ${moreLabel}
+        <span style="font-size:12px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--amber)' : 'var(--text2)'}">${day}</span>
+        ${dotColor ? `<div style="width:5px;height:5px;border-radius:50%;background:${dotColor}"></div>` : '<div style="height:5px"></div>'}
       </div>`;
   }
 
-  html += `</div>
-
-  <!-- 凡例 -->
-  <div style="display:flex;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>未受講</div>
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><div style="width:8px;height:8px;border-radius:50%;background:var(--red)"></div>遅刻</div>
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>完了</div>
-    <div style="font-size:10px;color:var(--text3);margin-left:auto">タップで詳細</div>
-  </div>`;
-
+  html += `</div>`;
   el.innerHTML = html;
 }
 
@@ -251,7 +207,7 @@ function showDayDeadlines(dateLabel, itemsJson) {
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:500">${name}</div>
-          <div style="font-size:11px;color:var(--text3)">コマ${n} ・ 12:00締切</div>
+          <div style="font-size:11px;color:var(--text3)">コマ${n} 締切</div>
         </div>
         ${status}
       </div>`;
