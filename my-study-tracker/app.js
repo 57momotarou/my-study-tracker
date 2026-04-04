@@ -1,12 +1,11 @@
 // ============================================================
 // my-study-tracker - app.js
-// 初期化・状態管理・ナビゲーション・共通ヘルパー
 // ============================================================
 
 const KEYS = {
   enrollments: 'cp-enrollments',
-  progress: 'cp-progress',
-  currentSem: 'cp-current-sem',
+  progress:    'cp-progress',
+  currentSem:  'cp-current-sem',
 };
 
 let state = {
@@ -31,7 +30,7 @@ function loadState() {
     state.progress = p ? JSON.parse(p) : {};
     const c = localStorage.getItem(KEYS.currentSem);
     state.currentSemesterId = c ? parseInt(c) : 1;
-    // 移行処理：旧コマ単位→新章単位
+    // 移行処理：旧コマ単位→章単位
     let migrated = false;
     Object.keys(state.progress).forEach(code => {
       const val = state.progress[code];
@@ -43,17 +42,17 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(KEYS.enrollments, JSON.stringify(state.enrollments));
-  localStorage.setItem(KEYS.progress, JSON.stringify(state.progress));
-  localStorage.setItem(KEYS.currentSem, String(state.currentSemesterId));
+  localStorage.setItem(KEYS.progress,    JSON.stringify(state.progress));
+  localStorage.setItem(KEYS.currentSem,  String(state.currentSemesterId));
 }
 
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('./sw.js').then(reg => {
     reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated') window.location.reload();
+      const w = reg.installing;
+      w.addEventListener('statechange', () => {
+        if (w.state === 'activated') window.location.reload();
       });
     });
   });
@@ -74,7 +73,6 @@ function setupNav() {
     renderSettingsPage();
   });
 
-  // 学期切り替えボタン
   document.getElementById('header-semester-btn').addEventListener('click', () => {
     toggleSemesterDrawer();
   });
@@ -105,59 +103,54 @@ function render() {
 }
 
 // ============================================================
-// 学期切り替えドロワー
+// 学期切り替えドロワー（横並び）
 // ============================================================
 function toggleSemesterDrawer() {
-  const drawer = document.getElementById('semester-drawer');
+  const drawer  = document.getElementById('semester-drawer');
   const overlay = document.getElementById('semester-drawer-overlay');
-  const isOpen = drawer.style.display !== 'none';
-  if (isOpen) {
+  if (drawer.style.display !== 'none') {
     closeSemesterDrawer();
-  } else {
-    // リストを構築
-    const listEl = document.getElementById('semester-drawer-list');
-    listEl.innerHTML = '';
-    SEMESTERS.forEach(sem => {
-      const isCurrent = sem.id === state.currentSemesterId;
-      const btn = document.createElement('button');
-      btn.style.cssText = `
-        width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:none;
-        background:${isCurrent ? 'var(--amber-dim)' : 'var(--bg3)'};
-        color:${isCurrent ? 'var(--amber)' : 'var(--text2)'};
-        font-size:13px;font-weight:${isCurrent ? '700' : '400'};
-        font-family:'Noto Sans JP',sans-serif;cursor:pointer;
-        display:flex;align-items:center;justify-content:space-between;
-      `;
-      const codes = getEnrolledCodes(sem.id);
-      btn.innerHTML = `
-        <span>${sem.name}</span>
-        <span style="font-size:11px;color:var(--text3)">${codes.length}科目</span>
-      `;
-      if (isCurrent) btn.innerHTML += `<span style="margin-left:4px;color:var(--amber)">✓</span>`;
-      btn.addEventListener('click', () => {
-        state.currentSemesterId = sem.id;
-        saveState();
-        closeSemesterDrawer();
-        renderHeader();
-        // 現在表示中のタブを再描画
-        const activePage = document.querySelector('.page.active');
-        if (activePage) {
-          const pageId = activePage.id;
-          if (pageId === 'page-today')    renderToday();
-          if (pageId === 'page-progress') renderProgressPage();
-          if (pageId === 'page-schedule') renderSchedulePage();
-          if (pageId === 'page-badges')   renderBadgesPage();
-        }
-      });
-      listEl.appendChild(btn);
-    });
-    drawer.style.display = 'block';
-    overlay.style.display = 'block';
+    return;
   }
+  const listEl = document.getElementById('semester-drawer-list');
+  listEl.innerHTML = '';
+  SEMESTERS.forEach(sem => {
+    const isCurrent = sem.id === state.currentSemesterId;
+    const codes = getEnrolledCodes(sem.id);
+    const btn = document.createElement('button');
+    btn.style.cssText = `
+      flex-shrink:0;
+      padding:8px 14px;
+      border-radius:99px;
+      border:1px solid ${isCurrent ? 'var(--amber)' : 'var(--border)'};
+      background:${isCurrent ? 'var(--amber)' : 'var(--bg3)'};
+      color:${isCurrent ? '#000' : 'var(--text2)'};
+      font-size:12px;font-weight:${isCurrent ? '700' : '400'};
+      font-family:'Noto Sans JP',sans-serif;cursor:pointer;white-space:nowrap;
+    `;
+    btn.textContent = sem.name + (codes.length ? ` (${codes.length})` : '');
+    btn.addEventListener('click', () => {
+      state.currentSemesterId = sem.id;
+      saveState();
+      closeSemesterDrawer();
+      renderHeader();
+      const activePage = document.querySelector('.page.active');
+      if (activePage) {
+        const id = activePage.id;
+        if (id === 'page-today')    renderToday();
+        if (id === 'page-progress') renderProgressPage();
+        if (id === 'page-schedule') renderSchedulePage();
+        if (id === 'page-badges')   renderBadgesPage();
+      }
+    });
+    listEl.appendChild(btn);
+  });
+  drawer.style.display  = 'block';
+  overlay.style.display = 'block';
 }
 
 function closeSemesterDrawer() {
-  document.getElementById('semester-drawer').style.display = 'none';
+  document.getElementById('semester-drawer').style.display  = 'none';
   document.getElementById('semester-drawer-overlay').style.display = 'none';
 }
 
@@ -167,31 +160,21 @@ function closeSemesterDrawer() {
 function getCurrentSemester() {
   return SEMESTERS.find(s => s.id === state.currentSemesterId) || SEMESTERS[0];
 }
-
 function getEnrolledCodes(semId) {
   return state.enrollments[semId] || [];
 }
-
 function getEnrolledSubjects(semId) {
-  const codes = getEnrolledCodes(semId);
-  return codes.map(code => ALL_SUBJECTS.find(s => s.code === code)).filter(Boolean);
+  return getEnrolledCodes(semId)
+    .map(code => ALL_SUBJECTS.find(s => s.code === code))
+    .filter(Boolean);
 }
-
 function getCompletedLessons(code) {
   return state.progress[code] || 0;
 }
-
-function getTotalCredits(semId) {
-  return getEnrolledSubjects(semId).reduce((a, s) => a + s.credits, 0);
-}
-
 function getCategoryColor(category) {
   return (CATEGORY_CONFIG[category] || {}).color || '#64748b';
 }
 
-// ============================================================
-// ヘッダー
-// ============================================================
 function renderHeader() {
   const sem = getCurrentSemester();
   document.getElementById('header-semester').textContent = sem.name;
@@ -202,8 +185,8 @@ function renderHeader() {
 // ============================================================
 function toggleChapter(code, chapterNum, semId) {
   const current = getCompletedLessons(code);
-  if (chapterNum === current + 1) state.progress[code] = chapterNum;
-  else if (chapterNum === current) state.progress[code] = chapterNum - 1;
+  if      (chapterNum === current + 1) state.progress[code] = chapterNum;
+  else if (chapterNum === current)     state.progress[code] = chapterNum - 1;
   else return;
   saveState();
   renderProgressPage();
@@ -211,7 +194,6 @@ function toggleChapter(code, chapterNum, semId) {
   renderBadgesPage();
   if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
 }
-
 function toggleLesson(code, lessonNum, semId) {
   toggleChapter(code, lessonNum * 4, semId);
 }

@@ -611,3 +611,11 @@ body {
   border-color: var(--amber);
   color: var(--amber);
 }
+
+/* ── ドロワーのスクロールバー非表示 ── */
+#semester-drawer-list::-webkit-scrollbar { display: none; }
+
+/* ── 今日タブ プログレストグル ── */
+.today-progress-toggle {
+  -webkit-tap-highlight-color: transparent;
+}

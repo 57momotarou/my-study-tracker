@@ -18,7 +18,6 @@
     <div class="header-inner">
       <div class="header-left">
         <span class="header-logo">my-study-tracker</span>
-        <!-- タップで学期切り替えドロワーを開く -->
         <button class="header-semester-btn" id="header-semester-btn" aria-label="学期切り替え">
           <span id="header-semester">読み込み中...</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10" style="margin-left:3px;opacity:0.6"><polyline points="6 9 12 15 18 9"/></svg>
@@ -32,11 +31,11 @@
     </div>
   </header>
 
-  <!-- 学期切り替えドロワー -->
+  <!-- 学期ドロワー（横並びスクロール） -->
   <div id="semester-drawer-overlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5)" onclick="closeSemesterDrawer()"></div>
-  <div id="semester-drawer" style="display:none;position:fixed;top:calc(var(--header-h) + env(safe-area-inset-top));left:0;right:0;z-index:301;background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 14px 12px">
-    <div style="font-size:10px;color:var(--amber);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:8px">SELECT SEMESTER</div>
-    <div id="semester-drawer-list" style="display:flex;flex-direction:column;gap:4px"></div>
+  <div id="semester-drawer" style="display:none;position:fixed;top:calc(var(--header-h) + env(safe-area-inset-top));left:0;right:0;z-index:301;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px 14px">
+    <div style="font-size:10px;color:var(--amber);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:10px">SELECT SEMESTER</div>
+    <div id="semester-drawer-list" style="display:flex;flex-direction:row;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px"></div>
   </div>
 
   <main class="main">
@@ -52,12 +51,6 @@
       </div>
 
       <div class="card">
-        <div class="card-label">UPCOMING</div>
-        <div class="card-title">迫っている締切</div>
-        <div id="today-upcoming"></div>
-      </div>
-
-      <div class="card">
         <div class="card-label">THIS WEEK</div>
         <div class="card-title">今週のスケジュール</div>
         <div class="week-strip" id="week-strip"></div>
@@ -67,6 +60,13 @@
         <div class="card-label">ADVANCE</div>
         <div class="card-title">先取りおすすめ</div>
         <div id="today-advance"></div>
+      </div>
+
+      <!-- 迫っている締切は一番下 -->
+      <div class="card">
+        <div class="card-label">UPCOMING</div>
+        <div class="card-title">迫っている締切</div>
+        <div id="today-upcoming"></div>
       </div>
     </div>
 
@@ -101,7 +101,6 @@
             <button id="schedule-view-month" class="filter-btn f-all" onclick="scheduleView='month';renderSchedulePage()">月</button>
           </div>
         </div>
-        <!-- 月ナビ -->
         <div id="schedule-month-nav" style="display:none;align-items:center;justify-content:space-between;margin-bottom:12px">
           <button onclick="scheduleMonthOffset--;renderSchedulePage()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">‹</button>
           <span id="schedule-month-label" style="font-size:14px;font-weight:700"></span>
@@ -131,7 +130,6 @@
 
   </main>
 
-  <!-- タブ順：今日→進捗→バッジ（スケジュールはタブなし・設定は歯車のみ） -->
   <nav class="nav">
     <button class="nav-btn active" data-page="today">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -146,7 +144,7 @@
       バッジ
     </button>
     <button class="nav-btn" data-page="schedule">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><circle cx="8" cy="15" r="1" fill="currentColor"/><circle cx="12" cy="15" r="1" fill="currentColor"/><circle cx="16" cy="15" r="1" fill="currentColor"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
       予定
     </button>
   </nav>
