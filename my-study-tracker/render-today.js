@@ -27,6 +27,9 @@ function renderToday() {
     }
   });
 
+  // 迫っている締切一覧
+  renderUpcomingDeadlines(subjects, sem);
+
   // 今日の時間割
   const ttEl = document.getElementById('today-timetable');
   if (subjects.length === 0) {
@@ -116,4 +119,70 @@ function renderToday() {
         <div class="prog-bar" style="width:${pct}%;background:var(--amber)"></div>
       </div>`;
   }
+}
+
+// ============================================================
+// 迫っている締切一覧（今日タブ）
+// ============================================================
+function renderUpcomingDeadlines(subjects, sem) {
+  const el = document.getElementById('today-upcoming');
+  if (!el) return;
+  if (subjects.length === 0) { el.innerHTML = ''; return; }
+
+  const now = new Date();
+  const twoWeeksLater = new Date(now.getTime() + 14 * 86400000);
+
+  // 全科目・全コマから「未完了かつ2週間以内に締切が来るコマ」を収集
+  const items = [];
+  subjects.forEach(s => {
+    const done = getCompletedLessons(s.code);
+    for (let n = 1; n <= s.lessons; n++) {
+      if (n <= done) continue; // 完了済みはスキップ
+      const deadline = getLessonDeadline(n, s, sem);
+      if (deadline > twoWeeksLater) break; // 2週間超はスキップ
+      const isLate = deadline < now;
+      const daysLeft = Math.ceil((deadline - now) / 86400000);
+      items.push({ s, n, deadline, isLate, daysLeft });
+    }
+  });
+
+  if (items.length === 0) {
+    el.innerHTML = `<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">2週間以内の締切はありません 🎉</div>`;
+    return;
+  }
+
+  // 締切日でソート（遅刻→期限近い順）
+  items.sort((a, b) => a.deadline - b.deadline);
+
+  el.innerHTML = items.map(({ s, n, deadline, isLate, daysLeft }) => {
+    const color = getCategoryColor(s.category);
+    const dateStr = deadline.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+    let labelStyle, labelText, rowStyle = '';
+    if (isLate) {
+      labelStyle = 'color:var(--red)';
+      labelText = '遅刻中';
+      rowStyle = 'border-left:3px solid var(--red);padding-left:10px';
+    } else if (daysLeft <= 3) {
+      labelStyle = 'color:var(--red)';
+      labelText = `あと${daysLeft}日`;
+      rowStyle = 'border-left:3px solid var(--red);padding-left:10px';
+    } else if (daysLeft <= 7) {
+      labelStyle = 'color:var(--amber)';
+      labelText = `あと${daysLeft}日`;
+      rowStyle = 'border-left:3px solid var(--amber);padding-left:10px';
+    } else {
+      labelStyle = 'color:var(--text3)';
+      labelText = `あと${daysLeft}日`;
+      rowStyle = 'border-left:3px solid var(--border);padding-left:10px';
+    }
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);${rowStyle}">
+        <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">コマ${n} ・ 〜${dateStr} 12:00</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;${labelStyle};flex-shrink:0">${labelText}</span>
+      </div>`;
+  }).join('');
 }
