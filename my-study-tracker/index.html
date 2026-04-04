@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -31,71 +30,69 @@
 
   <main class="main">
 
-```
-<!-- ===== 今日タブ ===== -->
-<div class="page active" id="page-today">
-  <div id="today-alerts"></div>
+    <!-- ===== 今日タブ ===== -->
+    <div class="page active" id="page-today">
+      <div id="today-alerts"></div>
 
-  <div class="card">
-    <div class="card-label">TODAY</div>
-    <div class="card-title" id="today-date"></div>
-    <div id="today-timetable"></div>
-  </div>
+      <div class="card">
+        <div class="card-label">TODAY</div>
+        <div class="card-title" id="today-date"></div>
+        <div id="today-timetable"></div>
+      </div>
 
-  <div class="card">
-    <div class="card-label">THIS WEEK</div>
-    <div class="card-title">今週のスケジュール</div>
-    <div class="week-strip" id="week-strip"></div>
-  </div>
+      <div class="card">
+        <div class="card-label">THIS WEEK</div>
+        <div class="card-title">今週のスケジュール</div>
+        <div class="week-strip" id="week-strip"></div>
+      </div>
 
-  <div class="card">
-    <div class="card-label">PROGRESS</div>
-    <div class="card-title">今期の進捗</div>
-    <div id="today-progress"></div>
-  </div>
-</div>
+      <div class="card">
+        <div class="card-label">PROGRESS</div>
+        <div class="card-title">今期の進捗</div>
+        <div id="today-progress"></div>
+      </div>
+    </div>
 
-<!-- ===== 設定タブ ===== -->
-<div class="page" id="page-settings">
+    <!-- ===== 設定タブ ===== -->
+    <div class="page" id="page-settings">
 
-  <!-- 履修科目選択セクション -->
-  <div class="semester-tabs" id="semester-tabs"></div>
+      <!-- 履修科目選択セクション -->
+      <div class="semester-tabs" id="semester-tabs"></div>
 
-  <div class="card" id="subject-selection-area">
-    <div class="card-label">ENROLLMENT</div>
-    <div class="card-title">履修科目を選択</div>
-    <div id="subject-filters" class="filter-row"></div>
-    <div id="subject-list"></div>
-  </div>
+      <div class="card" id="subject-selection-area">
+        <div class="card-label">ENROLLMENT</div>
+        <div class="card-title">履修科目を選択</div>
+        <div id="subject-filters" class="filter-row"></div>
+        <div id="subject-list"></div>
+      </div>
 
-  <div class="card" id="enrolled-summary">
-    <div class="card-label">SELECTED</div>
-    <div class="card-title">選択中の科目</div>
-    <div id="enrolled-list"></div>
-    <div id="enrolled-stats" class="enrolled-stats"></div>
-  </div>
-</div>
+      <div class="card" id="enrolled-summary">
+        <div class="card-label">SELECTED</div>
+        <div class="card-title">選択中の科目</div>
+        <div id="enrolled-list"></div>
+        <div id="enrolled-stats" class="enrolled-stats"></div>
+      </div>
+    </div>
 
-<!-- ===== バッジタブ ===== -->
-<div class="page" id="page-badges">
-  <div class="card">
-    <div class="card-label">BADGES</div>
-    <div class="card-title">オープンバッジ</div>
-    <div id="badge-summary"></div>
-  </div>
-  <div id="badge-list-container"></div>
-</div>
+    <!-- ===== バッジタブ ===== -->
+    <div class="page" id="page-badges">
+      <div class="card">
+        <div class="card-label">BADGES</div>
+        <div class="card-title">オープンバッジ</div>
+        <div id="badge-summary"></div>
+      </div>
+      <div id="badge-list-container"></div>
+    </div>
 
-<!-- ===== 進捗タブ ===== -->
-<div class="page" id="page-progress">
-  <div class="card">
-    <div class="card-label">SEMESTER</div>
-    <div class="card-title">学期別進捗</div>
-    <div id="semester-progress-selector" class="filter-row"></div>
-  </div>
-  <div id="progress-subject-list"></div>
-</div>
-```
+    <!-- ===== 進捗タブ ===== -->
+    <div class="page" id="page-progress">
+      <div class="card">
+        <div class="card-label">SEMESTER</div>
+        <div class="card-title">学期別進捗</div>
+        <div id="semester-progress-selector" class="filter-row"></div>
+      </div>
+      <div id="progress-subject-list"></div>
+    </div>
 
   </main>
 
@@ -115,18 +112,11 @@
   </nav>
 
   <script src="./data.js"></script>
-
   <script src="./attendance.js"></script>
-
   <script src="./render-today.js"></script>
-
   <script src="./render-settings.js"></script>
-
   <script src="./render-badges.js"></script>
-
   <script src="./render-progress.js"></script>
-
   <script src="./app.js"></script>
-
 </body>
 </html>
