@@ -16,6 +16,10 @@ function getAttendanceKey(subject, semester) {
     if (subject.is_enshu) return 'kyoyo_enshu';
     if (subject.term === '前期') return 'kyoyo_zenki';
     if (subject.term === '後期') return 'kyoyo_koki';
+    // 通期科目：春学期→前期テーブル、秋学期→後期テーブル（将来対応）を使用
+    if (subject.term === '通期') {
+      return semester.season === '春' ? 'kyoyo_zenki' : 'kyoyo_koki';
+    }
   }
   return null;
 }

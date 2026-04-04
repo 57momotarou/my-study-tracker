@@ -85,7 +85,14 @@ function renderProgressPage() {
             </div>
             <div style="font-size:11px;color:${statusColor};margin-left:14px">${statusText}</div>
           </div>
-          <div class="ps-pct" style="color:${color}">${pct}%</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="ps-pct" style="color:${color}">${pct}%</div>
+            <button onclick="showDeadlineModal('${s.code}', ${semId})" style="
+              background:var(--bg3);border:1px solid var(--border);color:var(--text3);
+              font-size:10px;padding:3px 8px;border-radius:99px;cursor:pointer;
+              font-family:'Noto Sans JP',sans-serif;white-space:nowrap;
+            ">締切一覧</button>
+          </div>
         </div>
         <div class="ps-meta">${done} / ${s.lessons} コマ完了 ・ <span style="color:var(--text3)">${openLabel}開講</span>${late > 0 ? ` ・ <span style="color:var(--red)">遅刻${late}コマ</span>` : ''}</div>
         <div class="prog-wrap">
