@@ -3,11 +3,8 @@
 // ============================================================
 
 const CHAPTERS_PER_LESSON = 4;
-// 展開中の科目コードを管理
-if (typeof expandedSubjects === 'undefined') var expandedSubjects = new Set();
 
 function renderProgressPage() {
-  // 学期セレクター
   const selEl = document.getElementById('semester-progress-selector');
   selEl.innerHTML = '';
   SEMESTERS.forEach(sem => {
@@ -39,14 +36,14 @@ function renderProgressPage() {
   }
 
   // 全体サマリー
-  const CPL        = CHAPTERS_PER_LESSON;
-  const totalCh    = subjects.reduce((a, s) => a + s.lessons * CPL, 0);
-  const doneCh     = subjects.reduce((a, s) => a + getCompletedLessons(s.code), 0);
-  const pctAll     = totalCh > 0 ? Math.round(doneCh / totalCh * 100) : 0;
-  const doneLesAll = subjects.reduce((a, s) => a + Math.floor(getCompletedLessons(s.code) / CPL), 0);
-  const totalLes   = subjects.reduce((a, s) => a + s.lessons, 0);
-  const lateCount  = subjects.filter(s =>
-    Math.floor(getCompletedLessons(s.code) / CPL) < getTodayTarget(s, sem)
+  const CPL      = CHAPTERS_PER_LESSON;
+  const totalCh  = subjects.reduce((a,s) => a + s.lessons * CPL, 0);
+  const doneCh   = subjects.reduce((a,s) => a + getCompletedLessons(s.code), 0);
+  const pctAll   = totalCh > 0 ? Math.round(doneCh / totalCh * 100) : 0;
+  const doneLen  = subjects.reduce((a,s) => a + Math.floor(getCompletedLessons(s.code)/CPL), 0);
+  const totalLen = subjects.reduce((a,s) => a + s.lessons, 0);
+  const lateCount = subjects.filter(s =>
+    Math.floor(getCompletedLessons(s.code)/CPL) < getTodayTarget(s, sem)
   ).length;
 
   const summaryCard = document.createElement('div');
@@ -58,7 +55,7 @@ function renderProgressPage() {
         <div style="font-size:10px;color:var(--text3);margin-top:2px">全体進捗</div>
       </div>
       <div style="flex:1;background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700">${doneLesAll}<span style="font-size:13px;color:var(--text3)">/${totalLes}</span></div>
+        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700">${doneLen}<span style="font-size:13px;color:var(--text3)">/${totalLen}</span></div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px">完了コマ</div>
       </div>
       <div style="flex:1;background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
@@ -72,41 +69,34 @@ function renderProgressPage() {
   listEl.appendChild(summaryCard);
 
   // 科目カード
-  subjects.forEach(s => {
-    const card = buildProgressCard(s, sem, semId);
-    listEl.appendChild(card);
-  });
+  subjects.forEach(s => listEl.appendChild(buildProgressCard(s, sem, semId)));
 }
 
 function buildProgressCard(s, sem, semId) {
-  const CPL          = CHAPTERS_PER_LESSON;
-  const totalCh      = s.lessons * CPL;
-  const doneCh       = getCompletedLessons(s.code);
-  const doneLessons  = Math.floor(doneCh / CPL);
-  const doneChInLes  = doneCh % CPL;
-  const target       = getTodayTarget(s, sem);
-  const recommended  = getTodayRecommended(s, sem);
-  const pct          = Math.round(doneCh / totalCh * 100);
-  const late         = Math.max(0, target - doneLessons);
-  const color        = getCategoryColor(s.category);
-  const openLabel    = s.open_type === '一斉' ? '一斉' : '順次';
+  const CPL         = CHAPTERS_PER_LESSON;
+  const doneCh      = getCompletedLessons(s.code);
+  const doneLessons = Math.floor(doneCh / CPL);
+  const doneChInLes = doneCh % CPL;
+  const target      = getTodayTarget(s, sem);
+  const recommended = getTodayRecommended(s, sem);
+  const pct         = Math.round(doneCh / (s.lessons * CPL) * 100);
+  const late        = Math.max(0, target - doneLessons);
+  const color       = getCategoryColor(s.category);
+  const openLabel   = s.open_type === '一斉' ? '一斉' : '順次';
 
   let statusText = '✅ 出席認定 順調', statusColor = 'var(--green)';
-  if (doneLessons >= s.lessons)        { statusText = '🎓 受講完了';             statusColor = color; }
-  else if (late >= 1)                  { statusText = `🔴 遅刻${late}コマ`;      statusColor = 'var(--red)'; }
-  else if (recommended > doneLessons)  { statusText = `🟡 今週あと${recommended*CPL-doneCh}章で認定`; statusColor = 'var(--amber)'; }
+  if (doneLessons >= s.lessons)       { statusText = '🎓 受講完了';               statusColor = color; }
+  else if (late >= 1)                 { statusText = `🔴 遅刻${late}コマ`;        statusColor = 'var(--red)'; }
+  else if (recommended > doneLessons) { statusText = `🟡 今週あと${recommended*CPL-doneCh}章で認定`; statusColor = 'var(--amber)'; }
 
   const progressLabel = doneChInLes > 0
     ? `コマ${doneLessons+1} 第${doneChInLes}章まで`
     : doneLessons > 0 ? `コマ${doneLessons} 完了` : '未受講';
 
-  const isExpanded = expandedSubjects.has(s.code);
-
   const card = document.createElement('div');
   card.className = 'progress-subject-card';
-  card.id = `pcard-${s.code}`;
 
-  // ヘッダー部（タップで展開）
+  // ヘッダー（タップで展開）
   const headerDiv = document.createElement('div');
   headerDiv.style.cssText = 'cursor:pointer;-webkit-user-select:none;user-select:none';
   headerDiv.innerHTML = `
@@ -121,33 +111,30 @@ function buildProgressCard(s, sem, semId) {
       <div style="display:flex;align-items:center;gap:6px">
         <div class="ps-pct" style="color:${color}">${pct}%</div>
         <svg id="picon-${s.code}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          width="16" height="16" style="color:var(--text3);transition:transform 0.2s;transform:rotate(${isExpanded?'180':'0'}deg)">
+          width="16" height="16" style="color:var(--text3);transition:transform 0.2s">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </div>
     </div>
     <div class="ps-meta">${progressLabel} ・ <span style="color:var(--text3)">${openLabel}開講</span>${late>0?` ・ <span style="color:var(--red)">遅刻${late}コマ</span>`:''}</div>
-    <div class="prog-wrap">
-      <div class="prog-bar" style="width:${pct}%;background:${color}"></div>
-    </div>`;
+    <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>`;
 
+  // タップで詳細展開
   headerDiv.addEventListener('click', () => {
-    const detail = document.getElementById(`pdetail-${s.code}`);
+    const detail = card.querySelector('.pdetail');
     const icon   = document.getElementById(`picon-${s.code}`);
     if (!detail) return;
     const open = detail.style.display === 'none';
     detail.style.display = open ? 'block' : 'none';
-    if (open) expandedSubjects.add(s.code);
-    else      expandedSubjects.delete(s.code);
     if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
   });
 
   card.appendChild(headerDiv);
 
-  // 展開部（章グリッド）
+  // 詳細（章グリッド）
   const detail = document.createElement('div');
-  detail.id = `pdetail-${s.code}`;
-  detail.style.cssText = `display:${isExpanded ? 'block' : 'none'};margin-top:10px`;
+  detail.className = 'pdetail';
+  detail.style.cssText = 'display:none;margin-top:10px';
   detail.appendChild(buildChapterGrid(s, sem, semId, doneCh, doneLessons, recommended, color));
   card.appendChild(detail);
 

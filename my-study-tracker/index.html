@@ -31,11 +31,11 @@
     </div>
   </header>
 
-  <!-- 学期ドロワー（横並びスクロール） -->
+  <!-- 学期切り替えドロワー（横並びスクロール） -->
   <div id="semester-drawer-overlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5)" onclick="closeSemesterDrawer()"></div>
   <div id="semester-drawer" style="display:none;position:fixed;top:calc(var(--header-h) + env(safe-area-inset-top));left:0;right:0;z-index:301;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px 14px">
     <div style="font-size:10px;color:var(--amber);font-family:'Space Mono',monospace;letter-spacing:2px;margin-bottom:10px">SELECT SEMESTER</div>
-    <div id="semester-drawer-list" style="display:flex;flex-direction:row;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px"></div>
+    <div id="semester-drawer-list" class="semester-drawer-list"></div>
   </div>
 
   <main class="main">
@@ -62,7 +62,6 @@
         <div id="today-advance"></div>
       </div>
 
-      <!-- 迫っている締切は一番下 -->
       <div class="card">
         <div class="card-label">UPCOMING</div>
         <div class="card-title">迫っている締切</div>
@@ -90,7 +89,7 @@
       <div id="badge-list-container"></div>
     </div>
 
-    <!-- ===== スケジュールタブ ===== -->
+    <!-- ===== 予定タブ ===== -->
     <div class="page" id="page-schedule">
       <div class="card">
         <div class="card-label">SCHEDULE</div>

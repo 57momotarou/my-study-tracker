@@ -606,16 +606,28 @@ body {
   font-family: 'Noto Sans JP', sans-serif;
   transition: border-color 0.15s, color 0.15s;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
 }
 .header-semester-btn:active {
   border-color: var(--amber);
   color: var(--amber);
 }
 
-/* ── ドロワーのスクロールバー非表示 ── */
-#semester-drawer-list::-webkit-scrollbar { display: none; }
+/* ── 学期ドロワー：横スクロール横並び ── */
+.semester-drawer-list {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.semester-drawer-list::-webkit-scrollbar { display: none; }
 
-/* ── 今日タブ プログレストグル ── */
-.today-progress-toggle {
+/* ── タップハイライト除去 ── */
+.today-subject-card,
+.progress-subject-card,
+.lesson-btn {
   -webkit-tap-highlight-color: transparent;
 }

@@ -16,7 +16,6 @@ function getAttendanceKey(subject, semester) {
     if (subject.is_enshu) return 'kyoyo_enshu';
     if (subject.term === '前期') return 'kyoyo_zenki';
     if (subject.term === '後期') return 'kyoyo_koki';
-    // 通期科目：春学期→前期テーブル、秋学期→後期テーブル（将来対応）を使用
     if (subject.term === '通期') {
       return semester.season === '春' ? 'kyoyo_zenki' : 'kyoyo_koki';
     }
@@ -69,16 +68,27 @@ function getTodayTarget(subject, semester) {
   return count;
 }
 
-// 今から7日以内に締切が来るコマ数（推奨完了コマ数）
+// ── 余裕を持ったスケジュール ──
+// 「締切の7日前までに完了」を目標とする推奨コマ数を返す
+// 例：締切が来週木曜なら「今週中に完了」を推奨
+// ADVANCE_DAYS: 締切の何日前を目標にするか（デフォルト7日）
+const ADVANCE_DAYS = 7;
+
 function getTodayRecommended(subject, semester) {
   const now = new Date();
-  const weekLater = new Date(now);
-  weekLater.setDate(now.getDate() + 7);
+  // 締切の ADVANCE_DAYS 日前を目標日として計算
+  const targetDate = new Date(now);
+  targetDate.setDate(now.getDate() + ADVANCE_DAYS);
+
   let count = 0;
   for (let n = 1; n <= subject.lessons; n++) {
-    if (getLessonDeadline(n, subject, semester) <= weekLater) count++;
+    const deadline = getLessonDeadline(n, subject, semester);
+    // 締切 - ADVANCE_DAYS が今日以前 ＝ 今日時点で「もう進めておくべき」コマ
+    const advanceTarget = new Date(deadline.getTime() - ADVANCE_DAYS * 86400000);
+    if (advanceTarget <= now) count++;
     else break;
   }
+  // 遅刻コマ数を下回らないよう保証
   return Math.max(count, getTodayTarget(subject, semester));
 }
 

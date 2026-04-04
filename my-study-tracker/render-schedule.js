@@ -25,17 +25,27 @@ function renderSchedulePage() {
   }
 }
 
+// 期末試験日を取得する共通関数
+function getKimatsuDate(sem) {
+  if (sem.attendance && sem.attendance.senmon_jyunji && sem.attendance.senmon_jyunji[16]) {
+    const entry = sem.attendance.senmon_jyunji[16];
+    return new Date(typeof entry === 'string' ? entry : entry.end);
+  }
+  return null;
+}
+
 // ============================================================
-// 週表示：各日に科目名・コマ・ステータスを表示
+// 週表示
 // ============================================================
 function renderWeekSchedule(subjects, sem) {
   const now      = new Date();
   const todayDow = now.getDay();
-  const el       = document.getElementById('schedule-week');
   const DOW      = ['日','月','火','水','木','金','土'];
+  const el       = document.getElementById('schedule-week');
   el.innerHTML   = '';
 
-  // 今週の日〜土を生成
+  const kimatsuDate = getKimatsuDate(sem);
+
   for (let d = 0; d < 7; d++) {
     const date = new Date(now);
     date.setDate(now.getDate() - todayDow + d);
@@ -43,7 +53,7 @@ function renderWeekSchedule(subjects, sem) {
     const isToday = d === todayDow;
     const isPast  = date < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !isToday;
 
-    // この日が締切のコマを収集
+    // この日の締切コマ
     const deadlines = [];
     subjects.forEach(s => {
       const doneLessons = Math.floor(getCompletedLessons(s.code) / 4);
@@ -57,29 +67,41 @@ function renderWeekSchedule(subjects, sem) {
       }
     });
 
+    // 期末試験日チェック
+    const isKimatsuDay = kimatsuDate && kimatsuDate.toDateString() === date.toDateString();
+
     const dayEl = document.createElement('div');
     dayEl.style.cssText = `
       background:${isToday ? 'var(--amber-dim)' : isPast ? 'rgba(17,24,39,0.4)' : 'var(--bg2)'};
       border:1px solid ${isToday ? 'var(--amber)' : 'var(--border)'};
       border-radius:var(--radius-sm);
-      padding:10px 12px;
-      margin-bottom:6px;
-      opacity:${isPast ? '0.65' : '1'};
-    `;
+      padding:10px 12px;margin-bottom:6px;
+      opacity:${isPast ? '0.65' : '1'};`;
 
     const dateLabel = date.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric' });
-    const countBadge = deadlines.length > 0 && !isToday
-      ? `<span style="font-size:9px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:99px;margin-left:auto">${deadlines.length}件</span>`
-      : '';
-    const todayBadge = isToday
-      ? `<span style="font-size:9px;background:var(--amber);color:#000;padding:1px 6px;border-radius:99px;margin-left:auto;font-weight:700">TODAY</span>`
+    const todayBadge = isToday ? `<span style="font-size:9px;background:var(--amber);color:#000;padding:1px 6px;border-radius:99px;margin-left:auto;font-weight:700">TODAY</span>` : '';
+    const countBadge = (deadlines.length > 0 || isKimatsuDay) && !isToday
+      ? `<span style="font-size:9px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:99px;margin-left:auto">${deadlines.length + (isKimatsuDay?1:0)}件</span>`
       : '';
 
     let rows = '';
-    if (deadlines.length === 0) {
-      rows = `<div style="font-size:11px;color:var(--text3);padding:2px 0">締切なし</div>`;
+
+    // 期末試験バッジ
+    if (isKimatsuDay) {
+      rows += `
+        <div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border);background:var(--purple-dim);border-radius:4px;padding:6px 8px;margin-bottom:2px">
+          <span style="font-size:14px">📝</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--purple)">期末試験 締切</div>
+            <div style="font-size:10px;color:var(--text3)">専門・順次開講科目 ・ 12:00</div>
+          </div>
+        </div>`;
+    }
+
+    if (deadlines.length === 0 && !isKimatsuDay) {
+      rows += `<div style="font-size:11px;color:var(--text3);padding:2px 0">締切なし</div>`;
     } else {
-      rows = deadlines.map(({ s, n, isDone, isLate }) => {
+      rows += deadlines.map(({ s, n, isDone, isLate }) => {
         const color = getCategoryColor(s.category);
         let icon, iconColor;
         if (isDone)      { icon = '✅'; iconColor = color; }
@@ -98,7 +120,7 @@ function renderWeekSchedule(subjects, sem) {
     }
 
     dayEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:${deadlines.length ? '8px' : '2px'}">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:${(deadlines.length||isKimatsuDay) ? '8px' : '2px'}">
         <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;
           color:${isToday ? 'var(--amber)' : isPast ? 'var(--text3)' : 'var(--text2)'}">${DOW[d]}</span>
         <span style="font-size:13px;font-weight:${isToday?'700':'400'};
@@ -112,7 +134,7 @@ function renderWeekSchedule(subjects, sem) {
 }
 
 // ============================================================
-// 月表示：各日マスに科目名ラベルを表示（タップで詳細）
+// 月表示：科目名ラベル＋期末試験日
 // ============================================================
 function renderMonthSchedule(subjects, sem) {
   const now   = new Date();
@@ -125,6 +147,7 @@ function renderMonthSchedule(subjects, sem) {
   const firstDow    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const DOW         = ['日','月','火','水','木','金','土'];
+  const kimatsuDate = getKimatsuDate(sem);
 
   // 締切マップ構築
   const dlMap = {};
@@ -142,90 +165,92 @@ function renderMonthSchedule(subjects, sem) {
 
   const el = document.getElementById('schedule-month');
 
-  // 曜日ヘッダー
   let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
-    ${DOW.map((d, i) =>
+    ${DOW.map((d,i) =>
       `<div style="text-align:center;font-size:10px;padding:3px 0;font-weight:600;
         color:${i===0?'#ef4444':i===6?'#60a5fa':'var(--text3)'}">${d}</div>`
     ).join('')}
-  </div>`;
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
 
-  // カレンダーグリッド
-  html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
-
-  // 月初前の空白
   for (let i = 0; i < firstDow; i++) html += `<div></div>`;
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const dow     = new Date(year, month, day).getDay();
-    const isToday = new Date(year, month, day).toDateString() === now.toDateString();
-    const isPast  = new Date(year, month, day) < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !isToday;
-    const items   = dlMap[day] || [];
+    const dow          = new Date(year, month, day).getDay();
+    const isToday      = new Date(year, month, day).toDateString() === now.toDateString();
+    const isPast       = new Date(year, month, day) < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && !isToday;
+    const items        = dlMap[day] || [];
+    const isKimatsuDay = kimatsuDate
+      && kimatsuDate.getFullYear() === year
+      && kimatsuDate.getMonth() === month
+      && kimatsuDate.getDate() === day;
 
     const hasLate    = items.some(i => i.isLate);
     const hasPending = items.some(i => !i.isDone && !i.isLate);
     const hasDone    = items.some(i => i.isDone && !i.isLate);
-
-    // 日付セルの上端ドット色
     let dotColor = '';
-    if (hasLate)    dotColor = 'var(--red)';
+    if (hasLate)         dotColor = 'var(--red)';
     else if (hasPending) dotColor = 'var(--amber)';
     else if (hasDone)    dotColor = 'var(--green)';
 
-    // 科目名ラベル（最大2件・6文字短縮）
+    // 科目名ラベル（最大2件）
     const labels = items.slice(0, 2).map(({ s, isDone, isLate }) => {
       const c  = isDone ? 'var(--green)' : isLate ? 'var(--red)' : 'var(--amber)';
       const bg = isDone ? 'rgba(16,185,129,0.12)' : isLate ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
-      const short = s.name.length > 5 ? s.name.slice(0, 5) + '…' : s.name;
+      const short = s.name.length > 5 ? s.name.slice(0,5) + '…' : s.name;
       return `<div style="font-size:8px;color:${c};background:${bg};border-radius:3px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${short}</div>`;
     }).join('');
-    const more = items.length > 2
-      ? `<div style="font-size:8px;color:var(--text3)">+${items.length-2}</div>` : '';
+    const more = items.length > 2 ? `<div style="font-size:8px;color:var(--text3)">+${items.length-2}</div>` : '';
+
+    // 期末ラベル
+    const kimatsuLabel = isKimatsuDay
+      ? `<div style="font-size:8px;color:var(--purple);background:var(--purple-dim);border-radius:3px;padding:1px 3px;white-space:nowrap">📝期末</div>`
+      : '';
 
     const dayColor = isToday ? 'var(--amber)'
       : dow === 0 ? '#ef4444' : dow === 6 ? '#60a5fa'
       : isPast ? 'var(--text3)' : 'var(--text2)';
 
+    const hasContent = items.length > 0 || isKimatsuDay;
     const itemsJson = encodeURIComponent(JSON.stringify(
       items.map(i => ({ name: i.s.name, n: i.n, isDone: i.isDone, isLate: i.isLate, cat: i.s.category }))
     ));
 
     html += `
-      <div onclick="${items.length ? `showDayDeadlines('${year}/${month+1}/${day}','${itemsJson}')` : ''}"
+      <div onclick="${hasContent ? `showDayDeadlines('${year}/${month+1}/${day}','${itemsJson}',${isKimatsuDay})` : ''}"
         style="
           min-height:52px;border-radius:6px;padding:3px 4px;
-          background:${isToday ? 'var(--amber-dim)' : items.length ? 'var(--bg3)' : 'transparent'};
-          border:1px solid ${isToday ? 'var(--amber)' : items.length ? 'var(--border)' : 'transparent'};
+          background:${isToday ? 'var(--amber-dim)' : isKimatsuDay ? 'var(--purple-dim)' : hasContent ? 'var(--bg3)' : 'transparent'};
+          border:1px solid ${isToday ? 'var(--amber)' : isKimatsuDay ? 'var(--purple)' : hasContent ? 'var(--border)' : 'transparent'};
           display:flex;flex-direction:column;gap:2px;
-          cursor:${items.length ? 'pointer' : 'default'};
-          opacity:${isPast && !items.length ? '0.35' : '1'};
+          cursor:${hasContent ? 'pointer' : 'default'};
+          opacity:${isPast && !hasContent ? '0.35' : '1'};
         ">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:11px;font-weight:${isToday?'700':'500'};color:${dayColor}">${day}</span>
           ${dotColor ? `<div style="width:4px;height:4px;border-radius:50%;background:${dotColor}"></div>` : ''}
         </div>
-        ${labels}${more}
+        ${labels}${more}${kimatsuLabel}
       </div>`;
   }
 
   html += `</div>
-  <div style="display:flex;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center">
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>未受講</div>
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><div style="width:8px;height:8px;border-radius:50%;background:var(--red)"></div>遅刻</div>
-    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3)"><div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>完了</div>
-    <span style="font-size:10px;color:var(--text3);margin-left:auto">タップで詳細</span>
+  <div style="display:flex;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center;font-size:10px;color:var(--text3)">
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div>未受講</div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:var(--red)"></div>遅刻</div>
+    <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>完了</div>
+    <div style="display:flex;align-items:center;gap:4px"><span>📝</span>期末試験</div>
+    <span style="margin-left:auto">タップで詳細</span>
   </div>`;
 
   el.innerHTML = html;
 }
 
 // ============================================================
-// 日付タップ→締切詳細モーダル
+// 日付タップ→詳細モーダル（期末試験対応）
 // ============================================================
-function showDayDeadlines(dateLabel, itemsJson) {
+function showDayDeadlines(dateLabel, itemsJson, isKimatsu) {
   const items = JSON.parse(decodeURIComponent(itemsJson));
-  if (!items.length) return;
-
   const existing = document.getElementById('day-deadline-modal');
   if (existing) existing.remove();
 
@@ -234,6 +259,15 @@ function showDayDeadlines(dateLabel, itemsJson) {
   modal.style.cssText = `
     position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);
     display:flex;align-items:flex-end;padding-bottom:env(safe-area-inset-bottom);`;
+
+  const kimatsuRow = isKimatsu ? `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);background:var(--purple-dim);border-radius:6px;padding:10px 12px;margin-bottom:4px">
+      <span style="font-size:18px">📝</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--purple)">期末試験 締切</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">専門・順次開講科目 ・ 12:00まで</div>
+      </div>
+    </div>` : '';
 
   const rows = items.map(({ name, n, isDone, isLate, cat }) => {
     const color  = (CATEGORY_CONFIG[cat] || {}).color || '#64748b';
@@ -261,7 +295,7 @@ function showDayDeadlines(dateLabel, itemsJson) {
         <button onclick="document.getElementById('day-deadline-modal').remove()"
           style="background:var(--bg3);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
       </div>
-      ${rows}
+      ${kimatsuRow}${rows}
     </div>`;
 
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });

@@ -4,30 +4,31 @@
 
 const CPL = 4; // chapters per lesson
 
+// ============================================================
+// メイン描画
+// ============================================================
 function renderToday() {
   const today    = new Date();
   const sem      = getCurrentSemester();
-  const subjects = getEnrolledSubjects(sem.id);
   const semId    = state.currentSemesterId;
+  const subjects = getEnrolledSubjects(semId);
 
   document.getElementById('today-date').textContent =
     today.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
 
-  // ── アラート ──
+  // アラート（遅刻警告）
   const alertsEl = document.getElementById('today-alerts');
   alertsEl.innerHTML = '';
   subjects.forEach(s => {
-    const target      = getTodayTarget(s, sem);
     const doneLessons = Math.floor(getCompletedLessons(s.code) / CPL);
-    const late        = target - doneLessons;
+    const late = getTodayTarget(s, sem) - doneLessons;
     if (late >= 3)      alertsEl.innerHTML += `<div class="alert alert-danger">⚠️ <b>${s.name}</b> 遅刻${late}コマ！繰り越し優先で</div>`;
     else if (late >= 1) alertsEl.innerHTML += `<div class="alert alert-warn">📌 <b>${s.name}</b> ${late}コマ遅刻中 — 優先受講を</div>`;
   });
 
-  // ── TODAY カード（目標＋章グリッド） ──
+  // TODAY カード（目標＋章グリッド）
   const ttEl = document.getElementById('today-timetable');
   ttEl.innerHTML = '';
-
   if (subjects.length === 0) {
     ttEl.innerHTML = `<div class="empty-state">
       <div class="empty-state-icon">📭</div>
@@ -57,24 +58,22 @@ function renderToday() {
     }
   }
 
-  // ── 今週ストリップ ──
+  // 今週ストリップ
   renderWeekStrip(subjects, sem);
-
-  // ── 先取りおすすめ（締切近い順） ──
-  renderAdvanceRecommendations(subjects, sem);
-
-  // ── 迫っている締切（一番下） ──
+  // 先取りおすすめ（章グリッド付き）
+  renderAdvanceRecommendations(subjects, sem, semId);
+  // 迫っている締切
   renderUpcomingDeadlines(subjects, sem);
 }
 
-// ── 今日タブの科目カード構築 ──
+// ============================================================
+// 今日タブ：科目カード（目標＋章グリッドアコーディオン）
+// ============================================================
 function buildTodayCard(item, sem, semId, container) {
   const { s, doneChapters, doneLessons, recommended, late, needThisWeek } = item;
-  const color         = getCategoryColor(s.category);
-  const totalChapters = s.lessons * CPL;
-  const pct           = Math.round(doneChapters / totalChapters * 100);
+  const color = getCategoryColor(s.category);
+  const pct   = Math.round(doneChapters / (s.lessons * CPL) * 100);
 
-  // 目標計算
   let goalLesson, goalChapter, goalLabel, goalColor, badgeClass, badgeText;
   if (late > 0) {
     const nextCh = doneChapters + 1;
@@ -96,11 +95,10 @@ function buildTodayCard(item, sem, semId, container) {
   const goalChTotal = (goalLesson - 1) * CPL + goalChapter;
   const alreadyDone = doneChapters >= goalChTotal;
   const doneChInLes = doneChapters % CPL;
-  const nowLabel    = doneChInLes > 0
-    ? `コマ${doneLessons + 1} 第${doneChInLes}章まで完了`
+  const nowLabel = doneChInLes > 0
+    ? `コマ${doneLessons+1} 第${doneChInLes}章まで完了`
     : doneLessons > 0 ? `コマ${doneLessons} 完了` : '未受講';
 
-  // カード要素
   const card = document.createElement('div');
   card.className = 'today-subject-card';
   card.style.borderLeft = `3px solid ${color}`;
@@ -112,7 +110,6 @@ function buildTodayCard(item, sem, semId, container) {
       </div>
       <span class="today-subject-badge ${badgeClass}" style="flex-shrink:0">${badgeText}</span>
     </div>
-
     <div class="today-goal-box" style="border-color:${goalColor};background:${goalColor}18;margin-bottom:10px">
       <div style="font-size:10px;letter-spacing:1.5px;color:${goalColor};font-family:'Space Mono',monospace;font-weight:700;margin-bottom:6px">TODAY'S GOAL</div>
       ${alreadyDone ? `
@@ -132,8 +129,7 @@ function buildTodayCard(item, sem, semId, container) {
         </div>
         <div style="font-size:11px;color:${goalColor};margin-top:4px;font-weight:600">${goalLabel}</div>`}
     </div>
-
-    <div class="today-progress-toggle" id="today-toggle-${s.code}" style="cursor:pointer;-webkit-user-select:none;user-select:none">
+    <div id="today-toggle-${s.code}" style="cursor:pointer;-webkit-user-select:none;user-select:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:11px;color:var(--text3)">現在：${nowLabel}</span>
         <div style="display:flex;align-items:center;gap:5px">
@@ -149,7 +145,7 @@ function buildTodayCard(item, sem, semId, container) {
 
   container.appendChild(card);
 
-  // 章グリッド構築・注入
+  // 章グリッド注入
   const gridEl = document.getElementById(`today-grid-${s.code}`);
   gridEl.appendChild(buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended, color));
 
@@ -163,53 +159,6 @@ function buildTodayCard(item, sem, semId, container) {
   });
 }
 
-// ── 章グリッド（今日タブ・進捗タブ共通） ──
-function buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended, color) {
-  const wrapper = document.createElement('div');
-  let html = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:8px">';
-
-  for (let lesson = 1; lesson <= s.lessons; lesson++) {
-    const lateLesson = isLessonLate(lesson, s, sem);
-    const thisWeek   = lesson <= recommended && lesson > doneLessons;
-    const notYet     = !isLessonAvailable(lesson, s, sem);
-
-    for (let ch = 1; ch <= CPL; ch++) {
-      const chNum   = (lesson - 1) * CPL + ch;
-      const isDone  = chNum <= doneChapters;
-      const isLateC = !isDone && lateLesson;
-      const isWeekC = !isDone && !isLateC && thisWeek;
-      const isNotYet = !isDone && !isLateC && !isWeekC && notYet;
-
-      let style = '';
-      if (isDone)    style = `background:${color};color:#000`;
-      else if (isLateC) style = `background:var(--red-dim);color:var(--red);border:1px solid var(--red)`;
-      else if (isWeekC) style = `background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)`;
-      else if (isNotYet) style = 'opacity:0.25;pointer-events:none';
-
-      const ml = ch === 1 && lesson > 1 ? 'margin-left:2px;' : '';
-      html += `<button class="lesson-btn${isDone ? ' done' : ''}"
-        onclick="toggleChapter('${s.code}',${chNum},${semId})"
-        style="${style}${ml}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
-    }
-  }
-  html += '</div>';
-  html += `
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-      <div style="display:flex;gap:10px;font-size:10px;color:var(--text3)">
-        <span><span style="color:${color}">■</span> 完了</span>
-        <span><span style="color:var(--red)">■</span> 遅刻</span>
-        <span><span style="color:var(--amber)">■</span> 今週</span>
-        <span style="opacity:0.4">■ 未開講</span>
-      </div>
-      <button onclick="showDeadlineModal('${s.code}',${semId})" style="
-        background:var(--bg3);border:1px solid var(--border);color:var(--text3);
-        font-size:10px;padding:3px 10px;border-radius:99px;cursor:pointer;
-        font-family:'Noto Sans JP',sans-serif;">締切一覧</button>
-    </div>`;
-  wrapper.innerHTML = html;
-  return wrapper;
-}
-
 // ============================================================
 // 今週ストリップ
 // ============================================================
@@ -220,11 +169,10 @@ function renderWeekStrip(subjects, sem) {
   const todayDow = now.getDay();
   const LABELS   = ['日','月','火','水','木','金','土'];
   el.innerHTML   = '';
-
   for (let d = 0; d < 7; d++) {
     const date = new Date(now);
     date.setDate(now.getDate() - todayDow + d);
-    date.setHours(0, 0, 0, 0);
+    date.setHours(0,0,0,0);
     const isToday = d === todayDow;
     const items = [];
     subjects.forEach(s => {
@@ -232,7 +180,7 @@ function renderWeekStrip(subjects, sem) {
       for (let n = 1; n <= s.lessons; n++) {
         const dl = getLessonDeadline(n, s, sem);
         if (dl.toDateString() === date.toDateString())
-          items.push({ s, isDone: n <= done, isLate: n > done && dl < now });
+          items.push({ isDone: n <= done, isLate: n > done && dl < now });
       }
     });
     const cell = document.createElement('div');
@@ -251,9 +199,9 @@ function renderWeekStrip(subjects, sem) {
 }
 
 // ============================================================
-// 先取りおすすめ（締切近い順）
+// 先取りおすすめ（締切近い順・章グリッド付き）
 // ============================================================
-function renderAdvanceRecommendations(subjects, sem) {
+function renderAdvanceRecommendations(subjects, sem, semId) {
   const el = document.getElementById('today-advance');
   if (!el) return;
   const now = new Date();
@@ -265,18 +213,18 @@ function renderAdvanceRecommendations(subjects, sem) {
     const late         = Math.max(0, getTodayTarget(s, sem) - doneLessons);
     const recommended  = getTodayRecommended(s, sem);
 
-    if (late > 0)                    return; // 遅刻中は除外
-    if (recommended > doneLessons)   return; // 今週要対応は除外
-    if (doneLessons >= s.lessons)    return; // 完了済みは除外
+    if (late > 0)                  return;
+    if (recommended > doneLessons) return;
+    if (doneLessons >= s.lessons)  return;
 
     const nextLesson = doneLessons + 1;
-    if (!isLessonAvailable(nextLesson, s, sem)) return; // 未開講は除外
+    if (!isLessonAvailable(nextLesson, s, sem)) return;
 
     const nextDeadline = getLessonDeadline(nextLesson, s, sem);
     const daysUntil    = Math.ceil((nextDeadline - now) / 86400000);
-    if (daysUntil < 7) return; // 余裕なし除外
+    if (daysUntil < 7) return;
 
-    advances.push({ s, nextLesson, nextDeadline, daysUntil });
+    advances.push({ s, doneChapters, doneLessons, nextLesson, nextDeadline, daysUntil, recommended });
   });
 
   if (advances.length === 0) {
@@ -284,37 +232,61 @@ function renderAdvanceRecommendations(subjects, sem) {
     return;
   }
 
-  // 締切が近い順（daysUntil 昇順）
+  // 締切近い順（昇順）
   advances.sort((a, b) => a.daysUntil - b.daysUntil);
+  el.innerHTML = '';
 
-  el.innerHTML = advances.slice(0, 5).map(({ s, nextLesson, nextDeadline, daysUntil }) => {
-    const color   = getCategoryColor(s.category);
-    const dateStr = nextDeadline.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric', weekday:'short' });
-    // 余裕度に応じてラベル色を変える
+  advances.slice(0, 5).forEach(({ s, doneChapters, doneLessons, nextLesson, nextDeadline, daysUntil, recommended }) => {
+    const color    = getCategoryColor(s.category);
+    const dateStr  = nextDeadline.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric', weekday:'short' });
     const labelColor = daysUntil <= 14 ? 'var(--amber)' : 'var(--green)';
-    return `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+    const pct = Math.round(doneChapters / (s.lessons * CPL) * 100);
+
+    const div = document.createElement('div');
+    div.style.cssText = 'border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px';
+    div.innerHTML = `
+      <div id="adv-toggle-${s.code}" style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;-webkit-user-select:none;user-select:none">
         <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:1px">コマ${nextLesson}〜 ・ 次の締切 ${dateStr}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">コマ${nextLesson}〜 ・ 次の締切 ${dateStr} ・ ${pct}%完了</div>
         </div>
-        <span style="font-size:11px;font-weight:700;color:${labelColor};flex-shrink:0">あと${daysUntil}日</span>
-      </div>`;
-  }).join('');
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          <span style="font-size:11px;font-weight:700;color:${labelColor}">あと${daysUntil}日</span>
+          <svg id="adv-icon-${s.code}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13" style="color:var(--text3);transition:transform 0.2s">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+      <div id="adv-grid-${s.code}" style="display:none;margin-top:4px"></div>`;
+    el.appendChild(div);
+
+    // 章グリッド注入
+    const gridEl = document.getElementById(`adv-grid-${s.code}`);
+    gridEl.appendChild(buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended, color));
+
+    // タップで展開
+    document.getElementById(`adv-toggle-${s.code}`).addEventListener('click', () => {
+      const grid = document.getElementById(`adv-grid-${s.code}`);
+      const icon = document.getElementById(`adv-icon-${s.code}`);
+      const open = grid.style.display === 'none';
+      grid.style.display = open ? 'block' : 'none';
+      if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+  });
 }
 
 // ============================================================
-// 迫っている締切一覧（一番下）
+// 迫っている締切（一番下）＋期末試験日表示
 // ============================================================
 function renderUpcomingDeadlines(subjects, sem) {
   const el = document.getElementById('today-upcoming');
   if (!el) return;
   if (subjects.length === 0) { el.innerHTML = ''; return; }
 
-  const now          = new Date();
-  const twoWeeks     = new Date(now.getTime() + 14 * 86400000);
-  const items        = [];
+  const now      = new Date();
+  const twoWeeks = new Date(now.getTime() + 14 * 86400000);
+  const items    = [];
 
   subjects.forEach(s => {
     const doneLessons = Math.floor(getCompletedLessons(s.code) / CPL);
@@ -328,20 +300,57 @@ function renderUpcomingDeadlines(subjects, sem) {
     }
   });
 
-  if (items.length === 0) {
+  // 期末試験日（senmon_jyunji の index 16）
+  const kimatsuItems = [];
+  if (sem.attendance && sem.attendance.senmon_jyunji && sem.attendance.senmon_jyunji[16]) {
+    const entry    = sem.attendance.senmon_jyunji[16];
+    const deadline = new Date(typeof entry === 'string' ? entry : entry.end);
+    const daysLeft = Math.ceil((deadline - now) / 86400000);
+    if (daysLeft <= 30 && daysLeft > -30) {
+      kimatsuItems.push({ deadline, daysLeft });
+    }
+  }
+
+  let html = '';
+
+  // 期末試験バナー
+  kimatsuItems.forEach(({ deadline, daysLeft }) => {
+    const dateStr = deadline.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric', weekday:'short' });
+    const isPast  = daysLeft < 0;
+    const bgColor = isPast ? 'var(--bg3)' : daysLeft <= 7 ? 'var(--red-dim)' : 'var(--amber-dim)';
+    const bdColor = isPast ? 'var(--border)' : daysLeft <= 7 ? 'var(--red)' : 'var(--amber)';
+    const txColor = isPast ? 'var(--text3)' : daysLeft <= 7 ? 'var(--red)' : 'var(--amber)';
+    const label   = isPast ? `${Math.abs(daysLeft)}日前に終了` : `あと${daysLeft}日`;
+    html += `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:${bgColor};border:1px solid ${bdColor};margin-bottom:10px">
+        <span style="font-size:18px">📝</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:${txColor}">期末試験（専門・順次開講）</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">〜 ${dateStr} 12:00 まで</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${txColor};flex-shrink:0">${label}</span>
+      </div>`;
+  });
+
+  if (items.length === 0 && kimatsuItems.length === 0) {
     el.innerHTML = `<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">2週間以内の締切はありません 🎉</div>`;
     return;
   }
-  items.sort((a, b) => a.deadline - b.deadline);
 
-  el.innerHTML = items.map(({ s, n, deadline, isLate, daysLeft }) => {
+  if (items.length === 0) {
+    el.innerHTML = html;
+    return;
+  }
+
+  items.sort((a, b) => a.deadline - b.deadline);
+  html += items.map(({ s, n, deadline, isLate, daysLeft }) => {
     const color   = getCategoryColor(s.category);
     const dateStr = deadline.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric', weekday:'short' });
     let labelStyle, labelText, rowStyle = '';
-    if (isLate)          { labelStyle = 'color:var(--red)';   labelText = '遅刻中';          rowStyle = 'border-left:3px solid var(--red);padding-left:10px'; }
-    else if (daysLeft<=3){ labelStyle = 'color:var(--red)';   labelText = `あと${daysLeft}日`; rowStyle = 'border-left:3px solid var(--red);padding-left:10px'; }
-    else if (daysLeft<=7){ labelStyle = 'color:var(--amber)'; labelText = `あと${daysLeft}日`; rowStyle = 'border-left:3px solid var(--amber);padding-left:10px'; }
-    else                 { labelStyle = 'color:var(--text3)'; labelText = `あと${daysLeft}日`; rowStyle = 'border-left:3px solid var(--border);padding-left:10px'; }
+    if (isLate)           { labelStyle='color:var(--red)';   labelText='遅刻中';           rowStyle='border-left:3px solid var(--red);padding-left:10px'; }
+    else if (daysLeft<=3) { labelStyle='color:var(--red)';   labelText=`あと${daysLeft}日`; rowStyle='border-left:3px solid var(--red);padding-left:10px'; }
+    else if (daysLeft<=7) { labelStyle='color:var(--amber)'; labelText=`あと${daysLeft}日`; rowStyle='border-left:3px solid var(--amber);padding-left:10px'; }
+    else                  { labelStyle='color:var(--text3)'; labelText=`あと${daysLeft}日`; rowStyle='border-left:3px solid var(--border);padding-left:10px'; }
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);${rowStyle}">
         <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
@@ -352,4 +361,6 @@ function renderUpcomingDeadlines(subjects, sem) {
         <span style="font-size:11px;font-weight:700;${labelStyle};flex-shrink:0">${labelText}</span>
       </div>`;
   }).join('');
+
+  el.innerHTML = html;
 }

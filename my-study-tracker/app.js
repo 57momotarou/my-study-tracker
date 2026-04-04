@@ -103,7 +103,7 @@ function render() {
 }
 
 // ============================================================
-// 学期切り替えドロワー（横並び）
+// 学期切り替えドロワー（横並びピルボタン）
 // ============================================================
 function toggleSemesterDrawer() {
   const drawer  = document.getElementById('semester-drawer');
@@ -118,17 +118,23 @@ function toggleSemesterDrawer() {
     const isCurrent = sem.id === state.currentSemesterId;
     const codes = getEnrolledCodes(sem.id);
     const btn = document.createElement('button');
+    // 横並びピルボタンスタイル
     btn.style.cssText = `
       flex-shrink:0;
-      padding:8px 14px;
+      padding:8px 16px;
       border-radius:99px;
       border:1px solid ${isCurrent ? 'var(--amber)' : 'var(--border)'};
       background:${isCurrent ? 'var(--amber)' : 'var(--bg3)'};
       color:${isCurrent ? '#000' : 'var(--text2)'};
       font-size:12px;font-weight:${isCurrent ? '700' : '400'};
-      font-family:'Noto Sans JP',sans-serif;cursor:pointer;white-space:nowrap;
+      font-family:'Noto Sans JP',sans-serif;
+      cursor:pointer;white-space:nowrap;
+      display:inline-flex;align-items:center;gap:6px;
     `;
-    btn.textContent = sem.name + (codes.length ? ` (${codes.length})` : '');
+    const countSpan = codes.length
+      ? `<span style="font-size:10px;opacity:0.7">${codes.length}科目</span>`
+      : '';
+    btn.innerHTML = sem.name + countSpan;
     btn.addEventListener('click', () => {
       state.currentSemesterId = sem.id;
       saveState();
@@ -174,10 +180,8 @@ function getCompletedLessons(code) {
 function getCategoryColor(category) {
   return (CATEGORY_CONFIG[category] || {}).color || '#64748b';
 }
-
 function renderHeader() {
-  const sem = getCurrentSemester();
-  document.getElementById('header-semester').textContent = sem.name;
+  document.getElementById('header-semester').textContent = getCurrentSemester().name;
 }
 
 // ============================================================
@@ -196,4 +200,55 @@ function toggleChapter(code, chapterNum, semId) {
 }
 function toggleLesson(code, lessonNum, semId) {
   toggleChapter(code, lessonNum * 4, semId);
+}
+
+// ============================================================
+// 章グリッド共通ビルダー（今日・進捗・先取り共通）
+// ============================================================
+function buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended, color) {
+  const CPL = 4;
+  const wrapper = document.createElement('div');
+  let html = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:8px">';
+
+  for (let lesson = 1; lesson <= s.lessons; lesson++) {
+    const lateLesson = isLessonLate(lesson, s, sem);
+    const thisWeek   = lesson <= recommended && lesson > doneLessons;
+    const notYet     = !isLessonAvailable(lesson, s, sem);
+
+    for (let ch = 1; ch <= CPL; ch++) {
+      const chNum    = (lesson - 1) * CPL + ch;
+      const isDone   = chNum <= doneChapters;
+      const isLateC  = !isDone && lateLesson;
+      const isWeekC  = !isDone && !isLateC && thisWeek;
+      const isNotYet = !isDone && !isLateC && !isWeekC && notYet;
+
+      let style = '';
+      if (isDone)      style = `background:${color};color:#000`;
+      else if (isLateC)  style = `background:var(--red-dim);color:var(--red);border:1px solid var(--red)`;
+      else if (isWeekC)  style = `background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)`;
+      else if (isNotYet) style = 'opacity:0.25;pointer-events:none';
+
+      const ml = ch === 1 && lesson > 1 ? 'margin-left:2px;' : '';
+      html += `<button class="lesson-btn${isDone?' done':''}"
+        onclick="toggleChapter('${s.code}',${chNum},${semId})"
+        style="${style}${ml}"
+        title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
+    }
+  }
+  html += '</div>';
+  html += `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div style="display:flex;gap:10px;font-size:10px;color:var(--text3)">
+        <span><span style="color:${color}">■</span> 完了</span>
+        <span><span style="color:var(--red)">■</span> 遅刻</span>
+        <span><span style="color:var(--amber)">■</span> 今週</span>
+        <span style="opacity:0.4">■ 未開講</span>
+      </div>
+      <button onclick="showDeadlineModal('${s.code}',${semId})" style="
+        background:var(--bg3);border:1px solid var(--border);color:var(--text3);
+        font-size:10px;padding:3px 10px;border-radius:99px;cursor:pointer;
+        font-family:'Noto Sans JP',sans-serif;">締切一覧</button>
+    </div>`;
+  wrapper.innerHTML = html;
+  return wrapper;
 }
