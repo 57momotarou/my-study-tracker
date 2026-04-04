@@ -161,39 +161,157 @@ const ALL_SUBJECTS = [
 ];
 
 // --- オープンバッジ定義 ---
+// ※ プラチナバッジの「ゼミナール」はapp上で履修登録できないため
+//   prerequisiteチェックのみ行い、codesは空配列で定義（description表示用）
 const BADGES = [
-  { id: 'badge-academic-literacy', name: 'アカデミックリテラシー', level: 'bronze', category: '教養',
-    requirements: { codes: ['SD101E', 'SD301E'] } },
-  { id: 'badge-tech-bronze', name: 'テクノロジー基礎', level: 'bronze', category: '専門',
-    requirements: { codes: ['CS101', 'CS102', 'CS153', 'CS106', 'CS156'] } },
-  { id: 'badge-tech-silver', name: 'テクノロジー基礎Ⅱ', level: 'silver', category: '専門',
-    requirements: { prerequisite: 'badge-tech-bronze', codes: ['CS151', 'MATH201', 'CS201'] } },
+
+  // ==============================
+  // 専門科目 - IT系ブロンズ
+  // ==============================
+  { id: 'badge-it-bronze', name: 'IT総合学基礎', level: 'bronze', category: '専門',
+    requirements: { codes: ['CS101', 'CS102', 'CS154', 'CS103', 'CS153', 'PM101', 'BA101', 'CS156'] } },
+  // ↑ 写真：ITのための基礎知識・インターネット入門・情報セキュリティ入門・データサイエンス入門・
+  //         Web入門・プロジェクトマネジメント入門・企業経営入門・デジタル技術と情報化社会
+
+  // ==============================
+  // 専門科目 - テクノロジー系シルバー
+  // ==============================
+  { id: 'badge-tech1-silver', name: 'テクノロジー基礎Ⅰ', level: 'silver', category: '専門',
+    requirements: { prerequisite: 'badge-it-bronze', codes: ['CS151', 'CS201', 'CS252E'] } },
+  // ↑ コンピュータ入門・IoT入門・Pythonプログラミング入門
+
+  { id: 'badge-tech2-silver', name: 'テクノロジー基礎Ⅱ', level: 'silver', category: '専門',
+    requirements: { prerequisite: 'badge-tech1-silver', codes: ['CS251E', 'CS253E', 'CS203E'] } },
+  // ↑ UNIX入門・C言語で学ぶアルゴリズムとデータ構造・Cプログラミング演習
+
+  // ==============================
+  // 専門科目 - 数学基礎シルバー
+  // ==============================
+  { id: 'badge-math-silver', name: '数学基礎', level: 'silver', category: '専門',
+    requirements: { prerequisite: 'badge-it-bronze', codes: ['MATH201', 'MATH251'] } },
+  // ↑ ITとビジネスのための基礎数学・データサイエンスのための確率統計
+
+  // ==============================
+  // 専門科目 - ビジネス基礎シルバー
+  // ==============================
+  { id: 'badge-biz-silver', name: 'ビジネス基礎', level: 'silver', category: '専門',
+    requirements: { prerequisite: 'badge-it-bronze', codes: ['BA111', 'ECON101', 'BA151', 'BA152'] } },
+  // ↑ 会計簿記入門・経済学入門・マーケティング入門・経営組織論
+
+  // ==============================
+  // 専門科目 - ゴールド群（テクノロジー系）
+  // ==============================
   { id: 'badge-network-gold', name: 'ネットワーク', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS202', 'CS302', 'CS307'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS202', 'CS302', 'CS307', 'CS360E'] } },
+  // ↑ ネットワーク技術基礎・ネットワーク技術応用・ネットワーク実践論・Linuxサーバ構築演習
+
   { id: 'badge-security-gold', name: 'セキュリティ', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS304', 'CS305', 'CS361'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS304', 'CS305', 'CS361'] } },
+  // ↑ 情報セキュリティ応用・暗号技術と情報セキュリティ・認証システム論（+CS302は共通）
+
   { id: 'badge-software-gold', name: 'ソフトウェア', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS252E', 'CS303E', 'CS350E'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS303E', 'CS358E', 'CS351E', 'CS359E'] } },
+  // ↑ Web応用・Webアプリケーション開発・Javaプログラミング・JavaScriptフレームワークによるWebプログラミング
+
   { id: 'badge-ai-gold', name: 'AI', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS353', 'CS354E', 'CS356E'] } },
-  { id: 'badge-biz-bronze', name: 'ビジネス基礎', level: 'bronze', category: '専門',
-    requirements: { codes: ['ECON101', 'BA101', 'BA151', 'BA152'] } },
-  { id: 'badge-biz-silver', name: 'ビジネス基礎Ⅱ', level: 'silver', category: '専門',
-    requirements: { prerequisite: 'badge-biz-bronze', codes: ['PM101', 'BA201', 'BA253'] } },
-  { id: 'badge-genai-gold', name: '生成AI活用', level: 'gold', category: '専門',
+    requirements: { prerequisite: 'badge-math-silver', codes: ['CS353', 'CS356E', 'CS354E', 'CS352E'] } },
+  // ↑ AI技術応用・データサイエンス応用・AIプログラミング・Pythonプログラミング実践
+  //   先修：数学基礎（シルバー）＋テクノロジー基礎Ⅱ（シルバー）の両方が必要だが
+  //   prerequisiteは1つのみ指定できるため数学基礎を設定（テクノロジー基礎Ⅱも実質必要）
+
+  // ==============================
+  // 専門科目 - ゴールド群（ビジネス系）
+  // ==============================
+  { id: 'badge-genai-gold', name: '生成AI', level: 'gold', category: '専門',
     requirements: { prerequisite: 'badge-biz-silver', codes: ['BA253', 'BA252', 'BA357E'] } },
+  // ↑ 生成AI概論・業務効率化のためのデジタルツール活用・生成AIによるビジネススキル演習
+
   { id: 'badge-dm-gold', name: 'デジタルマーケティング', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA351'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA306', 'BA303', 'BA352'] } },
+  // ↑ デジタルマーケティング論・eコマース実践論（デジタルマーケティング実践※2は2027年春開講予定）・商品企画論
+
   { id: 'badge-mgmt-gold', name: '管理', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['PM301', 'PM351E'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['PM301', 'PM351E', 'BA211'] } },
+  // ↑ ITプロジェクトマネジメント講義・ITプロジェクトマネジメント演習・管理会計
+
   { id: 'badge-startup-gold', name: '起業', level: 'gold', category: '専門',
     requirements: { prerequisite: 'badge-biz-silver', codes: ['BA201', 'BA301', 'BA354'] } },
+  // ↑ 起業入門・事業創造詳論・ビジネスモデル構築論
+
   { id: 'badge-biz2-gold', name: '経営', level: 'gold', category: '専門',
     requirements: { prerequisite: 'badge-biz-silver', codes: ['BA302', 'BA304', 'BA355'] } },
+  // ↑ コーポレート・ファイナンス・経営戦略論・プロダクトマネジメント
+
+  // ==============================
+  // 専門科目 - プラチナ群（卒業研究）
+  // ゼミナールはapp上で管理不可のため prerequisiteのみチェック
+  // ==============================
+  { id: 'badge-network-platinum', name: 'ネットワーク（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-network-gold', codes: [], description: 'ネットワーク（ゴールド）取得 ＋ ゼミナール（ネットワーク）' } },
+
+  { id: 'badge-security-platinum', name: 'セキュリティ（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-security-gold', codes: [], description: 'セキュリティ（ゴールド）取得 ＋ ゼミナール（セキュリティ）' } },
+
+  { id: 'badge-software-platinum', name: 'ソフトウェア（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-software-gold', codes: [], description: 'ソフトウェア（ゴールド）取得 ＋ ゼミナール（ソフトウェア）' } },
+
+  { id: 'badge-ai-platinum', name: 'AI（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-ai-gold', codes: [], description: 'AI（ゴールド）取得 ＋ ゼミナール（AI）' } },
+
+  { id: 'badge-dm-platinum', name: 'デジタルマーケティング（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-dm-gold', codes: [], description: 'デジタルマーケティング（ゴールド）取得 ＋ ゼミナール（デジタルマーケティング）※2027年秋開講予定' } },
+
+  { id: 'badge-mgmt-platinum', name: '管理（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-mgmt-gold', codes: [], description: '管理（ゴールド）取得 ＋ ゼミナール（管理）' } },
+
+  { id: 'badge-startup-platinum', name: '起業（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-startup-gold', codes: [], description: '起業（ゴールド）取得 ＋ ゼミナール（起業）' } },
+
+  { id: 'badge-biz2-platinum', name: '経営（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-biz2-gold', codes: [], description: '経営（ゴールド）取得 ＋ ゼミナール（経営）' } },
+
+  // IT総合学（卒業研究）プラチナ：条件が複雑なため description で表記
+  { id: 'badge-it-platinum', name: 'IT総合学（卒業研究）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-biz-silver', codes: [], description: 'テクノロジー基礎Ⅰ or 数学基礎（シルバー）取得 ＋ ビジネス基礎（シルバー）取得 ＋ テクノロジー系3年次専門応用4単位以上 ＋ ビジネス系3年次専門応用4単位以上 ＋ ゼミナール（IT総合学）' } },
+
+  // ==============================
+  // 教養科目
+  // ==============================
+  { id: 'badge-academic-literacy', name: 'アカデミックリテラシー', level: 'bronze', category: '教養',
+    requirements: { codes: ['SD101E', 'CS104E'] } },
+  // ↑ スタディスキル入門・オフィスソフトウェア基礎演習（専門科目）
+
+  { id: 'badge-academic-writing', name: 'アカデミックライティング', level: 'silver', category: '教養',
+    requirements: { prerequisite: 'badge-academic-literacy', codes: ['SD113', 'SD106', 'SD301E', 'SD302E'] } },
+  // ↑ ロジカルシンキング・ロジカルライティング・スタディスキル実践・アカデミックライティング
+
+  { id: 'badge-kyoyo-startup', name: '教養スタートアップ', level: 'bronze', category: '教養',
+    requirements: { description: 'キャリアデザイン分野2単位以上 ＋ 自然科学分野2単位以上 ＋ 人文科学分野2単位以上 ＋ 社会科学分野2単位以上（各分野から選択）',
+      codes: [] } },
+  // ↑ 各分野から選択のため固定コード指定なし
+
+  { id: 'badge-communication', name: 'コミュニケーション', level: 'silver', category: '教養',
+    requirements: { codes: ['CS309E', 'SD111', 'SD301E'] } },
+  // ↑ デジタル社会のコミュニケーション演習（専門科目）・コミュニケーション論・スタディスキル実践
+
+  // ==============================
+  // 外国語科目
+  // ==============================
   { id: 'badge-english-bronze', name: '総合英語', level: 'bronze', category: '外国語',
     requirements: { codes: ['ENGL101E', 'ENGL151E', 'ENGL201E', 'ENGL251E'] } },
-  { id: 'badge-english-silver1', name: '実践英語Ⅰ', level: 'silver', category: '外国語',
+  // ↑ 基礎英語Ⅰ・基礎英語Ⅱ・中級英語Ⅰ・中級英語Ⅱ
+
+  { id: 'badge-english-silver1', name: '実用英語Ⅰ', level: 'silver', category: '外国語',
     requirements: { prerequisite: 'badge-english-bronze', codes: ['ENGL301E', 'ENGL302E'] } },
+  // ↑ 上級英語Ⅰ-A・上級英語Ⅰ-B
+
+  { id: 'badge-english-silver2', name: '実用英語Ⅱ', level: 'silver', category: '外国語',
+    requirements: { prerequisite: 'badge-english-bronze', codes: ['ENGL351E', 'ENGL352E'] } },
+  // ↑ 上級英語Ⅱ-A・上級英語Ⅱ-B
+
+  { id: 'badge-chinese-bronze', name: '中国語基礎', level: 'bronze', category: '外国語',
+    requirements: { codes: ['CHIN101E', 'CHIN201E'], description: '中国語入門Aまたは中国語基礎Ⅰから1科目 ＋ 中国語応用Bまたは中国語基礎Ⅱから1科目' } },
+  // ↑ 各グループから1科目ずつ（app上は両方履修で判定）
 ];
 
 // --- 出席認定期間テーブル（2026年度春学期） ---
