@@ -34,8 +34,6 @@ function renderToday() {
   const ttEl = document.getElementById('today-timetable');
   if (subjects.length === 0) {
     ttEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">科目が登録されていません</div><div class="empty-state-sub">「設定」タブで今学期の科目を選択してください</div></div>`;
-  } else if (dow === 0 || dow === 6) {
-    ttEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3)">😴 今日は休息日</div>`;
   } else {
     const renderSection = (label, subs) => {
       if (subs.length === 0) return '';
