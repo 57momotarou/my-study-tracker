@@ -19,36 +19,52 @@
       <div class="header-left">
         <span class="header-logo">my-study-tracker</span>
       </div>
+      <!-- 学期セレクタ：ロゴの右横にドロワー形式で表示 -->
+      <div class="header-center" id="header-center">
+        <button class="header-sem-trigger" id="header-sem-trigger" aria-label="学期切り替え">
+          <span id="header-semester">読み込み中...</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10" style="margin-left:3px;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
       <div class="header-right">
         <button class="header-settings-btn" id="header-settings-btn" aria-label="設定">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         </button>
       </div>
     </div>
-    <!-- 学期選択タブ：ヘッダー直下に横並びで常時表示 -->
-    <div class="header-sem-row" id="header-sem-row"></div>
   </header>
+
+  <!-- 学期ドロワー：header-centerの真下に展開 -->
+  <div id="sem-overlay" style="display:none;position:fixed;inset:0;z-index:290" onclick="closeSemDrawer()"></div>
+  <div id="sem-drawer" style="display:none;position:fixed;z-index:300;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+    <div id="sem-drawer-list"></div>
+  </div>
 
   <main class="main">
 
     <!-- ===== 今日タブ ===== -->
     <div class="page active" id="page-today">
+      <div id="today-exam-alerts"></div>
       <div id="today-alerts"></div>
+
       <div class="card">
         <div class="card-label">TODAY</div>
         <div class="card-title" id="today-date"></div>
         <div id="today-timetable"></div>
       </div>
+
       <div class="card">
         <div class="card-label">THIS WEEK</div>
         <div class="card-title">今週のスケジュール</div>
         <div class="week-strip" id="week-strip"></div>
       </div>
+
       <div class="card">
         <div class="card-label">ADVANCE</div>
         <div class="card-title">先取りおすすめ</div>
         <div id="today-advance"></div>
       </div>
+
       <div class="card">
         <div class="card-label">UPCOMING</div>
         <div class="card-title">迫っている締切</div>
@@ -100,7 +116,6 @@
     <!-- ===== 設定タブ ===== -->
     <div class="page" id="page-settings">
       <div class="semester-tabs" id="semester-tabs"></div>
-      <!-- 卒業単位チェッカー -->
       <div class="card" id="graduation-checker">
         <div class="card-label">GRADUATION</div>
         <div class="card-title">卒業単位チェッカー</div>

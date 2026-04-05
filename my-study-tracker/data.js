@@ -329,8 +329,20 @@ const ATTENDANCE_2026_SPRING = {
 
 // --- 学期マスター（8学期分）---
 const SEMESTERS = [
-  { id: 1, name: '2026年度春学期', year: 2026, season: '春', start: '2026-04-03', end: '2026-08-06', attendance: ATTENDANCE_2026_SPRING },
-  { id: 2, name: '2026年度秋学期', year: 2026, season: '秋', start: '2026-10-01', end: '2027-02-06' },
+  { id: 1, name: '2026年度春学期', year: 2026, season: '春', start: '2026-04-03', end: '2026-08-06', attendance: ATTENDANCE_2026_SPRING,
+    exams: [
+      { label: 'スタディスキル入門 期末', date: '2026-05-27', type: 'study_skill' },
+      { label: '教養前期科目 期末', date: '2026-06-16', type: 'kyoyo_zenki' },
+      { label: '専門・外国語・教養後期 期末', date: '2026-08-06', type: 'senmon_main' },
+    ],
+    seiseki: '2026-09-01' },
+  { id: 2, name: '2026年度秋学期', year: 2026, season: '秋', start: '2026-10-01', end: '2027-02-06',
+    exams: [
+      { label: 'スタディスキル入門 期末', date: '2026-11-24', type: 'study_skill' },
+      { label: '教養前期科目 期末', date: '2026-12-14', type: 'kyoyo_zenki' },
+      { label: '専門・外国語・教養後期 期末', date: '2027-02-06', type: 'senmon_main' },
+    ],
+    seiseki: '2027-03-01' },
   { id: 3, name: '2027年度春学期', year: 2027, season: '春', start: '2027-04-01', end: '2027-08-06' },
   { id: 4, name: '2027年度秋学期', year: 2027, season: '秋', start: '2027-10-01', end: '2028-02-06' },
   { id: 5, name: '2028年度春学期', year: 2028, season: '春', start: '2028-04-01', end: '2028-08-06' },

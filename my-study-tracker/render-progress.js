@@ -1,7 +1,6 @@
 // ============================================================
 // my-study-tracker - render-progress.js
 // ============================================================
-
 const CHAPTERS_PER_LESSON = 4;
 
 function renderProgressPage() {
@@ -15,7 +14,6 @@ function renderProgressPage() {
     btn.addEventListener('click', () => {
       state.currentSemesterId = sem.id;
       saveState();
-      renderSemesterTabs();
       renderProgressPage();
     });
     selEl.appendChild(btn);
@@ -37,14 +35,12 @@ function renderProgressPage() {
   }
 
   const CPL      = CHAPTERS_PER_LESSON;
-  const totalCh  = subjects.reduce((a,s) => a + s.lessons * CPL, 0);
-  const doneCh   = subjects.reduce((a,s) => a + getCompletedLessons(s.code), 0);
-  const pctAll   = totalCh > 0 ? Math.round(doneCh / totalCh * 100) : 0;
-  const doneLen  = subjects.reduce((a,s) => a + Math.floor(getCompletedLessons(s.code)/CPL), 0);
-  const totalLen = subjects.reduce((a,s) => a + s.lessons, 0);
-  const lateCount = subjects.filter(s =>
-    Math.floor(getCompletedLessons(s.code)/CPL) < getTodayTarget(s, sem)
-  ).length;
+  const totalCh  = subjects.reduce((a,s)=>a+s.lessons*CPL,0);
+  const doneCh   = subjects.reduce((a,s)=>a+getCompletedLessons(s.code),0);
+  const pctAll   = totalCh>0?Math.round(doneCh/totalCh*100):0;
+  const doneLen  = subjects.reduce((a,s)=>a+Math.floor(getCompletedLessons(s.code)/CPL),0);
+  const totalLen = subjects.reduce((a,s)=>a+s.lessons,0);
+  const lateCount= subjects.filter(s=>Math.floor(getCompletedLessons(s.code)/CPL)<getTodayTarget(s,sem)).length;
 
   const summaryCard = document.createElement('div');
   summaryCard.className = 'card';
@@ -63,9 +59,7 @@ function renderProgressPage() {
         <div style="font-size:10px;color:var(--text3);margin-top:2px">遅刻科目</div>
       </div>
     </div>
-    <div class="prog-wrap" style="height:8px">
-      <div class="prog-bar" style="width:${pctAll}%;background:var(--amber)"></div>
-    </div>`;
+    <div class="prog-wrap" style="height:8px"><div class="prog-bar" style="width:${pctAll}%;background:var(--amber)"></div></div>`;
   listEl.appendChild(summaryCard);
 
   subjects.forEach(s => listEl.appendChild(buildProgressCard(s, sem, semId)));
@@ -84,9 +78,9 @@ function buildProgressCard(s, sem, semId) {
   const openLabel   = s.open_type === '一斉' ? '一斉' : '順次';
 
   let statusText = '✅ 出席認定 順調', statusColor = 'var(--green)';
-  if (doneLessons >= s.lessons)       { statusText = '🎓 受講完了';                              statusColor = color; }
-  else if (late >= 1)                 { statusText = `🔴 遅刻${late}コマ`;                       statusColor = 'var(--red)'; }
-  else if (recommended > doneLessons) { statusText = `🟡 今週あと${recommended*CPL-doneCh}章で認定`; statusColor = 'var(--amber)'; }
+  if (doneLessons >= s.lessons)       { statusText='🎓 受講完了';                              statusColor=color; }
+  else if (late >= 1)                 { statusText=`🔴 遅刻${late}コマ`;                       statusColor='var(--red)'; }
+  else if (recommended > doneLessons) { statusText=`🟡 今週あと${recommended*CPL-doneCh}章で認定`; statusColor='var(--amber)'; }
 
   const progressLabel = doneChInLes > 0
     ? `コマ${doneLessons+1} 第${doneChInLes}章まで`
@@ -95,9 +89,18 @@ function buildProgressCard(s, sem, semId) {
   const card = document.createElement('div');
   card.className = 'progress-subject-card';
 
-  // ── ヘッダー（タップで展開） ──
+  // ── アコーディオンヘッダー ──
+  const icon = document.createElement('svg');
+  icon.setAttribute('viewBox','0 0 24 24');
+  icon.setAttribute('fill','none');
+  icon.setAttribute('stroke','currentColor');
+  icon.setAttribute('stroke-width','2.5');
+  icon.setAttribute('width','16');
+  icon.setAttribute('height','16');
+  icon.style.cssText = 'color:var(--text3);transition:transform 0.2s;pointer-events:none;flex-shrink:0';
+  icon.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+
   const headerDiv = document.createElement('div');
-  headerDiv.style.cssText = 'cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent';
   headerDiv.innerHTML = `
     <div class="ps-header">
       <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
@@ -109,28 +112,27 @@ function buildProgressCard(s, sem, semId) {
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <div class="ps-pct" style="color:${color}">${pct}%</div>
-        <svg id="picon-${s.code}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          width="16" height="16" style="color:var(--text3);transition:transform 0.2s;pointer-events:none">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
       </div>
     </div>
     <div class="ps-meta">${progressLabel} ・ <span style="color:var(--text3)">${openLabel}開講</span>${late>0?` ・ <span style="color:var(--red)">遅刻${late}コマ</span>`:''}</div>
     <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>`;
 
+  // アイコンをps-headerの右端に追加
+  const psHeader = headerDiv.querySelector('.ps-header');
+  const iconWrap = psHeader.querySelector('div:last-child');
+  if (iconWrap) iconWrap.appendChild(icon);
+
   // ── 章グリッドコンテナ ──
   const gridContainer = document.createElement('div');
   gridContainer.style.cssText = 'display:none;margin-top:10px';
-
-  // ★ buildChapterGrid内でstopPropagationが設定されているので競合しない
   gridContainer.appendChild(buildChapterGrid(s, sem, semId, doneCh, doneLessons, recommended, color));
 
-  // ヘッダータップでアコーディオン
-  headerDiv.addEventListener('click', () => {
+  // makeAccordion で確実に接続
+  makeAccordion(headerDiv, gridContainer, null);
+  headerDiv.addEventListener('click', (e) => {
+    if (gridContainer.contains(e.target)) return;
     const open = gridContainer.style.display === 'none';
-    gridContainer.style.display = open ? 'block' : 'none';
-    const icon = document.getElementById(`picon-${s.code}`);
-    if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
   });
 
   card.appendChild(headerDiv);

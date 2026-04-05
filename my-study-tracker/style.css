@@ -24,7 +24,7 @@
   --radius: 14px;
   --radius-sm: 8px;
   --nav-h: 84px;
-  --header-h: 88px;
+  --header-h: 54px;
 }
 
 html { background: var(--bg); }
@@ -584,57 +584,80 @@ body {
   margin-bottom: 10px;
 }
 .today-subject-card:last-child { margin-bottom: 0; }
+.today-goal-box { border: 1px solid; border-radius: var(--radius-sm); padding: 10px 14px; }
 
-/* ── 今日の目標ボックス ── */
-.today-goal-box {
-  border: 1px solid;
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-}
-
-/* ── ヘッダー（2段） ── */
-.header {
-  height: calc(var(--header-h) + env(safe-area-inset-top)) !important;
-}
-
-/* ── ヘッダー学期タブ行 ── */
-.header-sem-row {
+/* ── ヘッダー：my-study-tracker右横の学期ボタン ── */
+.header-inner {
   display: flex;
-  flex-direction: row;
-  gap: 6px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 0 14px 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 100%;
+  gap: 8px;
 }
-.header-sem-row::-webkit-scrollbar { display: none; }
-
-/* ── ヘッダー学期タブボタン ── */
-.header-sem-btn {
-  flex-shrink: 0;
-  padding: 4px 12px;
-  border-radius: 99px;
-  border: 1px solid var(--border);
+.header-center { flex: 1; min-width: 0; }
+.header-sem-trigger {
+  display: inline-flex;
+  align-items: center;
   background: var(--bg3);
+  border: 1px solid var(--border);
   color: var(--text3);
   font-size: 11px;
-  font-weight: 400;
-  font-family: 'Noto Sans JP', sans-serif;
+  padding: 4px 10px;
+  border-radius: 99px;
   cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   -webkit-tap-highlight-color: transparent;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
-.header-sem-btn.active {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: #000;
-  font-weight: 700;
+.header-sem-trigger:active { border-color: var(--amber); color: var(--amber); }
+
+/* ── バッジツリー ── */
+.btree-wrapper { padding: 4px 0; }
+.btree-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 0;
+}
+.btree-center { justify-content: center; }
+.btree-spaced { justify-content: space-around; }
+.btree-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  min-width: 60px;
+  max-width: 70px;
+  flex-shrink: 0;
+}
+.btree-root { min-width: 80px; max-width: 90px; padding: 10px 8px; }
+.btree-earned { box-shadow: 0 0 0 1px currentColor; }
+.btree-connector-v {
+  width: 2px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 auto;
+}
+.btree-mini-bar {
+  width: 100%;
+  max-width: 50px;
+  height: 3px;
+  background: var(--bg2);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
 }
 
 /* タップハイライト除去 */
-.lesson-btn,
-.today-subject-card,
-.progress-subject-card {
+.lesson-btn, .today-subject-card, .progress-subject-card {
   -webkit-tap-highlight-color: transparent;
 }
