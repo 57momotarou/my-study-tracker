@@ -580,11 +580,9 @@ body {
 .today-subject-card:last-child { margin-bottom:0; }
 .today-goal-box { border:1px solid;border-radius:var(--radius-sm);padding:10px 14px; }
 
-/* ── ヘッダー学期トリガー ── */
-.header-inner { display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:100%;gap:8px; }
-.header-left { display:flex;align-items:center;gap:8px;flex:1;min-width:0; }
-.header-sem-trigger { display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:11px;padding:4px 10px;border-radius:99px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s,color 0.15s; }
+/* ── ヘッダー学期ボタン ── */
+.header-inner { display:flex;align-items:center;padding:0 16px;height:100%;gap:8px; }
+.header-left  { display:flex;align-items:center;gap:8px;flex:1;min-width:0; }
+.header-sem-trigger { display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:11px;padding:4px 10px;border-radius:99px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s,color 0.15s; }
 .header-sem-trigger:active { border-color:var(--amber);color:var(--amber); }
-
-/* タップハイライト除去 */
-.lesson-btn,.today-subject-card,.progress-subject-card { -webkit-tap-highlight-color:transparent; }
+.header-right { flex-shrink:0; }

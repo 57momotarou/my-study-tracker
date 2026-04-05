@@ -3,6 +3,8 @@
 // ============================================================
 
 const KEYS = { enrollments:'cp-enrollments', progress:'cp-progress', currentSem:'cp-current-sem' };
+const TT_KEY = 'cp-timetable'; // 時間割データ
+
 let state = { currentSemesterId:1, enrollments:{}, progress:{}, activeSubjectFilter:'all' };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,7 +19,9 @@ function loadState() {
     state.currentSemesterId = c ? parseInt(c) : 1;
     let migrated = false;
     Object.keys(state.progress).forEach(code => {
-      if (state.progress[code] > 0 && state.progress[code] <= 15) { state.progress[code] *= 4; migrated = true; }
+      if (state.progress[code] > 0 && state.progress[code] <= 15) {
+        state.progress[code] *= 4; migrated = true;
+      }
     });
     if (migrated) saveState();
   } catch(e) { console.error(e); }
@@ -27,6 +31,11 @@ function saveState() {
   localStorage.setItem(KEYS.progress,    JSON.stringify(state.progress));
   localStorage.setItem(KEYS.currentSem,  String(state.currentSemesterId));
 }
+function loadTimetable() {
+  try { return JSON.parse(localStorage.getItem(TT_KEY)||'{}'); } catch(e){ return {}; }
+}
+function saveTimetable(tt) { localStorage.setItem(TT_KEY, JSON.stringify(tt)); }
+
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -44,8 +53,8 @@ function registerSW() {
 // ============================================================
 function setupNav() {
   document.getElementById('header-settings-btn').addEventListener('click', () => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.getElementById('page-settings').classList.add('active');
     renderSettingsPage();
   });
@@ -55,21 +64,22 @@ function setupNav() {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const t = btn.dataset.page;
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`page-${t}`).classList.add('active');
-      if (t==='today')     renderToday();
-      if (t==='schedule')  renderSchedulePage();
-      if (t==='settings')  renderSettingsPage();
-      if (t==='badges')    renderBadgesPage();
-      if (t==='progress')  renderProgressPage();
-      if (t==='timetable') renderTimetablePage();
+      if (t==='today')    renderToday();
+      if (t==='schedule') renderSchedulePage();
+      if (t==='settings') renderSettingsPage();
+      if (t==='badges')   renderBadgesPage();
+      if (t==='progress') renderProgressPage();
     });
   });
 }
+
 function render() {
   renderHeader();
+  ensureAutoTimetable(state.currentSemesterId);
   renderToday();
   renderSchedulePage();
   renderSettingsPage();
@@ -78,7 +88,7 @@ function render() {
 }
 
 // ============================================================
-// 学期ドロワー
+// 学期ドロワー（ボタン直下に展開）
 // ============================================================
 function toggleSemDrawer() {
   const drawer  = document.getElementById('sem-drawer');
@@ -87,7 +97,7 @@ function toggleSemDrawer() {
 
   const trigger = document.getElementById('header-sem-trigger');
   const rect    = trigger.getBoundingClientRect();
-  drawer.style.top  = (rect.bottom + 8) + 'px';
+  drawer.style.top  = (rect.bottom + 6) + 'px';
   drawer.style.left = rect.left + 'px';
 
   const listEl = document.getElementById('sem-drawer-list');
@@ -96,22 +106,22 @@ function toggleSemDrawer() {
     const isCurrent = sem.id === state.currentSemesterId;
     const codes     = getEnrolledCodes(sem.id);
     const btn = document.createElement('button');
-    btn.style.cssText = `display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:9px 12px;border:none;border-radius:7px;background:${isCurrent?'var(--amber-dim)':'transparent'};color:${isCurrent?'var(--amber)':'var(--text2)'};font-size:13px;font-weight:${isCurrent?'700':'400'};font-family:'Noto Sans JP',sans-serif;cursor:pointer;text-align:left;white-space:nowrap`;
-    btn.innerHTML = `<span>${sem.name}</span><span style="font-size:10px;color:var(--text3)">${codes.length?codes.length+'科目':''}</span>`;
-    if (isCurrent) btn.innerHTML += `<span style="color:var(--amber)">✓</span>`;
+    btn.style.cssText = `display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:9px 12px;border:none;border-radius:7px;background:${isCurrent?'var(--amber-dim)':'transparent'};color:${isCurrent?'var(--amber)':'var(--text2)'};font-size:13px;font-weight:${isCurrent?'700':'400'};font-family:'Noto Sans JP',sans-serif;cursor:pointer;text-align:left;white-space:nowrap;-webkit-tap-highlight-color:transparent`;
+    btn.innerHTML = `<span>${sem.name}</span><span style="font-size:10px;color:var(--text3)">${codes.length?codes.length+'科目':''}</span>${isCurrent?'<span style="color:var(--amber)">✓</span>':''}`;
     btn.addEventListener('click', e => {
       e.stopPropagation();
       state.currentSemesterId = sem.id;
       saveState(); closeSemDrawer(); renderHeader();
+      // 時間割を自動配置（未配置なら）
+      ensureAutoTimetable(sem.id);
       const activePage = document.querySelector('.page.active');
       if (activePage) {
         const id = activePage.id;
-        if (id==='page-today')     renderToday();
-        if (id==='page-progress')  renderProgressPage();
-        if (id==='page-schedule')  renderSchedulePage();
-        if (id==='page-badges')    renderBadgesPage();
-        if (id==='page-settings')  renderSettingsPage();
-        if (id==='page-timetable') renderTimetablePage();
+        if (id==='page-today')    renderToday();
+        if (id==='page-progress') renderProgressPage();
+        if (id==='page-schedule') renderSchedulePage();
+        if (id==='page-badges')   renderBadgesPage();
+        if (id==='page-settings') renderSettingsPage();
       }
     });
     listEl.appendChild(btn);
@@ -132,15 +142,61 @@ function getEnrolledCodes(semId)   { return state.enrollments[semId]||[]; }
 function getEnrolledSubjects(semId){ return getEnrolledCodes(semId).map(c=>ALL_SUBJECTS.find(s=>s.code===c)).filter(Boolean); }
 function getCompletedLessons(code) { return state.progress[code]||0; }
 function getCategoryColor(cat)     { return (CATEGORY_CONFIG[cat]||{}).color||'#64748b'; }
-function renderHeader() { document.getElementById('header-semester').textContent = getCurrentSemester().name; }
+function renderHeader()            { document.getElementById('header-semester').textContent = getCurrentSemester().name; }
 
 // ============================================================
-// 章記録
+// 時間割：自動配置ロジック（ページ読み込み時・学期変更時に実行）
+// ============================================================
+function ensureAutoTimetable(semId) {
+  const subjects = getEnrolledSubjects(semId);
+  if (!subjects.length) return;
+  const tt = loadTimetable();
+  if (!tt[semId]) tt[semId] = {};
+
+  // 未配置の科目のみ配置（既存を上書きしない）
+  const unplaced = subjects.filter(s => tt[semId][s.code] === undefined);
+  if (!unplaced.length) return;
+
+  // 専門→木(3)優先、溢れたら水(2)→金(4)→月(0)→火(1)→土(5)
+  // 教養外国語→火(1)優先、溢れたら月(0)→水(2)→木(3)→金(4)→土(5)
+  const senmonPrio  = [3,2,4,0,1,5];
+  const kyoyoPrio   = [1,0,2,3,4,5];
+
+  // 既配置の曜日ごとの時間を集計
+  const dayHours = [0,0,0,0,0,0];
+  subjects.filter(s=>tt[semId][s.code]!==undefined).forEach(s=>{
+    const d=tt[semId][s.code];
+    dayHours[d] += s.deadline_type==='専門'?1.5:1;
+  });
+
+  unplaced.forEach(s=>{
+    const prio = s.deadline_type==='専門' ? senmonPrio : kyoyoPrio;
+    const h    = s.deadline_type==='専門' ? 1.5 : 1;
+    // 最も空いている優先曜日を選ぶ
+    let best = prio[0], bestH = dayHours[prio[0]];
+    prio.forEach(d => { if (dayHours[d] < bestH) { best=d; bestH=dayHours[d]; } });
+    tt[semId][s.code] = best;
+    dayHours[best] += h;
+  });
+
+  saveTimetable(tt);
+}
+
+function getTimetableDay(code, semId) {
+  const tt = loadTimetable();
+  return tt[semId]?.[code]; // undefined = 未配置
+}
+
+// 曜日名
+const DAY_NAMES = ['日','月','火','水','木','金','土'];
+
+// ============================================================
+// 章記録（toggleChapterはインラインonclickから呼ばれる）
 // ============================================================
 function toggleChapter(code, chapterNum, semId) {
-  const cur = getCompletedLessons(code);
-  if      (chapterNum === cur+1) state.progress[code] = chapterNum;
-  else if (chapterNum === cur)   state.progress[code] = chapterNum-1;
+  const current = getCompletedLessons(code);
+  if      (chapterNum === current + 1) state.progress[code] = chapterNum;
+  else if (chapterNum === current)     state.progress[code] = chapterNum - 1;
   else return;
   saveState();
   renderProgressPage();
@@ -148,90 +204,5 @@ function toggleChapter(code, chapterNum, semId) {
   renderBadgesPage();
   if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
 }
-function toggleLesson(code,n,sid){ toggleChapter(code,n*4,sid); }
+function toggleLesson(code, lessonNum, semId) { toggleChapter(code, lessonNum*4, semId); }
 
-// ============================================================
-// ★ 章グリッド共通ビルダー（完全createElement・伝播確実遮断）
-// ============================================================
-function buildChapterGrid(s, sem, semId, doneChapters, doneLessons, recommended, color) {
-  const CPL = 4;
-  // ★ 最外ラッパー：すべての伝播を止める
-  const wrapper = document.createElement('div');
-  const stopAll = e => { e.stopPropagation(); e.stopImmediatePropagation(); };
-  wrapper.addEventListener('click',      stopAll, true);
-  wrapper.addEventListener('touchstart', stopAll, true);
-  wrapper.addEventListener('touchend',   stopAll, true);
-
-  // グリッド
-  const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:8px';
-
-  for (let lesson = 1; lesson <= s.lessons; lesson++) {
-    const lateL  = isLessonLate(lesson, s, sem);
-    const weekL  = lesson <= recommended && lesson > doneLessons;
-    const notYet = !isLessonAvailable(lesson, s, sem);
-
-    for (let ch = 1; ch <= CPL; ch++) {
-      const chNum    = (lesson-1)*CPL + ch;
-      const isDone   = chNum <= doneChapters;
-      const isLateC  = !isDone && lateL;
-      const isWeekC  = !isDone && !isLateC && weekL;
-      const isNotYet = !isDone && !isLateC && !isWeekC && notYet;
-
-      const btn = document.createElement('button');
-      btn.className   = 'lesson-btn' + (isDone?' done':'');
-      btn.textContent = `${lesson}-${ch}`;
-      btn.title       = `コマ${lesson} 第${ch}章`;
-      btn.style.cssText = isDone    ? `background:${color};color:#000`
-        : isLateC  ? 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)'
-        : isWeekC  ? 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)'
-        : isNotYet ? 'opacity:0.25;pointer-events:none'
-        : '';
-      if (ch===1 && lesson>1) btn.style.marginLeft = '2px';
-
-      // ★ ボタンに直接クリックハンドラ（伝播なし）
-      const _code = s.code, _ch = chNum, _sid = semId;
-      btn.addEventListener('click', e => {
-        e.stopPropagation(); e.stopImmediatePropagation();
-        toggleChapter(_code, _ch, _sid);
-      });
-      grid.appendChild(btn);
-    }
-  }
-  wrapper.appendChild(grid);
-
-  // フッター（凡例＋締切一覧ボタン）
-  const footer = document.createElement('div');
-  footer.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px';
-  footer.innerHTML = `<div style="display:flex;gap:10px;font-size:10px;color:var(--text3)">
-    <span><span style="color:${color}">■</span> 完了</span>
-    <span><span style="color:var(--red)">■</span> 遅刻</span>
-    <span><span style="color:var(--amber)">■</span> 今週</span>
-    <span style="opacity:0.4">■ 未開講</span>
-  </div>`;
-  const dlBtn = document.createElement('button');
-  dlBtn.style.cssText = 'background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:10px;padding:3px 10px;border-radius:99px;cursor:pointer;font-family:"Noto Sans JP",sans-serif';
-  dlBtn.textContent = '締切一覧';
-  dlBtn.addEventListener('click', e => { e.stopPropagation(); showDeadlineModal(s.code, semId); });
-  footer.appendChild(dlBtn);
-  wrapper.appendChild(footer);
-  return wrapper;
-}
-
-// ============================================================
-// アコーディオン：ヘッダー部タップで展開。
-// gridContainer 内のクリックは必ず伝播が止まっているので、
-// ここでは「ヘッダーが直接タップされた」ときだけ反応する。
-// ============================================================
-function attachAccordion(headerEl, contentEl, getIcon) {
-  headerEl.style.cursor = 'pointer';
-  headerEl.style.webkitTapHighlightColor = 'transparent';
-  headerEl.addEventListener('click', e => {
-    // contentEl 内のクリックは無視（二重保護）
-    if (contentEl.contains(e.target)) return;
-    const open = contentEl.style.display === 'none';
-    contentEl.style.display = open ? 'block' : 'none';
-    const icon = getIcon ? getIcon() : null;
-    if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
-  });
-}

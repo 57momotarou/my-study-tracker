@@ -76,8 +76,8 @@ function getTodayRecommended(subject, semester) {
   let count = 0;
   for (let n = 1; n <= subject.lessons; n++) {
     const dl = getLessonDeadline(n, subject, semester);
-    const advanceTarget = new Date(dl.getTime() - ADVANCE_DAYS * 86400000);
-    if (advanceTarget <= now) count++;
+    const advTarget = new Date(dl.getTime() - ADVANCE_DAYS * 86400000);
+    if (advTarget <= now) count++;
     else break;
   }
   return Math.max(count, getTodayTarget(subject, semester));
