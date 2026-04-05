@@ -162,50 +162,99 @@ const ALL_SUBJECTS = [
 
 // --- オープンバッジ定義 ---
 const BADGES = [
-  { id: 'badge-academic-literacy', name: 'アカデミックリテラシー', level: 'bronze', category: '教養',
-    requirements: { codes: ['SD101E', 'SD301E'] } },
-  { id: 'badge-tech-bronze', name: 'テクノロジー基礎', level: 'bronze', category: '専門',
-    requirements: { codes: ['CS101', 'CS102', 'CS153', 'CS106', 'CS156'] } },
-  { id: 'badge-tech-silver', name: 'テクノロジー基礎Ⅱ', level: 'silver', category: '専門',
-    requirements: { prerequisite: 'badge-tech-bronze', codes: ['CS151', 'MATH201', 'CS201'] } },
+  // ── 専門：テクノロジー系 ──────────────────────────────
+  // IT総合学基礎（16科目：ブロンズ）→ 両系の共通ルート
+  { id: 'badge-it-bronze', name: 'IT総合学基礎', level: 'bronze', category: '専門',
+    requirements: { codes: ['CS101','CS102','CS103','CS153','CS154','CS156','BA101','BA111','BA151','BA152','SD101E','ENGL101E','CS151','CS104E','BA253','PM101'] } },
+
+  // テクノロジー基礎Ⅰ（4科目：ブロンズ）
+  { id: 'badge-tech1-bronze', name: 'テクノロジー基礎Ⅰ', level: 'bronze', category: '専門',
+    requirements: { prerequisite: 'badge-it-bronze', codes: ['CS101','CS102','CS153','CS156'] } },
+
+  // 数学基礎（4科目：ブロンズ）
+  { id: 'badge-math-bronze', name: '数学基礎', level: 'bronze', category: '専門',
+    requirements: { prerequisite: 'badge-it-bronze', codes: ['CS101','CS151','CS103','CS201'] } },
+
+  // テクノロジー基礎Ⅱ（シルバー）
+  { id: 'badge-tech2-silver', name: 'テクノロジー基礎Ⅱ', level: 'silver', category: '専門',
+    requirements: { prerequisite: 'badge-tech1-bronze', codes: ['CS151','CS201','CS202'] } },
+
+  // ゴールド4種
   { id: 'badge-network-gold', name: 'ネットワーク', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS202', 'CS302', 'CS307'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS202','CS302','CS307'] } },
   { id: 'badge-security-gold', name: 'セキュリティ', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS304', 'CS305', 'CS361'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS304','CS305','CS361'] } },
   { id: 'badge-software-gold', name: 'ソフトウェア', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS252E', 'CS303E', 'CS350E'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS252E','CS303E','CS350E'] } },
   { id: 'badge-ai-gold', name: 'AI', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech-silver', codes: ['CS353', 'CS354E', 'CS356E'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS353','CS354E','CS356E'] } },
+
+  // プラチナ4種（卒業研究）
+  { id: 'badge-network-platinum', name: 'ネットワーク（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-network-gold', codes: [], description: 'ネットワーク卒業研究修了' } },
+  { id: 'badge-security-platinum', name: 'セキュリティ（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-security-gold', codes: [], description: 'セキュリティ卒業研究修了' } },
+  { id: 'badge-software-platinum', name: 'ソフトウェア（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-software-gold', codes: [], description: 'ソフトウェア卒業研究修了' } },
+  { id: 'badge-ai-platinum', name: 'AI（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-ai-gold', codes: [], description: 'AI卒業研究修了' } },
+  // IT総合学プラチナ（別系統）
+  { id: 'badge-it-platinum', name: 'IT総合学（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-it-bronze', codes: [], description: 'IT総合学卒業研究修了' } },
+
+  // ── 専門：ビジネス系 ──────────────────────────────────
+  // ビジネス基礎（ブロンズ）
   { id: 'badge-biz-bronze', name: 'ビジネス基礎', level: 'bronze', category: '専門',
-    requirements: { codes: ['ECON101', 'BA101', 'BA151', 'BA152'] } },
+    requirements: { prerequisite: 'badge-it-bronze', codes: ['BA101','BA151','BA152','PM101'] } },
+
+  // ビジネス基礎Ⅱ（シルバー）
   { id: 'badge-biz-silver', name: 'ビジネス基礎Ⅱ', level: 'silver', category: '専門',
-    requirements: { prerequisite: 'badge-biz-bronze', codes: ['PM101', 'BA201', 'BA253'] } },
+    requirements: { prerequisite: 'badge-biz-bronze', codes: ['PM101','BA201','BA253'] } },
+
+  // ゴールド5種
   { id: 'badge-genai-gold', name: '生成AI活用', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA253', 'BA252', 'BA357E'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA253','BA252','BA357E'] } },
   { id: 'badge-dm-gold', name: 'デジタルマーケティング', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA351'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA306','BA351','BA352'] } },
   { id: 'badge-mgmt-gold', name: '管理', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['PM301', 'PM351E'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['PM301','PM351E'] } },
   { id: 'badge-startup-gold', name: '起業', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA201', 'BA301', 'BA354'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA201','BA301','BA354'] } },
   { id: 'badge-biz2-gold', name: '経営', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA302', 'BA304', 'BA355'] } },
+    requirements: { prerequisite: 'badge-biz-silver', codes: ['BA302','BA304','BA355'] } },
+
+  // プラチナ4種（生成AIはなし）
+  { id: 'badge-dm-platinum', name: 'デジタルマーケティング（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-dm-gold', codes: [], description: 'デジタルマーケティング卒業研究修了' } },
+  { id: 'badge-mgmt-platinum', name: '管理（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-mgmt-gold', codes: [], description: '管理卒業研究修了' } },
+  { id: 'badge-startup-platinum', name: '起業（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-startup-gold', codes: [], description: '起業卒業研究修了' } },
+  { id: 'badge-biz2-platinum', name: '経営（卒研）', level: 'platinum', category: '専門',
+    requirements: { prerequisite: 'badge-biz2-gold', codes: [], description: '経営卒業研究修了' } },
+
+  // ── 教養 ──────────────────────────────────────────────
+  { id: 'badge-academic-literacy', name: 'アカデミックリテラシー', level: 'bronze', category: '教養',
+    requirements: { codes: ['SD101E','SD301E'] } },
+  { id: 'badge-academic-writing', name: 'アカデミックライティング', level: 'bronze', category: '教養',
+    requirements: { codes: ['SD302E'] } },
+  { id: 'badge-startup-kyoyo', name: '教養スタートアップ', level: 'bronze', category: '教養',
+    requirements: { codes: ['GESS101','GEHU101','GENS101','GECO101'] } },
+  { id: 'badge-communication', name: 'コミュニケーション', level: 'bronze', category: '教養',
+    requirements: { codes: ['GEHU201','GECO201'] } },
+
+  // ── 外国語 ────────────────────────────────────────────
   { id: 'badge-english-bronze', name: '総合英語', level: 'bronze', category: '外国語',
-    requirements: { codes: ['ENGL101E', 'ENGL151E', 'ENGL201E', 'ENGL251E'] } },
+    requirements: { codes: ['ENGL101E','ENGL151E','ENGL201E','ENGL251E'] } },
   { id: 'badge-english-silver1', name: '実践英語Ⅰ', level: 'silver', category: '外国語',
-    requirements: { prerequisite: 'badge-english-bronze', codes: ['ENGL301E', 'ENGL302E'] } },
+    requirements: { prerequisite: 'badge-english-bronze', codes: ['ENGL301E','ENGL302E'] } },
+  { id: 'badge-english-silver2', name: '実践英語Ⅱ', level: 'silver', category: '外国語',
+    requirements: { prerequisite: 'badge-english-silver1', codes: ['ENGL401E','ENGL402E'] } },
+  { id: 'badge-chinese-bronze', name: '中国語基礎', level: 'bronze', category: '外国語',
+    requirements: { codes: ['CHIN101E','CHIN201E'] } },
 ];
 
 // --- 出席認定期間テーブル（2026年度春学期） ---
-// 科目種別ごとにコマ番号→締切日時(ISO)を定義
-// open_type='一斉' かつ deadline_type='専門' → ATTENDANCE_SENMON_ISSAI
-// open_type='順次' かつ deadline_type='専門' → ATTENDANCE_SENMON_JYUNJI
-// term='前期' かつ deadline_type='教養' → ATTENDANCE_KYOYO_ZENKI
-// term='後期' かつ deadline_type='教養' → ATTENDANCE_KYOYO_KOKI
-// is_enshu=true かつ deadline_type='教養' → ATTENDANCE_KYOYO_ENSHU
-// code='SD302E'(アカデミックライティング) → ATTENDANCE_ACADEMIC_WRITING
-// deadline_type='外国語' → ATTENDANCE_GAIKOKUGO
-
 const ATTENDANCE_2026_SPRING = {
   // 専門科目（一斉開講）締切のみ
   senmon_issai: [

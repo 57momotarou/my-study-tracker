@@ -105,6 +105,7 @@ function renderSettingsPage() {
   });
 
   renderEnrolledSummary();
+  renderOpenDateList(state.currentSemesterId);
 }
 
 function renderEnrolledSummary() {
@@ -145,4 +146,88 @@ function renderEnrolledSummary() {
       <div class="stat-box-num">${kyoyoCount + foreignCount}</div>
       <div class="stat-box-label">教養+外国語</div>
     </div>`;
+}
+
+// ============================================================
+// 開講日一覧（設定タブ内）
+// ============================================================
+function renderOpenDateList(semId) {
+  var sem      = SEMESTERS.find(function(s){ return s.id===semId; }) || SEMESTERS[0];
+  var subjects = getEnrolledSubjects(semId);
+  var el       = document.getElementById('open-date-list');
+  if (!el) return;
+  if (!subjects.length) { el.innerHTML=''; return; }
+  if (!sem.attendance)  { el.innerHTML='<div style="font-size:12px;color:var(--text3)">この学期の開講日データはありません</div>'; return; }
+
+  // 各科目の開講日・締切を収集
+  var rows = subjects.map(function(s) {
+    var key = getAttendanceKey(s, sem);
+    var openDate = null, closeDate = null;
+
+    if (key && sem.attendance[key]) {
+      var tbl = sem.attendance[key];
+      // 開講日（コマ1のstart、または後期開講日）
+      if (key === 'kyoyo_koki') {
+        openDate = new Date(typeof KYOYO_KOKI_START !== 'undefined' ? KYOYO_KOKI_START : '2026-05-26');
+      } else if (tbl[1]) {
+        var e1 = tbl[1];
+        if (typeof e1 === 'object' && e1.start) openDate = new Date(e1.start);
+        else openDate = new Date(sem.start);
+      } else {
+        openDate = new Date(sem.start);
+      }
+      // 最終締切（最後のコマ）
+      var lastN = s.lessons;
+      var last  = tbl[lastN];
+      if (last) closeDate = new Date(typeof last === 'string' ? last : last.end);
+    } else {
+      openDate  = new Date(sem.start);
+    }
+
+    var now       = new Date();
+    var isOpen    = openDate && openDate <= now;
+    var color     = getCategoryColor(s.category);
+    var openStr   = openDate  ? openDate.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '-';
+    var closeStr  = closeDate ? closeDate.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '-';
+    var openType  = s.open_type === '一斉' ? '一斉' : '順次';
+    var ttDay     = getTimetableDay(s.code, semId);
+    var dayNames  = ['月','火','水','木','金','土'];
+    var dayStr    = ttDay !== undefined ? dayNames[ttDay]+'曜' : '';
+
+    return { s, color, isOpen, openStr, closeStr, openType, dayStr };
+  }).sort(function(a,b){
+    // 開講日順（未開講→開講済み→完了）
+    if (a.isOpen !== b.isOpen) return a.isOpen ? -1 : 1;
+    return a.openStr.localeCompare(b.openStr);
+  });
+
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;margin-bottom:4px">';
+  html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 6px">科目</div>';
+  html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 4px">開講</div>';
+  html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 4px">最終</div>';
+  html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 4px">曜日</div>';
+  html += '</div>';
+
+  rows.forEach(function(row) {
+    var bg     = row.isOpen ? 'transparent' : 'rgba(255,255,255,0.02)';
+    var op     = row.isOpen ? '1' : '0.5';
+    var badge  = row.isOpen
+      ? '<span style="font-size:9px;background:var(--green-dim,rgba(16,185,129,0.15));color:var(--green);padding:1px 5px;border-radius:99px">開講中</span>'
+      : '<span style="font-size:9px;background:var(--bg3);color:var(--text3);padding:1px 5px;border-radius:99px">開講前</span>';
+    html += '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;border-bottom:1px solid var(--border);background:'+bg+';opacity:'+op+'">';
+    html += '<div style="padding:7px 6px;min-width:0">';
+    html += '<div style="display:flex;align-items:center;gap:5px">';
+    html += '<div style="width:6px;height:6px;border-radius:50%;background:'+row.color+';flex-shrink:0"></div>';
+    html += '<div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+row.s.name+'</div>';
+    html += '</div>';
+    html += '<div style="font-size:9px;color:var(--text3);margin-top:1px;padding-left:11px">'+row.openType+' '+badge+'</div>';
+    html += '</div>';
+    html += '<div style="padding:7px 4px;font-size:11px;color:var(--text2);white-space:nowrap;align-self:center">'+row.openStr+'</div>';
+    html += '<div style="padding:7px 4px;font-size:11px;color:var(--text3);white-space:nowrap;align-self:center">'+row.closeStr+'</div>';
+    html += '<div style="padding:7px 4px;font-size:11px;color:#60a5fa;white-space:nowrap;align-self:center">'+row.dayStr+'</div>';
+    html += '</div>';
+  });
+
+  el.innerHTML = html;
 }
