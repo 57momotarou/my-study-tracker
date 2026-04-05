@@ -117,7 +117,8 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
     return '<div style="display:flex;gap:'+(nodeW+gap-2)+'px;justify-content:center">'+items.join('')+'</div>';
   }
 
-  var html = '<div class="card-label">💻 専門</div>';
+  var html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="min-width:340px">';
+  html += '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
 
   // ── ルート：IT総合学基礎 ──
@@ -165,24 +166,17 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += vls;
   html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-silver',88)+'</div>';
   html += vl;
-  // ゴールド5種を2列グリッドで並べる
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
-  html += nd('badge-genai-gold',76)+nd('badge-mgmt-gold',76)+nd('badge-biz2-gold',76);
+  // ゴールド5種（1行横並び）
+  html += '<div style="display:flex;justify-content:center;gap:5px">';
+  html += nd('badge-genai-gold',60)+nd('badge-dm-gold',60)+nd('badge-mgmt-gold',60)+nd('badge-startup-gold',60)+nd('badge-biz2-gold',60);
   html += '</div>';
-  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
-  html += nd('badge-dm-gold',76)+nd('badge-startup-gold',76);
+  html += '<div style="display:flex;justify-content:flex-end;gap:5px;padding-right:0">';
+  html += vls+vls+vls+vls;
   html += '</div>';
-  html += '</div>';
-  html += vls;
-  // プラチナ4種（生成AIなし）を2列
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
-  html += nd('badge-mgmt-platinum',76)+nd('badge-biz2-platinum',76);
-  html += '</div>';
-  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
-  html += nd('badge-dm-platinum',76)+nd('badge-startup-platinum',76);
-  html += '</div>';
+  // プラチナ4種（生成AIなし）
+  html += '<div style="display:flex;justify-content:center;gap:5px">';
+  html += '<div style="width:65px"></div>';
+  html += nd('badge-dm-platinum',60)+nd('badge-mgmt-platinum',60)+nd('badge-startup-platinum',60)+nd('badge-biz2-platinum',60);
   html += '</div>';
   html += '</div>'; // end bg block
   html += '</div>'; // end ビジネス系
@@ -193,6 +187,7 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)">';
   ['bronze','silver','gold','platinum'].forEach(function(l){ html += '<span>'+LCFG[l].icon+' '+LCFG[l].label+'</span>'; });
   html += '</div>';
+  html += '</div></div>'; // スクロールラッパー終了
 
   wrap.innerHTML = html;
   return wrap;

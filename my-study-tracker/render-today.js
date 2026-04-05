@@ -139,26 +139,27 @@ function renderTodayTimetable(subjects, sem, semId) {
     const nowLbl  = inLes>0?`コマ${doneLes+1} 第${inLes}章まで完了`:doneLes>0?`コマ${doneLes} 完了`:'未受講';
     const todayMark = isToday ? `<span style="font-size:10px;background:var(--amber);color:#000;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">今日</span>` : '';
 
-    // 章グリッド（8列グリッド、コマ先頭にmargin-leftで区切り）
-    let btnHtml = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:10px">';
+    // 章グリッド：コマ単位divで等サイズ保証
+    let btnHtml = '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:10px">';
     for (let lesson=1; lesson<=s.lessons; lesson++) {
       const lateL  = isLessonLate(lesson,s,sem);
       const weekL  = lesson<=rec && lesson>doneLes;
       const notYet = !isLessonAvailable(lesson,s,sem);
+      const lOp    = notYet ? 'opacity:0.2;' : '';
+      btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;${lOp}${lesson>1?'margin-left:2px;':''}">`;
       for (let ch=1; ch<=CPL; ch++) {
-        const chNum    = (lesson-1)*CPL+ch;
-        const isDone   = chNum<=doneCh;
-        const isLateC  = !isDone&&lateL;
-        const isWeekC  = !isDone&&!isLateC&&weekL;
-        const isNotYet = !isDone&&!isLateC&&!isWeekC&&notYet;
+        const chNum   = (lesson-1)*CPL+ch;
+        const isDone  = chNum<=doneCh;
+        const isLateC = !isDone&&lateL;
+        const isWeekC = !isDone&&!isLateC&&weekL;
+        const nc      = notYet ? 'pointer-events:none;' : '';
         let st='';
-        if (isDone)       st='background:'+color+';color:#000';
-        else if(isLateC)  st='background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
-        else if(isWeekC)  st='background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
-        else if(isNotYet) st='opacity:0.2;pointer-events:none';
-        const ml = (ch===1&&lesson>1) ? 'margin-left:2px;' : '';
-        btnHtml+=`<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${st}${ml}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
+        if (isDone)      st='background:'+color+';color:#000';
+        else if(isLateC) st='background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
+        else if(isWeekC) st='background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
+        btnHtml+=`<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${st}${nc}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
       }
+      btnHtml += '</div>';
     }
     btnHtml+='</div>';
 

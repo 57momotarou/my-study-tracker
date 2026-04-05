@@ -17,13 +17,18 @@ function loadState() {
     state.progress    = JSON.parse(localStorage.getItem(KEYS.progress)||'{}');
     const c = localStorage.getItem(KEYS.currentSem);
     state.currentSemesterId = c ? parseInt(c) : 1;
-    let migrated = false;
-    Object.keys(state.progress).forEach(code => {
-      if (state.progress[code] > 0 && state.progress[code] <= 15) {
-        state.progress[code] *= 4; migrated = true;
-      }
-    });
-    if (migrated) saveState();
+    // 旧データ（コマ単位）→章単位への移行（一度だけ実行）
+    const migratedKey = 'cp-migrated-v1';
+    if (!localStorage.getItem(migratedKey)) {
+      let migrated = false;
+      Object.keys(state.progress).forEach(code => {
+        if (state.progress[code] > 0 && state.progress[code] <= 15) {
+          state.progress[code] *= 4; migrated = true;
+        }
+      });
+      if (migrated) saveState();
+      localStorage.setItem(migratedKey, '1');
+    }
   } catch(e) { console.error(e); }
 }
 function saveState() {
