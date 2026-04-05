@@ -51,9 +51,29 @@ function isLessonAvailable(lessonNum, subject, semester) {
   const key = getAttendanceKey(subject, semester);
   if (key && semester.attendance && semester.attendance[key]) {
     const entry = semester.attendance[key][lessonNum];
-    if (entry && typeof entry === 'object' && entry.start) {
-      return new Date(entry.start) <= new Date();
+    if (entry) {
+      // 順次開講：startがあればそれで判定
+      if (typeof entry === 'object' && entry.start) {
+        return new Date(entry.start) <= new Date();
+      }
+      // 一斉開講（文字列の締切のみ）：科目の開講キーに応じて開始日を判定
+      // kyoyo_kokiは春学期5月頃から開講
+      if (key === 'kyoyo_koki') {
+        // 後期は5月の最初の締切日の2週間前から開講と推定
+        const firstEntry = semester.attendance[key][1];
+        if (firstEntry) {
+          const firstDL = new Date(typeof firstEntry==='string' ? firstEntry : firstEntry.end);
+          const startDate = new Date(firstDL.getTime() - 14 * 86400000);
+          return startDate <= new Date();
+        }
+      }
+      // senmon_issai, kyoyo_zenki, gaikokugo等: 学期開始と同時に開講
+      return true;
     }
+  }
+  // テーブルなし（秋学期以降）は学期開始日で判定
+  if (semester.start) {
+    return new Date(semester.start) <= new Date();
   }
   return true;
 }
