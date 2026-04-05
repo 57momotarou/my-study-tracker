@@ -576,88 +576,15 @@ body {
 
 
 /* ── 今日タブ：科目カード ── */
-.today-subject-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  margin-bottom: 10px;
-}
-.today-subject-card:last-child { margin-bottom: 0; }
-.today-goal-box { border: 1px solid; border-radius: var(--radius-sm); padding: 10px 14px; }
+.today-subject-card { background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px; }
+.today-subject-card:last-child { margin-bottom:0; }
+.today-goal-box { border:1px solid;border-radius:var(--radius-sm);padding:10px 14px; }
 
-/* ── ヘッダー：my-study-tracker右横の学期ボタン ── */
-.header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  height: 100%;
-  gap: 8px;
-}
-.header-center { flex: 1; min-width: 0; }
-.header-sem-trigger {
-  display: inline-flex;
-  align-items: center;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text3);
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 99px;
-  cursor: pointer;
-  font-family: 'Noto Sans JP', sans-serif;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s, color 0.15s;
-}
-.header-sem-trigger:active { border-color: var(--amber); color: var(--amber); }
-
-/* ── バッジツリー ── */
-.btree-wrapper { padding: 4px 0; }
-.btree-row {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 0;
-}
-.btree-center { justify-content: center; }
-.btree-spaced { justify-content: space-around; }
-.btree-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px 6px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg3);
-  min-width: 60px;
-  max-width: 70px;
-  flex-shrink: 0;
-}
-.btree-root { min-width: 80px; max-width: 90px; padding: 10px 8px; }
-.btree-earned { box-shadow: 0 0 0 1px currentColor; }
-.btree-connector-v {
-  width: 2px;
-  height: 16px;
-  background: var(--border);
-  margin: 0 auto;
-}
-.btree-mini-bar {
-  width: 100%;
-  max-width: 50px;
-  height: 3px;
-  background: var(--bg2);
-  border-radius: 99px;
-  overflow: hidden;
-  margin-top: 4px;
-}
+/* ── ヘッダー学期トリガー ── */
+.header-inner { display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:100%;gap:8px; }
+.header-left { display:flex;align-items:center;gap:8px;flex:1;min-width:0; }
+.header-sem-trigger { display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:11px;padding:4px 10px;border-radius:99px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s,color 0.15s; }
+.header-sem-trigger:active { border-color:var(--amber);color:var(--amber); }
 
 /* タップハイライト除去 */
-.lesson-btn, .today-subject-card, .progress-subject-card {
-  -webkit-tap-highlight-color: transparent;
-}
+.lesson-btn,.today-subject-card,.progress-subject-card { -webkit-tap-highlight-color:transparent; }

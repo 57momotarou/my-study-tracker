@@ -69,14 +69,14 @@ function getTodayTarget(subject, semester) {
   return count;
 }
 
-// 推奨完了コマ数（締切の7日前を目標にする余裕スケジュール）
+// 推奨完了コマ数（締切7日前を目標とする余裕スケジュール）
 const ADVANCE_DAYS = 7;
 function getTodayRecommended(subject, semester) {
   const now = new Date();
   let count = 0;
   for (let n = 1; n <= subject.lessons; n++) {
-    const deadline      = getLessonDeadline(n, subject, semester);
-    const advanceTarget = new Date(deadline.getTime() - ADVANCE_DAYS * 86400000);
+    const dl = getLessonDeadline(n, subject, semester);
+    const advanceTarget = new Date(dl.getTime() - ADVANCE_DAYS * 86400000);
     if (advanceTarget <= now) count++;
     else break;
   }
