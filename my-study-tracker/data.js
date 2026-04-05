@@ -36,7 +36,7 @@ const ALL_SUBJECTS = [
   { code: 'CS101',    name: 'ITのための基礎知識',                  category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '一斉', is_enshu: false, required: true },
   { code: 'CS102',    name: 'インターネット入門',                  category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '一斉', is_enshu: false, required: true },
   { code: 'CS103',    name: 'データサイエンス入門',                category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '一斉', is_enshu: false, required: true },
-  { code: 'CS104E',   name: 'オフィスソフトウェア基礎演習',        category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '順次', is_enshu: true },
+  { code: 'CS104E',   name: 'オフィスソフトウェア基礎演習',        category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '一斉', is_enshu: true },
   { code: 'CS106',    name: '情報端末とネットサービス入門',        category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '順次', is_enshu: false },
   { code: 'CS151',    name: 'コンピュータ入門',                    category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '一斉', is_enshu: false },
   { code: 'CS152E',   name: 'プログラミング入門',                  category: '専門', type: '専門基礎', credits: 2, lessons: 15, deadline_type: '専門', available: ['春', '秋'], open_type: '順次', is_enshu: true },

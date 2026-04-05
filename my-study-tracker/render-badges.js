@@ -165,17 +165,24 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += vls;
   html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-silver',88)+'</div>';
   html += vl;
-  // ゴールド5種（小さめ・2行に折り返す可能性あり）
-  html += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px">';
-  html += nd('badge-genai-gold',56)+nd('badge-dm-gold',56)+nd('badge-mgmt-gold',56)+nd('badge-startup-gold',56)+nd('badge-biz2-gold',56);
+  // ゴールド5種を2列グリッドで並べる
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
+  html += nd('badge-genai-gold',76)+nd('badge-mgmt-gold',76)+nd('badge-biz2-gold',76);
   html += '</div>';
-  // プラチナ（生成AI除く・4種）
-  html += '<div style="height:10px;display:flex;justify-content:center;gap:52px">';
-  html += vls+vls+vls+vls;
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
+  html += nd('badge-dm-gold',76)+nd('badge-startup-gold',76);
   html += '</div>';
-  html += '<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px">';
-  html += '<div style="width:60px"></div>'; // 生成AIのスペース
-  html += nd('badge-dm-platinum',56)+nd('badge-mgmt-platinum',56)+nd('badge-startup-platinum',56)+nd('badge-biz2-platinum',56);
+  html += '</div>';
+  html += vls;
+  // プラチナ4種（生成AIなし）を2列
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
+  html += nd('badge-mgmt-platinum',76)+nd('badge-biz2-platinum',76);
+  html += '</div>';
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">';
+  html += nd('badge-dm-platinum',76)+nd('badge-startup-platinum',76);
+  html += '</div>';
   html += '</div>';
   html += '</div>'; // end bg block
   html += '</div>'; // end ビジネス系
