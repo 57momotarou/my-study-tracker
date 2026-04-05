@@ -147,39 +147,74 @@ function renderHeader()            { document.getElementById('header-semester').
 // ============================================================
 // 時間割：自動配置ロジック（ページ読み込み時・学期変更時に実行）
 // ============================================================
+// ensureAutoTimetable: 締切近い順に優先配置・遅刻中科目は日曜にも追加
+// ttIdx 0=月〜5=土、6=日（緊急枠）
 function ensureAutoTimetable(semId) {
   const subjects = getEnrolledSubjects(semId);
   if (!subjects.length) return;
-  const tt = loadTimetable();
+  const sem = SEMESTERS.find(s=>s.id===semId)||SEMESTERS[0];
+  const tt  = loadTimetable();
   if (!tt[semId]) tt[semId] = {};
+  const now = new Date();
 
   // 未配置の科目のみ配置（既存を上書きしない）
   const unplaced = subjects.filter(s => tt[semId][s.code] === undefined);
   if (!unplaced.length) return;
 
-  // 専門→木(3)優先、溢れたら水(2)→金(4)→月(0)→火(1)→土(5)
-  // 教養外国語→火(1)優先、溢れたら月(0)→水(2)→木(3)→金(4)→土(5)
-  const senmonPrio  = [3,2,4,0,1,5];
-  const kyoyoPrio   = [1,0,2,3,4,5];
+  // 締切近い順にソート（今日時点での次の未完了コマの締切）
+  const withUrgency = unplaced.map(s => {
+    const done = Math.floor((state.progress[s.code]||0) / 4);
+    const late = Math.max(0, getTodayTarget(s,sem) - done);
+    const nextN = done + 1;
+    const nextDL = nextN <= s.lessons ? getLessonDeadline(nextN, s, sem) : new Date('2099-01-01');
+    const daysLeft = Math.ceil((nextDL - now) / 86400000);
+    return { s, late, daysLeft };
+  }).sort((a,b) => b.late - a.late || a.daysLeft - b.daysLeft); // 遅刻優先、次に締切近い順
 
-  // 既配置の曜日ごとの時間を集計
-  const dayHours = [0,0,0,0,0,0];
+  // 専門→木(3)優先、教養外国語→火(1)優先
+  // 0=月,1=火,2=水,3=木,4=金,5=土（6=日は緊急枠）
+  const senmonPrio = [3,2,4,0,1,5];
+  const kyoyoPrio  = [1,0,2,3,4,5];
+
+  // 既配置の曜日ごとの科目数を集計（月〜土+日）
+  const dayCount = [0,0,0,0,0,0,0]; // index 0-6（0=月,6=日）
   subjects.filter(s=>tt[semId][s.code]!==undefined).forEach(s=>{
     const d=tt[semId][s.code];
-    dayHours[d] += s.deadline_type==='専門'?1.5:1;
+    if (d>=0 && d<=6) dayCount[d]++;
   });
 
-  unplaced.forEach(s=>{
-    const prio = s.deadline_type==='専門' ? senmonPrio : kyoyoPrio;
-    const h    = s.deadline_type==='専門' ? 1.5 : 1;
-    // 最も空いている優先曜日を選ぶ
-    let best = prio[0], bestH = dayHours[prio[0]];
-    prio.forEach(d => { if (dayHours[d] < bestH) { best=d; bestH=dayHours[d]; } });
-    tt[semId][s.code] = best;
-    dayHours[best] += h;
+  withUrgency.forEach(({s, late}) => {
+    const h = s.deadline_type==='専門' ? 1.5 : 1;
+
+    // 遅刻中 or 今日期限 → 日曜にも追加枠（別途配置）
+    if (late > 0) {
+      // 最優先曜日に配置
+      const prio = s.deadline_type==='専門' ? senmonPrio : kyoyoPrio;
+      let best = prio[0], bestC = dayCount[prio[0]];
+      prio.forEach(d => { if (dayCount[d] < bestC) { best=d; bestC=dayCount[d]; } });
+      tt[semId][s.code] = best;
+      dayCount[best]++;
+      // さらに日曜にも「緊急」フラグで追加（コードに _sun サフィックスで管理）
+      // → 日曜枠は専用キーで管理
+      if (!tt[semId]['__sun__']) tt[semId]['__sun__'] = [];
+      if (!tt[semId]['__sun__'].includes(s.code)) tt[semId]['__sun__'].push(s.code);
+    } else {
+      const prio = s.deadline_type==='専門' ? senmonPrio : kyoyoPrio;
+      let best = prio[0], bestC = dayCount[prio[0]];
+      prio.forEach(d => { if (dayCount[d] < bestC) { best=d; bestC=dayCount[d]; } });
+      tt[semId][s.code] = best;
+      dayCount[best]++;
+    }
   });
 
   saveTimetable(tt);
+}
+
+// 日曜枠（緊急科目）取得
+function getSundayUrgentSubjects(semId) {
+  const tt = loadTimetable();
+  const sunCodes = tt[semId]?.['__sun__'] || [];
+  return sunCodes.map(code => ALL_SUBJECTS.find(s=>s.code===code)).filter(Boolean);
 }
 
 function getTimetableDay(code, semId) {

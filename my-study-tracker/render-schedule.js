@@ -54,39 +54,43 @@ function renderTimetableBanner(subjects, semId) {
     <div style="font-size:11px;color:var(--text3);margin-bottom:10px">📌 科目名をタップして曜日を変更できます</div>`;
 
   // 週間時間割グリッド
-  const DAYS = ['月','火','水','木','金','土'];
-  const dayBuckets = [[],[],[],[],[],[]];
+  const DAYS = ['月','火','水','木','金','土','日'];
+  const dayBuckets = [[],[],[],[],[],[],[]];
   subjects.forEach(s => {
     const d = getTimetableDay(s.code, semId);
     if (d !== undefined && d >= 0 && d <= 5) dayBuckets[d].push(s);
   });
+  // 日曜は緊急枠（遅刻中科目）
+  getSundayUrgentSubjects(semId).forEach(s => {
+    if (!dayBuckets[6].find(x=>x.code===s.code)) dayBuckets[6].push(s);
+  });
 
   const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:8px';
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px;overflow:hidden;width:100%;box-sizing:border-box';
 
   // 曜日ヘッダー
   DAYS.forEach((d,i) => {
     const h=document.createElement('div');
-    h.style.cssText='text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:3px 0';
-    h.textContent=d;
+    const isSun=i===6;
+    h.style.cssText='text-align:center;font-size:9px;font-weight:700;color:'+(isSun?'var(--red)':'var(--text3)')+';padding:2px 0';
+    h.textContent=d+(isSun?'⚡':'');
     grid.appendChild(h);
   });
 
   // 各曜日の科目
   const maxRows = Math.max(1, ...dayBuckets.map(b=>b.length));
   for (let row=0; row<maxRows; row++) {
-    DAYS.forEach((d,di) => {
+    DAYS.forEach((_d,di) => {
       const s = dayBuckets[di][row];
       const cell = document.createElement('div');
       if (s) {
         const color = getCategoryColor(s.category);
         const h     = s.deadline_type==='専門'?1.5:1;
-        cell.style.cssText=`background:${color}22;border:1px solid ${color}66;border-radius:5px;padding:4px 3px;cursor:pointer;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;-webkit-tap-highlight-color:transparent`;
-        cell.innerHTML=`<div style="font-size:8px;font-weight:700;color:${color};line-height:1.3;word-break:keep-all">${s.name.length>8?s.name.slice(0,7)+'…':s.name}</div>
-          <div style="font-size:7px;color:var(--text3);margin-top:2px">${h}h</div>`;
+        cell.style.cssText=`background:${color}22;border:1px solid ${color}66;border-radius:5px;padding:3px 2px;cursor:pointer;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;-webkit-tap-highlight-color:transparent;overflow:hidden;box-sizing:border-box`;
+        cell.innerHTML=`<div style="font-size:7px;font-weight:700;color:${color};line-height:1.3;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;white-space:nowrap;padding:0 2px">${s.name.length>6?s.name.slice(0,5)+'…':s.name}</div><div style="font-size:6px;color:var(--text3);margin-top:1px">${h}h</div>`;
         cell.addEventListener('click', ()=>showDayPicker(s.code, s.name, semId, s.deadline_type));
       } else {
-        cell.style.cssText='min-height:46px;border:1px dashed var(--border);border-radius:5px;opacity:0.25';
+        cell.style.cssText='min-height:40px;border:1px dashed var(--border);border-radius:5px;opacity:0.2;box-sizing:border-box';
       }
       grid.appendChild(cell);
     });
@@ -186,9 +190,10 @@ function renderWeekSchedule(subjects, sem, semId) {
       }
     });
 
-    // 時間割：この曜日の科目（月=1→ttIdx=0,…,土=6→ttIdx=5,日=0→なし）
-    const ttIdx=d-1;
-    const ttSubjects=ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[];
+    // 時間割：この曜日の科目（月=1→ttIdx=0,…,土=6→ttIdx=5,日=0→緊急枠）
+    const ttIdx=d===0?-1:d-1;
+    const ttSubjects=d===0?getSundayUrgentSubjects(semId)
+      :(ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[]);
 
     const isKimatsuDay=kimatsuDate&&kimatsuDate.toDateString()===date.toDateString();
     const dayEl=document.createElement('div');
@@ -285,9 +290,10 @@ function renderMonthSchedule(subjects, sem, semId) {
     const dlItems=dlMap[day]||[];
     const isKimatsu=kimatsuDate&&kimatsuDate.getFullYear()===year&&kimatsuDate.getMonth()===month&&kimatsuDate.getDate()===day;
 
-    // この曜日に割り当てられた科目（月=1→ttIdx=0,...,土=6→ttIdx=5）
-    const ttIdx=dow-1;
-    const ttSubs=ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[];
+    // この曜日に割り当てられた科目（月=1→0,…,土=6→5, 日=0→緊急枠）
+    const ttIdx=dow===0?-1:dow-1;
+    const ttSubs=dow===0?getSundayUrgentSubjects(semId)
+      :(ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[]);
 
     const hasLate=dlItems.some(i=>i.isLate), hasPend=dlItems.some(i=>!i.isDone&&!i.isLate), hasDone=dlItems.some(i=>i.isDone);
     let dotColor='';

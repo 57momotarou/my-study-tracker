@@ -583,6 +583,29 @@ body {
 /* ── ヘッダー学期ボタン ── */
 .header-inner { display:flex;align-items:center;padding:0 16px;height:100%;gap:8px; }
 .header-left  { display:flex;align-items:center;gap:8px;flex:1;min-width:0; }
-.header-sem-trigger { display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:11px;padding:4px 10px;border-radius:99px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s,color 0.15s; }
-.header-sem-trigger:active { border-color:var(--amber);color:var(--amber); }
 .header-right { flex-shrink:0; }
+.header-sem-trigger {
+  display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border);
+  color:var(--text3);font-size:11px;padding:4px 10px;border-radius:99px;cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif;white-space:nowrap;max-width:170px;overflow:hidden;
+  text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;transition:border-color 0.15s,color 0.15s;
+}
+.header-sem-trigger:active { border-color:var(--amber);color:var(--amber); }
+
+/* ── 時間割グリッド：はみ出し防止 ── */
+.timetable-grid-wrap {
+  overflow:hidden;width:100%;box-sizing:border-box;
+}
+.timetable-grid-wrap .tt-cell {
+  overflow:hidden;box-sizing:border-box;min-width:0;
+}
+
+/* ── タップハイライト除去 ── */
+.lesson-btn,.today-subject-card,.progress-subject-card,.week-cell {
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* ── 週ストリップパネル ── */
+#week-strip-panel {
+  border-radius:8px;padding:10px 12px;margin-top:8px;
+}
