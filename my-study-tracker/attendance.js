@@ -47,27 +47,24 @@ function getLessonDeadline(lessonNum, subject, semester) {
 }
 
 // コマnがすでに受講可能かどうか（順次開講は開講前は不可）
+// 教養後期の開講開始日（5月26日）
+const KYOYO_KOKI_START = '2026-05-26';
+
 function isLessonAvailable(lessonNum, subject, semester) {
   const key = getAttendanceKey(subject, semester);
   if (key && semester.attendance && semester.attendance[key]) {
     const entry = semester.attendance[key][lessonNum];
     if (entry) {
-      // 順次開講：startがあればそれで判定
+      // 順次開講：startがあればそれで判定（コマ1含む全コマ）
       if (typeof entry === 'object' && entry.start) {
         return new Date(entry.start) <= new Date();
       }
-      // 一斉開講（文字列の締切のみ）：科目の開講キーに応じて開始日を判定
-      // kyoyo_kokiは春学期5月頃から開講
+      // 教養後期（一斉開講・5/26から）：全コマ5/26以降で開講
       if (key === 'kyoyo_koki') {
-        // 後期は5月の最初の締切日の2週間前から開講と推定
-        const firstEntry = semester.attendance[key][1];
-        if (firstEntry) {
-          const firstDL = new Date(typeof firstEntry==='string' ? firstEntry : firstEntry.end);
-          const startDate = new Date(firstDL.getTime() - 14 * 86400000);
-          return startDate <= new Date();
-        }
+        return new Date(KYOYO_KOKI_START) <= new Date();
       }
-      // senmon_issai, kyoyo_zenki, gaikokugo等: 学期開始と同時に開講
+      // senmon_issai, kyoyo_zenki, gaikokugo, study_skill等:
+      // 学期開始と同時に一斉開講
       return true;
     }
   }
