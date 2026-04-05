@@ -1,6 +1,8 @@
 // ★ デプロイのたびにここのバージョンを上げてください (v1 → v2 → v3 ...)
-const CACHE = 'my-study-tracker-v39';
-const FILES = ['./', './index.html', './style.css', './app.js', './data.js', './manifest.json'];
+const CACHE = 'my-study-tracker-v23';
+const FILES = ['./', './index.html', './style.css', './app.js', './data.js', './manifest.json',
+  './attendance.js', './render-today.js', './render-settings.js', './render-schedule.js',
+  './render-badges.js', './render-progress.js', './render-deadlines.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

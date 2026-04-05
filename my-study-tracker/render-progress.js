@@ -81,35 +81,30 @@ function renderProgressPage() {
       statusText=`🟡 今週あと${need}章（${recommended-doneLessons}コマ分）で出席認定`; statusColor='var(--amber)';
     }
 
-    // 章グリッド：コマ単位でグループ化してmargin-leftを廃止
-    let btnHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px">';
+    // 章グリッド（8列固定グリッド・コマ区切りあり）
+    let btnHtml = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:10px">';
     for (let lesson = 1; lesson <= s.lessons; lesson++) {
       const isLessonLate_ = isLessonLate(lesson, s, sem);
       const isThisWeek    = lesson <= recommended && lesson > doneLessons;
       const isNotYet      = !isLessonAvailable(lesson, s, sem);
 
-      // コマを1グループとして背景色付きボックスにまとめる
-      // コマグループの背景：未開講なら透明にして視覚的誤解を防ぐ
-      const allChNotYet = !isLessonAvailable(lesson, s, sem);
-      const groupBg     = allChNotYet ? 'transparent' : 'var(--bg3)';
-      const groupOp     = allChNotYet ? '0.3' : '1';
-      btnHtml += `<div style="display:flex;gap:2px;background:${groupBg};border-radius:5px;padding:2px;opacity:${groupOp}">`;
       for (let ch = 1; ch <= CPL; ch++) {
-        const chNum            = (lesson-1)*CPL + ch;
-        const isDone           = chNum <= doneChapters;
-        const isLateChapter    = !isDone && isLessonLate_;
-        const isThisWeekChap   = !isDone && !isLateChapter && isThisWeek;
-        const notYet           = !isDone && !isLateChapter && !isThisWeekChap && isNotYet;
+        const chNum         = (lesson-1)*CPL + ch;
+        const isDone        = chNum <= doneChapters;
+        const isLateChapter = !isDone && isLessonLate_;
+        const isThisWeekCh  = !isDone && !isLateChapter && isThisWeek;
+        const notYet        = !isDone && !isLateChapter && !isThisWeekCh && isNotYet;
 
         let btnStyle = '';
-        if (isDone)              btnStyle = 'background:' + color + ';color:#000';
-        else if (isLateChapter)  btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
-        else if (isThisWeekChap) btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
-        else if (notYet)         btnStyle = 'pointer-events:none;';
+        if (isDone)           btnStyle = 'background:' + color + ';color:#000';
+        else if (isLateChapter) btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
+        else if (isThisWeekCh)  btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
+        else if (notYet)        btnStyle = 'opacity:0.2;pointer-events:none';
 
-        btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${btnStyle}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
+        // コマ先頭に左マージンで区切りを表現
+        const ml = (ch === 1 && lesson > 1) ? 'margin-left:3px;' : '';
+        btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${btnStyle}${ml}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
       }
-      btnHtml += '</div>';
     }
     btnHtml += '</div>';
 
