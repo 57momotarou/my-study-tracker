@@ -140,11 +140,12 @@ function renderTodayTimetable(subjects, sem, semId) {
     const todayMark = isToday ? `<span style="font-size:10px;background:var(--amber);color:#000;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">今日</span>` : '';
 
     // 章グリッド（inline onclick）
-    let btnHtml = '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:10px">';
+    let btnHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px">';
     for (let lesson=1; lesson<=s.lessons; lesson++) {
       const lateL = isLessonLate(lesson,s,sem);
       const weekL = lesson<=rec && lesson>doneLes;
       const notYet= !isLessonAvailable(lesson,s,sem);
+      btnHtml += '<div style="display:flex;gap:2px;background:var(--bg3);border-radius:5px;padding:2px;">';
       for (let ch=1; ch<=CPL; ch++) {
         const chNum = (lesson-1)*CPL+ch;
         const isDone    = chNum<=doneCh;
@@ -152,13 +153,13 @@ function renderTodayTimetable(subjects, sem, semId) {
         const isWeekC   = !isDone&&!isLateC&&weekL;
         const isNotYet  = !isDone&&!isLateC&&!isWeekC&&notYet;
         let st='';
-        if (isDone)     st=`background:${color};color:#000`;
+        if (isDone)       st='background:'+color+';color:#000';
         else if(isLateC)  st='background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
         else if(isWeekC)  st='background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
-        else if(isNotYet) st='opacity:0.3';
-        const ml=ch===1&&lesson>1?'margin-left:2px;':'';
-        btnHtml+=`<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${st}${ml}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
+        else if(isNotYet) st='background:#0d1220;color:#252e42;'+(ch===1&&lesson>1?'box-shadow:-2px 0 0 0 #0a0e1a;':'');
+        btnHtml+=`<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${st}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
       }
+      btnHtml += '</div>';
     }
     btnHtml+='</div>';
 
