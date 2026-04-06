@@ -117,6 +117,7 @@ function resetTimetable(semId) {
   saveTimetable(tt);
   ensureAutoTimetable(semId);
   renderSchedulePage();
+  renderToday();
 }
 
 // 曜日変更ピッカー
@@ -291,11 +292,8 @@ function renderMonthSchedule(subjects, sem, semId) {
     const isKimatsu=kimatsuDate&&kimatsuDate.getFullYear()===year&&kimatsuDate.getMonth()===month&&kimatsuDate.getDate()===day;
 
     // この曜日に割り当てられた科目（月=1→0,…,土=6→5, 日=0→緊急枠）
-    // 学期開始日より前は時間割科目を表示しない
-    const semStartDate = sem.start ? new Date(sem.start) : null;
-    const isBeforeSemStart = semStartDate && date < semStartDate;
     const ttIdx=dow===0?-1:dow-1;
-    const ttSubs=isBeforeSemStart?[]:dow===0?getSundayUrgentSubjects(semId)
+    const ttSubs=dow===0?getSundayUrgentSubjects(semId)
       :(ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[]);
 
     const hasLate=dlItems.some(i=>i.isLate), hasPend=dlItems.some(i=>!i.isDone&&!i.isLate), hasDone=dlItems.some(i=>i.isDone);
@@ -333,7 +331,7 @@ function renderMonthSchedule(subjects, sem, semId) {
     }));
 
     html+=`<div onclick="${hasContent?`showDayDetail('${tapData}')`:''}"
-      style="min-height:54px;border-radius:6px;padding:3px 4px;box-sizing:border-box;width:100%;overflow:hidden;
+      style="min-height:54px;border-radius:6px;padding:3px 4px;
         background:${isToday?'var(--amber-dim)':isKimatsu?'var(--purple-dim)':hasContent?'var(--bg3)':'transparent'};
         border:1px solid ${isToday?'var(--amber)':isKimatsu?'var(--purple)':hasContent?'var(--border)':'transparent'};
         display:flex;flex-direction:column;gap:2px;

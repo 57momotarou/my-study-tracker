@@ -166,8 +166,11 @@ function ensureAutoTimetable(semId) {
   const unplaced = subjects.filter(s => tt[semId][s.code] === undefined);
   if (!unplaced.length) return;
 
+  // 開講済み科目のみ対象（開講前は配置しない）
+  const availableUnplaced = unplaced.filter(s => isLessonAvailable(1, s, sem));
+
   // 締切近い順にソート（今日時点での次の未完了コマの締切）
-  const withUrgency = unplaced.map(s => {
+  const withUrgency = availableUnplaced.map(s => {
     const done = Math.floor((state.progress[s.code]||0) / 4);
     const late = Math.max(0, getTodayTarget(s,sem) - done);
     const nextN = done + 1;
