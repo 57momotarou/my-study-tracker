@@ -45,11 +45,11 @@ function renderTodayTimetable(subjects, sem, semId) {
     const effectiveTtDow    = ttDow === 0 ? 7 : ttDow;
     const isPastThisWeek    = ttDay !== undefined && effectiveTtDow < effectiveTodayDow;
 
-    // 「積み残し」= 今週の割り当て曜日を過ぎていて、recまで未完
-    const isOverdue = isPastThisWeek && (doneLes < rec || late > 0);
-
-    // 今日の予定：今日の曜日で未完了（今日のコマ=nextLessonを終えていない）
+    // 「積み残し」= 割り当て曜日を過ぎていて次のコマが未完了
     const nextLesson = doneLes + 1;
+    const isOverdue = isPastThisWeek && doneLes < s.lessons;
+
+    // 今日の予定：今日のコマ（nextLesson）を終えているか
     const isTodayDone = doneCh >= nextLesson * CPL || doneLes >= s.lessons;
 
     return { s, doneCh, doneLes, target, rec, late, ttDay, isToday, isOverdue, isTodayDone, nextLesson };
@@ -60,9 +60,8 @@ function renderTodayTimetable(subjects, sem, semId) {
   // ② 今日の時間割科目
   const todayItems   = withState.filter(i => i.isToday);
 
-  const hasAnything = overdueItems.length > 0 || todayItems.some(i => !i.isTodayDone);
-
-  if (!hasAnything && todayItems.length === 0 && overdueItems.length === 0) {
+  // 今日の予定なし（時間割未割当 or 日曜）
+  if (todayItems.length === 0 && overdueItems.length === 0) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はありません</div>
@@ -70,8 +69,8 @@ function renderTodayTimetable(subjects, sem, semId) {
     return;
   }
 
-  // 今日の予定が全完了で積み残しもなし
-  if (overdueItems.length === 0 && todayItems.length > 0 && todayItems.every(i => i.isTodayDone)) {
+  // 今日の予定が全完了かつ積み残しもなし
+  if (overdueItems.length === 0 && todayItems.every(i => i.isTodayDone)) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はすべて完了！</div>
@@ -125,7 +124,7 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
     badgeText = `🔴 ${late}コマ遅刻中`; badgeClass = 'badge-danger';
   } else if (forceShowAsOverdue) {
     // 積み残し（遅刻ではないが割り当て曜日を過ぎた）
-    goalL = rec; goalCh = CPL;
+    goalL = nextLesson; goalCh = CPL;
     goalLabel = '今日中に消化しよう'; goalColor = 'var(--amber)';
     badgeText = `⏰ 積み残し`; badgeClass = 'badge-warn';
   } else {
