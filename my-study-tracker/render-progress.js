@@ -81,15 +81,15 @@ function renderProgressPage() {
       statusText=`🟡 今週あと${need}章（${recommended-doneLessons}コマ分）で出席認定`; statusColor='var(--amber)';
     }
 
-    // 章グリッド：コマごとにdivで囲み均等サイズを保証
-    let btnHtml = '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:10px">';
+    // 章グリッド：横スクロール対応・均等サイズ保証
+    let btnHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
     for (let lesson = 1; lesson <= s.lessons; lesson++) {
       const isLessonLate_ = isLessonLate(lesson, s, sem);
       const isThisWeek    = lesson <= recommended && lesson > doneLessons;
       const isNotYet      = !isLessonAvailable(lesson, s, sem);
       const lessonOp      = isNotYet ? 'opacity:0.2;' : '';
 
-      btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;${lessonOp}${lesson>1?'margin-left:2px;':''}flex-shrink:0">`;
+      btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,28px);grid-template-rows:28px;gap:1px;${lessonOp}">`;
       for (let ch = 1; ch <= CPL; ch++) {
         const chNum         = (lesson-1)*CPL + ch;
         const isDone        = chNum <= doneChapters;
@@ -106,7 +106,7 @@ function renderProgressPage() {
       }
       btnHtml += '</div>';
     }
-    btnHtml += '</div>';
+    btnHtml += '</div></div>';
 
     const progressLabel = doneChapterInLes > 0
       ? `コマ${doneLessons+1}の第${doneChapterInLes}章まで完了`

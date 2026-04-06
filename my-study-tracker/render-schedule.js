@@ -276,9 +276,9 @@ function renderMonthSchedule(subjects, sem, semId) {
   });
 
   const el=document.getElementById('schedule-month');
-  let html=`<div style="overflow:hidden;width:100%;box-sizing:border-box"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+  let html=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
     ${DOW.map((d,i)=>`<div style="text-align:center;font-size:10px;padding:3px 0;font-weight:600;color:${i===0?'#ef4444':i===6?'#60a5fa':'var(--text3)'}">${d}</div>`).join('')}
-  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
 
   for (let i=0;i<firstDow;i++) html+=`<div></div>`;
 
@@ -291,8 +291,11 @@ function renderMonthSchedule(subjects, sem, semId) {
     const isKimatsu=kimatsuDate&&kimatsuDate.getFullYear()===year&&kimatsuDate.getMonth()===month&&kimatsuDate.getDate()===day;
 
     // この曜日に割り当てられた科目（月=1→0,…,土=6→5, 日=0→緊急枠）
+    // 学期開始日より前は時間割科目を表示しない
+    const semStartDate = sem.start ? new Date(sem.start) : null;
+    const isBeforeSemStart = semStartDate && date < semStartDate;
     const ttIdx=dow===0?-1:dow-1;
-    const ttSubs=dow===0?getSundayUrgentSubjects(semId)
+    const ttSubs=isBeforeSemStart?[]:dow===0?getSundayUrgentSubjects(semId)
       :(ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[]);
 
     const hasLate=dlItems.some(i=>i.isLate), hasPend=dlItems.some(i=>!i.isDone&&!i.isLate), hasDone=dlItems.some(i=>i.isDone);
@@ -330,7 +333,7 @@ function renderMonthSchedule(subjects, sem, semId) {
     }));
 
     html+=`<div onclick="${hasContent?`showDayDetail('${tapData}')`:''}"
-      style="min-height:54px;border-radius:6px;padding:3px 4px;
+      style="min-height:54px;border-radius:6px;padding:3px 4px;box-sizing:border-box;width:100%;overflow:hidden;
         background:${isToday?'var(--amber-dim)':isKimatsu?'var(--purple-dim)':hasContent?'var(--bg3)':'transparent'};
         border:1px solid ${isToday?'var(--amber)':isKimatsu?'var(--purple)':hasContent?'var(--border)':'transparent'};
         display:flex;flex-direction:column;gap:2px;
@@ -343,7 +346,7 @@ function renderMonthSchedule(subjects, sem, semId) {
     </div>`;
   }
 
-  html+=`</div></div>
+  html+=`</div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--text3)">
     <span><span style="color:var(--amber)">■</span>締切(未)</span>
     <span><span style="color:var(--red)">■</span>遅刻</span>

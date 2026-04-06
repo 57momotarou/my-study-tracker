@@ -111,11 +111,13 @@ function renderTodayTimetable(subjects, sem, semId) {
 
   // ① 積み残し（遅刻中で今日の時間割外の科目）
   const overdueItems = withState.filter(i => i.late > 0 && !i.isScheduledToday);
-  // ② 今日の時間割科目
+  // ② 今日の時間割科目（全科目）
   const todayItems = withState.filter(i => i.isScheduledToday);
-  // 今日の時間割が全完了かつ積み残しもなし
+  // 今日の時間割が全科目「今日の分まで完了」かつ積み残しなし
+  // 「今日の分完了」= nextLesson（=doneLes+1）コマ目が完了 = doneCh >= nextLesson*CPL
+  //  または全コマ受講済み
   const todayAllDone = todayItems.length > 0
-    && todayItems.every(i => i.doneLes >= i.rec && i.late === 0)
+    && todayItems.every(i => i.doneCh >= i.nextLesson * CPL || i.doneLes >= i.s.lessons)
     && overdueItems.length === 0;
 
   if (todayItems.length === 0 && overdueItems.length === 0) {
@@ -166,8 +168,9 @@ function _renderTodayCard(ttEl, item, sem, semId) {
   const color = getCategoryColor(s.category);
   const pct   = Math.round(doneCh / (s.lessons * CPL) * 100);
 
-  // 完了カード（コンパクト）
-  if (doneLes >= rec && late === 0) {
+  // 完了カード（コンパクト）: 今日の分（nextLesson）コマ目が完了しているか、または全コマ完了
+  const isTodayDone = doneCh >= nextLesson * CPL || doneLes >= s.lessons;
+  if (isTodayDone && late === 0) {
     ttEl.innerHTML += `<div class="today-subject-card" style="border-left:3px solid var(--green);opacity:0.75;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:18px">✅</span>
@@ -194,13 +197,13 @@ function _renderTodayCard(ttEl, item, sem, semId) {
   const nowLbl = inLes > 0 ? `コマ${doneLes+1} 第${inLes}章まで完了` : doneLes > 0 ? `コマ${doneLes} 完了` : '未受講';
 
   // 章グリッド
-  let btnHtml = '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:10px">';
+  let btnHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
   for (let lesson = 1; lesson <= s.lessons; lesson++) {
     const lateL  = isLessonLate(lesson, s, sem);
     const weekL  = lesson <= rec && lesson > doneLes;
     const notYet = !isLessonAvailable(lesson, s, sem);
     const lOp   = notYet ? 'opacity:0.2;' : '';
-    btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;${lOp}${lesson>1?'margin-left:2px;':''}flex-shrink:0">`;
+    btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,28px);grid-template-rows:28px;gap:1px;${lOp}">`;
     for (let ch = 1; ch <= CPL; ch++) {
       const chNum   = (lesson - 1) * CPL + ch;
       const isDone  = chNum <= doneCh;
@@ -215,7 +218,7 @@ function _renderTodayCard(ttEl, item, sem, semId) {
     }
     btnHtml += '</div>';
   }
-  btnHtml += '</div>';
+  btnHtml += '</div></div>';
 
   ttEl.innerHTML += `
     <div class="today-subject-card" style="border-left:3px solid ${color};margin-bottom:8px">
