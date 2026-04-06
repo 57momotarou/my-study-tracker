@@ -108,7 +108,14 @@ function renderTodayTimetable(subjects, sem, semId) {
     const isToday = ttDay !== undefined && ttDay === (todayDow - 1);
     return {s, doneCh, doneLes, rec, late, need, isToday};
   }).filter(i => i.late>0 || i.need>0)
-    .sort((a,b) => b.late-a.late || (b.isToday?1:0)-(a.isToday?1:0) || b.need-a.need);
+    .sort((a,b) => {
+      // done（目標達成済み）は後ろへ
+      const aDone = a.doneLes >= a.rec && a.late === 0;
+      const bDone = b.doneLes >= b.rec && b.late === 0;
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      // 遅刻優先 → 今日の曜日 → need多い順
+      return b.late-a.late || (b.isToday?1:0)-(a.isToday?1:0) || b.need-a.need;
+    });
 
   if (!withPriority.length) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
@@ -162,6 +169,18 @@ function renderTodayTimetable(subjects, sem, semId) {
       btnHtml += '</div>';
     }
     btnHtml+='</div>';
+
+    // 目標達成済み（doneLes >= rec かつ late=0）→ コンパクト表示
+    const isGoalDone = late===0 && doneLes>=rec;
+    if (isGoalDone) {
+      ttEl.innerHTML += `<div class="today-subject-card" style="border-left:3px solid var(--green);opacity:0.7">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">✅</span>
+          <div style="flex:1;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
+          <span style="font-size:10px;color:var(--green)">今週OK</span>
+        </div></div>`;
+      return;
+    }
 
     ttEl.innerHTML += `
       <div class="today-subject-card" style="border-left:3px solid ${color}">

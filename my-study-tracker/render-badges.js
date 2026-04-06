@@ -72,14 +72,14 @@ function renderBadgesPage() {
 }
 
 // ============================================================
-// バッジツリー（縦積み・全幅使用で見やすく）
+// バッジツリー
+// 完全縦積み：テクノロジー系→ビジネス系 の順に縦に並べる
 // ============================================================
 function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   var wrap = document.createElement('div');
   wrap.className = 'card';
   wrap.style.marginBottom = '12px';
 
-  // ノード（幅固定、テキスト折り返しあり）
   function nd(id, w) {
     var b = getBadge(id);
     if (!b) return '';
@@ -87,8 +87,8 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
     var pct=p.total>0?Math.round(p.done/p.total*100):0;
     var icon=ie?lcfg.icon:'🔒';
     var bc=ie?lcfg.color:'var(--border)', bg=ie?lcfg.color+'1a':'var(--bg3)', tc=ie?lcfg.color:'var(--text3)';
-    var fi=w>=88?'18px':w>=72?'16px':w>=60?'14px':'12px';
-    var fn=w>=88?'10px':w>=72?'9.5px':w>=60?'9px':'8px';
+    var fn=w>=80?'10px':w>=64?'9px':'8px';
+    var fi=w>=80?'16px':w>=64?'14px':'12px';
     var bar='';
     if (p.total>0) {
       bar='<div style="font-size:7px;color:var(--text3);margin-top:2px">'+p.done+'/'+p.total+'</div>'
@@ -97,97 +97,81 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
     }
     return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
       +'padding:7px 4px;border-radius:10px;border:2px solid '+bc+';background:'+bg+';'
-      +'width:'+w+'px;flex-shrink:0;box-sizing:border-box;min-height:72px">'
+      +'width:'+w+'px;flex-shrink:0;box-sizing:border-box;min-height:68px">'
       +'<div style="font-size:'+fi+'">'+icon+'</div>'
-      +'<div style="font-size:'+fn+';font-weight:700;color:'+tc+';text-align:center;line-height:1.3;margin-top:3px;width:100%;">'+b.name+'</div>'
+      +'<div style="font-size:'+fn+';font-weight:700;color:'+tc+';text-align:center;line-height:1.3;margin-top:3px;width:100%">'+b.name+'</div>'
       +bar+'</div>';
   }
 
-  // 縦線
-  var vl  = '<div style="width:2px;height:16px;background:var(--border);margin:0 auto"></div>';
+  var vl  = '<div style="width:2px;height:14px;background:var(--border);margin:0 auto"></div>';
   var vls = '<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>';
-  // 横分岐線（子ノード群の上）
-  function hline(totalW) {
-    return '<div style="width:'+totalW+'px;height:2px;background:var(--border);margin:0 auto"></div>';
-  }
-  // 各子の上に縦線（flex間隔に合わせる）
-  function childVlines(count, nodeW, gap) {
-    var items = [];
-    for (var i=0;i<count;i++) items.push('<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>');
-    return '<div style="display:flex;gap:'+(nodeW+gap-2)+'px;justify-content:center">'+items.join('')+'</div>';
-  }
+  // 4列の縦線セット
+  var vl4 = '<div style="display:flex;justify-content:space-around"><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div></div>';
+  var vl5 = '<div style="display:flex;justify-content:space-around"><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div></div>';
 
-  var html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="min-width:340px">';
-  html += '<div class="card-label">💻 専門</div>';
+  var html = '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
 
   // ── ルート：IT総合学基礎 ──
   html += '<div style="display:flex;justify-content:center">'+nd('badge-it-bronze',100)+'</div>';
 
-  // 左右分岐ライン
-  html += '<div style="position:relative;height:24px;margin:0 auto;width:70%">'
-    +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:24px;background:var(--border)"></div>'
-    +'<div style="position:absolute;top:14px;left:10%;right:10%;height:2px;background:var(--border)"></div>'
-    +'<div style="position:absolute;bottom:0;left:10%;width:2px;height:10px;background:var(--border)"></div>'
-    +'<div style="position:absolute;bottom:0;right:10%;width:2px;height:10px;background:var(--border)"></div>'
+  // 分岐ライン（下向き2方向）
+  html += '<div style="position:relative;height:28px;margin:0 auto;width:80%">'
+    +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:28px;background:var(--border)"></div>'
+    +'<div style="position:absolute;top:18px;left:8%;right:8%;height:2px;background:var(--border)"></div>'
+    +'<div style="position:absolute;bottom:0;left:8%;width:2px;height:10px;background:var(--border)"></div>'
+    +'<div style="position:absolute;bottom:0;right:8%;width:2px;height:10px;background:var(--border)"></div>'
     +'</div>';
 
-  // テクノロジー系 ｜ ビジネス系
-  html += '<div style="display:flex;gap:6px;align-items:flex-start">';
+  // ── テクノロジー系 ＋ ビジネス系 をそれぞれ縦に積んで横並び ──
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">';
 
-  // ────── テクノロジー系（左・全幅の半分） ──────
-  html += '<div style="flex:1;min-width:0">';
+  // ──────── テクノロジー系（左列） ────────
   html += '<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:10px 8px">';
-  html += '<div style="font-size:10px;font-weight:700;color:#60a5fa;text-align:center;margin-bottom:10px">🔷 テクノロジー系</div>';
+  html += '<div style="font-size:9px;font-weight:700;color:#60a5fa;text-align:center;margin-bottom:10px;letter-spacing:0.5px">🔷 テクノロジー系</div>';
 
-  // テクノロジー基礎Ⅰ ＋ 数学基礎（横並び）
-  html += '<div style="display:flex;justify-content:center;gap:6px">'+nd('badge-tech1-bronze',72)+nd('badge-math-bronze',72)+'</div>';
-  // Ⅰの下だけ縦線
-  html += '<div style="display:flex;justify-content:flex-start;padding-left:calc(50% - 37px - 3px)">'+vls+'</div>';
-  // テクノロジー基礎Ⅱ（中央寄せ）
+  // 1: テクノロジー基礎Ⅰ + 数学基礎（横並び）
+  html += '<div style="display:flex;justify-content:center;gap:4px">'+nd('badge-tech1-bronze',68)+nd('badge-math-bronze',68)+'</div>';
+  // Ⅰの下のみ線
+  html += '<div style="padding-left:calc(50% - 34px - 2px)">'+vls+'</div>';
+  // 2: テクノロジー基礎Ⅱ
   html += '<div style="display:flex;justify-content:flex-start;padding-left:calc(50% - 44px)">'+nd('badge-tech2-silver',88)+'</div>';
-  html += vl;
-  // ゴールド4種（全幅）
-  html += '<div style="display:flex;justify-content:space-between;gap:4px">'+nd('badge-network-gold',60)+nd('badge-security-gold',60)+nd('badge-software-gold',60)+nd('badge-ai-gold',60)+'</div>';
-  html += '<div style="display:flex;justify-content:space-between;padding:0 30px">'+vls+vls+vls+vls+'</div>';
-  // プラチナ4種（全幅）
-  html += '<div style="display:flex;justify-content:space-between;gap:4px">'+nd('badge-network-platinum',60)+nd('badge-security-platinum',60)+nd('badge-software-platinum',60)+nd('badge-ai-platinum',60)+'</div>';
+  html += vls;
+  // 3: ゴールド4種
+  html += '<div style="display:flex;justify-content:space-between;gap:3px">'+nd('badge-network-gold',54)+nd('badge-security-gold',54)+nd('badge-software-gold',54)+nd('badge-ai-gold',54)+'</div>';
+  html += vl4;
+  // 4: プラチナ4種
+  html += '<div style="display:flex;justify-content:space-between;gap:3px">'+nd('badge-network-platinum',54)+nd('badge-security-platinum',54)+nd('badge-software-platinum',54)+nd('badge-ai-platinum',54)+'</div>';
   // IT総合学プラチナ（点線区切り）
   html += '<div style="border-top:1px dashed rgba(96,165,250,0.3);margin-top:8px;padding-top:8px;display:flex;justify-content:center">'+nd('badge-it-platinum',88)+'</div>';
-  html += '</div>'; // end bg block
-  html += '</div>'; // end テクノロジー系
+  html += '</div>';
 
-  // ────── ビジネス系（右・全幅の半分） ──────
-  html += '<div style="flex:1;min-width:0">';
+  // ──────── ビジネス系（右列） ────────
   html += '<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:10px 8px">';
-  html += '<div style="font-size:10px;font-weight:700;color:#f87171;text-align:center;margin-bottom:10px">🔶 ビジネス系</div>';
+  html += '<div style="font-size:9px;font-weight:700;color:#f87171;text-align:center;margin-bottom:10px;letter-spacing:0.5px">🔶 ビジネス系</div>';
 
-  html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-bronze',88)+'</div>';
-  html += vls;
-  html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-silver',88)+'</div>';
-  html += vl;
-  // ゴールド5種（1行横並び）
-  html += '<div style="display:flex;justify-content:center;gap:5px">';
-  html += nd('badge-genai-gold',60)+nd('badge-dm-gold',60)+nd('badge-mgmt-gold',60)+nd('badge-startup-gold',60)+nd('badge-biz2-gold',60);
+  // 1: ビジネス基礎
+  html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-bronze',88)+'</div>'+vls;
+  // 2: ビジネス基礎Ⅱ
+  html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-silver',88)+'</div>'+vls;
+  // 3: ゴールド5種
+  html += '<div style="display:flex;justify-content:space-between;gap:2px">'+nd('badge-genai-gold',54)+nd('badge-dm-gold',54)+nd('badge-mgmt-gold',54)+nd('badge-startup-gold',54)+nd('badge-biz2-gold',54)+'</div>';
+  // 生成AIはプラチナなし → 2〜5番目のみ線
+  html += '<div style="display:flex;justify-content:space-between;gap:2px"><div style="width:54px"></div>'+
+    '<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'+
+    '<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'+
+    '<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'+
+    '<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div></div>';
+  // 4: プラチナ4種
+  html += '<div style="display:flex;justify-content:space-between;gap:2px"><div style="width:54px"></div>'+nd('badge-dm-platinum',54)+nd('badge-mgmt-platinum',54)+nd('badge-startup-platinum',54)+nd('badge-biz2-platinum',54)+'</div>';
   html += '</div>';
-  html += '<div style="display:flex;justify-content:flex-end;gap:5px;padding-right:0">';
-  html += vls+vls+vls+vls;
-  html += '</div>';
-  // プラチナ4種（生成AIなし）
-  html += '<div style="display:flex;justify-content:center;gap:5px">';
-  html += '<div style="width:65px"></div>';
-  html += nd('badge-dm-platinum',60)+nd('badge-mgmt-platinum',60)+nd('badge-startup-platinum',60)+nd('badge-biz2-platinum',60);
-  html += '</div>';
-  html += '</div>'; // end bg block
-  html += '</div>'; // end ビジネス系
 
-  html += '</div>'; // end flex row
+  html += '</div>'; // end grid
 
   // 凡例
-  html += '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)">';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)">';
   ['bronze','silver','gold','platinum'].forEach(function(l){ html += '<span>'+LCFG[l].icon+' '+LCFG[l].label+'</span>'; });
   html += '</div>';
-  html += '</div></div>'; // スクロールラッパー終了
 
   wrap.innerHTML = html;
   return wrap;
