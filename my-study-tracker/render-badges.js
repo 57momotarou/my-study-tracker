@@ -111,6 +111,9 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
 
   var html = '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
+  // 横スクロールラッパー開始
+  html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px 8px">';
+  html += '<div style="min-width:360px">';
 
   // ── ルート：IT総合学基礎 ──
   html += '<div style="display:flex;justify-content:center">'+nd('badge-it-bronze',100)+'</div>';
@@ -167,6 +170,8 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += '</div>';
 
   html += '</div>'; // end grid
+  html += '</div>'; // end min-width
+  html += '</div>'; // end overflow-x
 
   // 凡例
   html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)">';

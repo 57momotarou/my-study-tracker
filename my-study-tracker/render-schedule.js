@@ -276,9 +276,9 @@ function renderMonthSchedule(subjects, sem, semId) {
   });
 
   const el=document.getElementById('schedule-month');
-  let html=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+  let html=`<div style="overflow:hidden;width:100%;box-sizing:border-box"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
     ${DOW.map((d,i)=>`<div style="text-align:center;font-size:10px;padding:3px 0;font-weight:600;color:${i===0?'#ef4444':i===6?'#60a5fa':'var(--text3)'}">${d}</div>`).join('')}
-  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
+  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
 
   for (let i=0;i<firstDow;i++) html+=`<div></div>`;
 
@@ -343,7 +343,7 @@ function renderMonthSchedule(subjects, sem, semId) {
     </div>`;
   }
 
-  html+=`</div>
+  html+=`</div></div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--text3)">
     <span><span style="color:var(--amber)">■</span>締切(未)</span>
     <span><span style="color:var(--red)">■</span>遅刻</span>

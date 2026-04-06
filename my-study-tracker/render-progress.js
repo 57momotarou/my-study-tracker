@@ -89,7 +89,7 @@ function renderProgressPage() {
       const isNotYet      = !isLessonAvailable(lesson, s, sem);
       const lessonOp      = isNotYet ? 'opacity:0.2;' : '';
 
-      btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;${lessonOp}${lesson>1?'margin-left:2px;':''}">`;
+      btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;${lessonOp}${lesson>1?'margin-left:2px;':''}flex-shrink:0">`;
       for (let ch = 1; ch <= CPL; ch++) {
         const chNum         = (lesson-1)*CPL + ch;
         const isDone        = chNum <= doneChapters;
@@ -102,7 +102,7 @@ function renderProgressPage() {
         else if (isLateChapter) btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
         else if (isThisWeekCh)  btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
 
-        btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="${btnStyle}${noClick}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
+        btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="width:28px;height:28px;${btnStyle}${noClick}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
       }
       btnHtml += '</div>';
     }
