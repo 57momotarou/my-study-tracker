@@ -292,8 +292,11 @@ function renderMonthSchedule(subjects, sem, semId) {
     const isKimatsu=kimatsuDate&&kimatsuDate.getFullYear()===year&&kimatsuDate.getMonth()===month&&kimatsuDate.getDate()===day;
 
     // この曜日に割り当てられた科目（月=1→0,…,土=6→5, 日=0→緊急枠）
+    // 学期開始日より前は時間割科目を表示しない
+    const semStartDate = sem.start ? new Date(sem.start) : null;
+    const isBeforeSemStart = semStartDate && date < semStartDate;
     const ttIdx=dow===0?-1:dow-1;
-    const ttSubs=dow===0?getSundayUrgentSubjects(semId)
+    const ttSubs=isBeforeSemStart?[]:dow===0?getSundayUrgentSubjects(semId)
       :(ttIdx>=0?subjects.filter(s=>getTimetableDay(s.code,semId)===ttIdx):[]);
 
     const hasLate=dlItems.some(i=>i.isLate), hasPend=dlItems.some(i=>!i.isDone&&!i.isLate), hasDone=dlItems.some(i=>i.isDone);
