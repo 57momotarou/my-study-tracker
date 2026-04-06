@@ -112,9 +112,9 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   var html = '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
 
-  // ── IT総合学基礎（ルート・上部中央） ──
-  html += '<div style="display:flex;justify-content:center;margin-bottom:0">'+nd('badge-it-bronze',100)+'</div>';
-  // ルートからの分岐ライン
+  // ── ルート：IT総合学基礎（上部中央） ──
+  html += '<div style="display:flex;justify-content:center">'+nd('badge-it-bronze',100)+'</div>';
+  // 分岐ライン（IT総合学基礎 → テクノロジー系 ＋ ビジネス系）
   html += '<div style="position:relative;height:28px;margin:0 auto;width:80%">'
     +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:28px;background:var(--border)"></div>'
     +'<div style="position:absolute;top:18px;left:8%;right:8%;height:2px;background:var(--border)"></div>'

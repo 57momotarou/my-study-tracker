@@ -238,113 +238,82 @@ function renderOpenDateList(semId) {
 // サイバー大学卒業要件：124単位（必修26単位含む）
 //   専門：62単位以上（必修16単位）
 //   教養：38単位以上（必修2単位）
-//   外国語：8単位（必修8単位・全必修）
+//   外国語：8単位（全必修）
 // ============================================================
 function renderGraduationChecker(semId) {
   var el = document.getElementById('graduation-content');
   if (!el) return;
 
-  // 全学期の履修科目を集計
   var allSubjects = [];
   var allCodes = new Set();
   SEMESTERS.forEach(function(sem) {
     getEnrolledSubjects(sem.id).forEach(function(s) {
-      if (!allCodes.has(s.code)) {
-        allCodes.add(s.code);
-        allSubjects.push(s);
-      }
+      if (!allCodes.has(s.code)) { allCodes.add(s.code); allSubjects.push(s); }
     });
   });
 
-  // 必修科目コード一覧
   var REQUIRED_CODES = ['BA101','CS101','CS102','CS103','CS153','CS154','CS156','PM101',
     'SD101E','SD301E','ENGL101E','ENGL151E','ENGL201E','ENGL251E'];
+  var GRAD_TOTAL = 124, GRAD_SENMON = 62, GRAD_KYOYO = 38, GRAD_GAIKOKUGO = 8;
 
-  // 卒業要件
-  var GRAD_TOTAL    = 124;
-  var GRAD_SENMON   = 62;
-  var GRAD_KYOYO    = 38;
-  var GRAD_GAIKOKUGO = 8;
+  var earned = {'専門':0,'教養':0,'外国語':0};
+  allSubjects.forEach(function(s){ earned[s.category] = (earned[s.category]||0) + s.credits; });
 
-  // カテゴリ別集計
-  var earned = { '専門': 0, '教養': 0, '外国語': 0 };
-  var requiredDone = 0;
-  var requiredTotal = REQUIRED_CODES.length;
-  var requiredMissing = [];
-
-  allSubjects.forEach(function(s) {
-    earned[s.category] = (earned[s.category] || 0) + s.credits;
-  });
-
+  var requiredDone = 0, requiredMissing = [];
   REQUIRED_CODES.forEach(function(code) {
-    if (allCodes.has(code)) {
-      requiredDone++;
-    } else {
-      var s = ALL_SUBJECTS.find(function(x){ return x.code === code; });
-      if (s) requiredMissing.push(s);
-    }
+    if (allCodes.has(code)) { requiredDone++; }
+    else { var s=ALL_SUBJECTS.find(function(x){return x.code===code;}); if(s) requiredMissing.push(s); }
   });
 
-  var totalEarned = (earned['専門']||0) + (earned['教養']||0) + (earned['外国語']||0);
-  var totalPct    = Math.min(100, Math.round(totalEarned / GRAD_TOTAL * 100));
+  var totalEarned = (earned['専門']||0)+(earned['教養']||0)+(earned['外国語']||0);
+  var totalPct = Math.min(100, Math.round(totalEarned/GRAD_TOTAL*100));
 
-  // 各要件の達成状況
-  function req(label, done, need, color) {
-    var pct = Math.min(100, Math.round(done / need * 100));
-    var ok  = done >= need;
+  function bar(pct, color) {
+    return '<div class="prog-wrap" style="height:5px"><div class="prog-bar" style="width:'+pct+'%;background:'+color+'"></div></div>';
+  }
+  function row(label, done, need, color) {
+    var pct=Math.min(100,Math.round(done/need*100)), ok=done>=need;
+    var c=ok?'var(--green)':color;
     return '<div style="margin-bottom:10px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
-      + '<span style="font-size:12px;color:var(--text2)">' + label + '</span>'
-      + '<span style="font-size:12px;font-family:'Space Mono',monospace;font-weight:700;color:' + (ok ? 'var(--green)' : color) + '">'
-      + done + '<span style="color:var(--text3);font-weight:400">/' + need + '単位</span>'
-      + (ok ? ' ✅' : '') + '</span>'
-      + '</div>'
-      + '<div class="prog-wrap" style="height:5px"><div class="prog-bar" style="width:' + pct + '%;background:' + (ok ? 'var(--green)' : color) + '"></div></div>'
-      + '</div>';
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
+      +'<span style="font-size:12px;color:var(--text2)">'+label+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+c+'">'+done+'<span style="color:var(--text3);font-weight:400">/'+need+'単位</span>'+(ok?' ✅':'')+'</span>'
+      +'</div>'+bar(pct,c)+'</div>';
   }
 
-  var html = '';
+  var html = '<div style="text-align:center;margin-bottom:16px">'
+    +'<div style="font-size:36px;font-weight:700;color:'+(totalPct>=100?'var(--green)':'var(--amber)')+'">'+totalPct+'%</div>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+totalEarned+' / '+GRAD_TOTAL+' 単位取得済み</div>'
+    +'</div>';
 
-  // 全体進捗
-  html += '<div style="text-align:center;margin-bottom:16px">'
-    + '<div style="font-family:'Space Mono',monospace;font-size:36px;font-weight:700;color:' + (totalPct >= 100 ? 'var(--green)' : 'var(--amber)') + '">' + totalPct + '%</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + totalEarned + ' / ' + GRAD_TOTAL + ' 単位取得済み</div>'
-    + '</div>';
+  html += '<div class="prog-wrap" style="height:8px;margin-bottom:16px"><div class="prog-bar" style="width:'+totalPct+'%;background:'+(totalPct>=100?'var(--green)':'var(--amber)')+'"></div></div>';
 
-  html += '<div class="prog-wrap" style="height:8px;margin-bottom:16px"><div class="prog-bar" style="width:' + totalPct + '%;background:' + (totalPct >= 100 ? 'var(--green)' : 'var(--amber)') + '"></div></div>';
+  html += row('専門科目', earned['専門']||0, GRAD_SENMON, 'var(--amber)');
+  html += row('教養科目', earned['教養']||0, GRAD_KYOYO, 'var(--green)');
+  html += row('外国語科目', earned['外国語']||0, GRAD_GAIKOKUGO, 'var(--purple)');
 
-  // カテゴリ別
-  html += req('専門科目', earned['専門']||0, GRAD_SENMON, 'var(--amber)');
-  html += req('教養科目', earned['教養']||0, GRAD_KYOYO, 'var(--green)');
-  html += req('外国語科目', earned['外国語']||0, GRAD_GAIKOKUGO, 'var(--purple)');
-
-  // 必修チェック
   html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-    + '<span style="font-size:12px;font-weight:700;color:var(--text2)">必修科目</span>'
-    + '<span style="font-size:12px;font-family:'Space Mono',monospace;color:' + (requiredMissing.length === 0 ? 'var(--green)' : 'var(--red)') + '">'
-    + requiredDone + '/' + requiredTotal + (requiredMissing.length === 0 ? ' ✅' : '') + '</span>'
-    + '</div>';
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    +'<span style="font-size:12px;font-weight:700;color:var(--text2)">必修科目</span>'
+    +'<span style="font-size:12px;color:'+(requiredMissing.length===0?'var(--green)':'var(--red)')+'">'+requiredDone+'/'+REQUIRED_CODES.length+(requiredMissing.length===0?' ✅':'')+'</span>'
+    +'</div>';
 
   if (requiredMissing.length > 0) {
     html += '<div style="font-size:10px;color:var(--red);margin-bottom:4px">未履修の必修科目：</div>';
     requiredMissing.forEach(function(s) {
       html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--text3)">'
-        + '<div style="width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0"></div>'
-        + s.name + '<span style="color:var(--text3);font-size:10px">(' + s.credits + '単位)</span>'
-        + '</div>';
+        +'<div style="width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0"></div>'
+        +s.name+'<span style="font-size:10px;color:var(--text3)">('+s.credits+'単位)</span></div>';
     });
   } else {
     html += '<div style="font-size:11px;color:var(--green)">すべての必修科目を履修済みです</div>';
   }
   html += '</div>';
 
-  // あと何単位必要
   var remaining = Math.max(0, GRAD_TOTAL - totalEarned);
   if (remaining > 0) {
     html += '<div style="margin-top:10px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text3);text-align:center">'
-      + 'あと <span style="color:var(--amber);font-weight:700;font-family:'Space Mono',monospace">' + remaining + '</span> 単位で卒業要件達成'
-      + '</div>';
+      +'あと <span style="color:var(--amber);font-weight:700">'+remaining+'</span> 単位で卒業要件達成</div>';
   } else {
     html += '<div style="margin-top:10px;padding:8px 12px;background:var(--green-dim);border-radius:8px;font-size:12px;color:var(--green);text-align:center;font-weight:700">🎓 卒業単位要件達成！</div>';
   }
