@@ -82,7 +82,7 @@ function renderProgressPage() {
     }
 
     // 章グリッド：横スクロール対応・均等サイズ保証
-    let btnHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
+    let btnHtml = '<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="' + doneLessons + '"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
     for (let lesson = 1; lesson <= s.lessons; lesson++) {
       const isLessonLate_ = isLessonLate(lesson, s, sem);
       const isThisWeek    = lesson <= recommended && lesson > doneLessons;
@@ -143,5 +143,16 @@ function renderProgressPage() {
           <span style="opacity:0.4">■ 未開講</span>
         </div>
       </div>`;
+  });
+
+  // 章グリッドを未完了部分が見えるよう自動スクロール
+  // コマ幅 = 4ボタン×28px + 3gap×1px + コマ間gap2px = 115px/コマ
+  const LESSON_W = 115;
+  listEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
+    const doneLes = parseInt(wrap.dataset.doneLes) || 0;
+    if (doneLes > 0) {
+      // 完了済みコマより1コマ前から表示（最後の完了コマ〜次のコマが見える）
+      wrap.scrollLeft = Math.max(0, (doneLes - 1) * LESSON_W);
+    }
   });
 }

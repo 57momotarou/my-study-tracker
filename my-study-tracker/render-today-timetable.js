@@ -6,7 +6,7 @@
 // ============================================================
 // TODAY 時間割カード
 // 表示ルール：
-//   【次にやること】今日の曜日より前に割り当てられていて未完了の科目（前日以前の未消化）
+//   【積み残し】今日の曜日より前に割り当てられていて、今週分（rec）が未完了の科目
 //   【今日の予定】今日の曜日に割り当てられた科目（未完了）
 //   【完了】今日の予定科目で今日のコマを終えたもの
 // ============================================================
@@ -45,22 +45,24 @@ function renderTodayTimetable(subjects, sem, semId) {
     const effectiveTtDow    = ttDow === 0 ? 7 : ttDow;
     const isPastThisWeek    = ttDay !== undefined && effectiveTtDow < effectiveTodayDow;
 
-    // 次にやること判定：割り当て曜日を過ぎていて次のコマが未完了
-    const nextLesson = doneLes + 1;
-    const isOverdue = isPastThisWeek && doneLes < s.lessons;
+    // 「積み残し」= 今週の割り当て曜日を過ぎていて、recまで未完
+    const isOverdue = isPastThisWeek && (doneLes < rec || late > 0);
 
-    // 今日の予定：今日のコマ（nextLesson）を終えているか
+    // 今日の予定：今日の曜日で未完了（今日のコマ=nextLessonを終えていない）
+    const nextLesson = doneLes + 1;
     const isTodayDone = doneCh >= nextLesson * CPL || doneLes >= s.lessons;
 
     return { s, doneCh, doneLes, target, rec, late, ttDay, isToday, isOverdue, isTodayDone, nextLesson };
   });
 
-  // ① 次にやること（今週の割り当て曜日を過ぎて未完了）
+  // ① 積み残し（今週の割り当て曜日を過ぎて未完了）
   const overdueItems = withState.filter(i => i.isOverdue && !i.isToday);
   // ② 今日の時間割科目
   const todayItems   = withState.filter(i => i.isToday);
 
-  if (todayItems.length === 0 && overdueItems.length === 0) {
+  const hasAnything = overdueItems.length > 0 || todayItems.some(i => !i.isTodayDone);
+
+  if (!hasAnything && todayItems.length === 0 && overdueItems.length === 0) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はありません</div>
@@ -69,7 +71,7 @@ function renderTodayTimetable(subjects, sem, semId) {
   }
 
   // 今日の予定が全完了で積み残しもなし
-  if (overdueItems.length === 0 && todayItems.every(i => i.isTodayDone)) {
+  if (overdueItems.length === 0 && todayItems.length > 0 && todayItems.every(i => i.isTodayDone)) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はすべて完了！</div>
@@ -79,7 +81,7 @@ function renderTodayTimetable(subjects, sem, semId) {
 
   // ── 積み残しを先頭に ──
   if (overdueItems.length > 0) {
-    ttEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;padding:6px 10px;background:var(--red-dim);border-radius:6px;border-left:3px solid var(--red)">📌 前日以前の未消化 — 先に終わらせよう</div>`;
+    ttEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;padding:6px 10px;background:var(--red-dim);border-radius:6px;border-left:3px solid var(--red)">⚠️ 積み残し（割り当て曜日を過ぎて未完了）</div>`;
     overdueItems
       .sort((a, b) => b.late - a.late || a.rec - b.rec)
       .forEach(item => _renderTodayCard(ttEl, item, sem, semId, true));
@@ -87,7 +89,7 @@ function renderTodayTimetable(subjects, sem, semId) {
 
   // ── 今日の時間割科目 ──
   if (todayItems.length > 0) {
-    const label = overdueItems.length > 0 ? '📋 今日の予定' : '📋 今日の予定';
+    const label = overdueItems.length > 0 ? '✅ 積み残し後は今日の予定へ' : '📋 今日の予定';
     ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin:${overdueItems.length>0?'12px':'0'} 0 8px">${label}</div>`;
     todayItems
       .sort((a, b) => {
@@ -124,8 +126,8 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
   } else if (forceShowAsOverdue) {
     // 積み残し（遅刻ではないが割り当て曜日を過ぎた）
     goalL = rec; goalCh = CPL;
-    goalLabel = '前日以前の未消化 — 先に終わらせよう'; goalColor = 'var(--amber)';
-    badgeText = `📌 前日以前`; badgeClass = 'badge-warn';
+    goalLabel = '今日中に消化しよう'; goalColor = 'var(--amber)';
+    badgeText = `⏰ 積み残し`; badgeClass = 'badge-warn';
   } else {
     goalL = nextLesson; goalCh = CPL;
     goalLabel = '今日の予定'; goalColor = 'var(--amber)';
@@ -137,7 +139,8 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
   const nowLbl = inLes > 0 ? `コマ${doneLes+1} 第${inLes}章まで完了` : doneLes > 0 ? `コマ${doneLes} 完了` : '未受講';
 
   // 章グリッド（横スクロール対応）
-  let btnHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
+  const _doneLesForScroll = doneLes;
+  let btnHtml = '<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="' + _doneLesForScroll + '"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
   for (let lesson = 1; lesson <= s.lessons; lesson++) {
     const lateL  = isLessonLate(lesson, s, sem);
     const weekL  = lesson <= rec && lesson > doneLes;
@@ -196,4 +199,11 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
         <span style="opacity:0.4">■ 未開講</span>
       </div>
     </div>`;
+
+  // 章グリッドを未完了部分が見えるよう自動スクロール
+  const _LESSON_W = 115;
+  ttEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
+    const dl = parseInt(wrap.dataset.doneLes) || 0;
+    if (dl > 0) { wrap.scrollLeft = Math.max(0, (dl - 1) * _LESSON_W); }
+  });
 }
