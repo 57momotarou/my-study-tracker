@@ -110,27 +110,36 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   var vl5 = '<div style="display:flex;justify-content:space-around"><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div></div>';
 
   var html = '<div class="card-label">💻 専門</div>';
-  html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
+  html += '<div class="card-title" style="margin-bottom:10px">専門バッジツリー</div>';
 
-  // 横スクロール対応ラッパー
-  html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px 8px">';
-  html += '<div style="min-width:320px">';
+  // ── 全体をflexの縦積みで構成 ──
+  // スクロールラッパー（2列が入らない場合のみスクロール）
+  html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">';
+  html += '<div style="min-width:300px">';
 
-  // ルート：IT総合学基礎 ── flex center で確実に中央
-  html += '<div style="display:flex;justify-content:center;margin-bottom:0">'+nd('badge-it-bronze',96)+'</div>';
+  // 行1: IT総合学基礎（独立行・必ず中央）
+  html += '<div style="display:flex;justify-content:center;align-items:center">';
+  html += nd('badge-it-bronze',96);
+  html += '</div>';
 
-  // 分岐ライン（SVG: 中央から左右へ）
-  html += '<svg width="100%" height="24" style="display:block">'
-    +'<line x1="50%" y1="0" x2="50%" y2="14" stroke="var(--border)" stroke-width="2"/>'
-    +'<line x1="25%" y1="14" x2="75%" y2="14" stroke="var(--border)" stroke-width="2"/>'
-    +'<line x1="25%" y1="14" x2="25%" y2="24" stroke="var(--border)" stroke-width="2"/>'
-    +'<line x1="75%" y1="14" x2="75%" y2="24" stroke="var(--border)" stroke-width="2"/>'
-    +'</svg>';
+  // 行2: 縦線（中央から下へ）
+  html += '<div style="display:flex;justify-content:center">';
+  html += '<div style="width:2px;height:12px;background:var(--border)"></div>';
+  html += '</div>';
 
-  // 2列グリッド
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:start">';
+  // 行3: 分岐の横線（左半分 + 右半分）
+  // ポイント：2列の幅が等しいので各列の中心=全体幅の25%と75%
+  // → 左端から右端まで横線、その25%と75%の位置から縦線を下ろす
+  html += '<div style="position:relative;height:12px">';
+  html += '<div style="position:absolute;left:25%;right:25%;top:0;height:2px;background:var(--border)"></div>';
+  html += '<div style="position:absolute;left:25%;top:0;width:2px;height:12px;background:var(--border)"></div>';
+  html += '<div style="position:absolute;right:25%;top:0;width:2px;height:12px;background:var(--border)"></div>';
+  html += '</div>';
 
-  // ─── テクノロジー系（左列） ───
+  // 行4: テクノロジー系 + ビジネス系（2列）
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+
+  // 左列: テクノロジー系
   html += '<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:8px 6px">';
   html += '<div style="font-size:9px;font-weight:700;color:#60a5fa;text-align:center;margin-bottom:8px">🔷 テクノロジー系</div>';
   html += '<div style="display:flex;justify-content:center;gap:4px">'+nd('badge-tech1-bronze',64)+nd('badge-math-bronze',64)+'</div>';
@@ -143,18 +152,23 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += '<div style="border-top:1px dashed rgba(96,165,250,0.3);margin-top:6px;padding-top:6px;display:flex;justify-content:center">'+nd('badge-it-platinum',80)+'</div>';
   html += '</div>';
 
-  // ─── ビジネス系（右列） ───
+  // 右列: ビジネス系
   html += '<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:8px 6px">';
   html += '<div style="font-size:9px;font-weight:700;color:#f87171;text-align:center;margin-bottom:8px">🔶 ビジネス系</div>';
   html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-bronze',80)+'</div>'+vls;
   html += '<div style="display:flex;justify-content:center">'+nd('badge-biz-silver',80)+'</div>'+vls;
   html += '<div style="display:flex;justify-content:space-between;gap:1px">'+nd('badge-genai-gold',46)+nd('badge-dm-gold',46)+nd('badge-mgmt-gold',46)+nd('badge-startup-gold',46)+nd('badge-biz2-gold',46)+'</div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:1px"><div style="width:46px"></div>'
+  html += '<div style="display:flex;justify-content:space-between;gap:1px">'
+    +'<div style="width:46px"></div>'
     +'<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'
     +'<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'
     +'<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'
-    +'<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div></div>';
-  html += '<div style="display:flex;justify-content:space-between;gap:1px"><div style="width:46px"></div>'+nd('badge-dm-platinum',46)+nd('badge-mgmt-platinum',46)+nd('badge-startup-platinum',46)+nd('badge-biz2-platinum',46)+'</div>';
+    +'<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>'
+    +'</div>';
+  html += '<div style="display:flex;justify-content:space-between;gap:1px">'
+    +'<div style="width:46px"></div>'
+    +nd('badge-dm-platinum',46)+nd('badge-mgmt-platinum',46)+nd('badge-startup-platinum',46)+nd('badge-biz2-platinum',46)
+    +'</div>';
   html += '</div>';
 
   html += '</div>'; // end 2col grid
