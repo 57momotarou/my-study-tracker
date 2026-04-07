@@ -112,19 +112,20 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   var html = '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
 
-  // 横スクロール対応
+  // 横スクロール対応ラッパー
   html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px 8px">';
-  html += '<div style="min-width:340px">';
+  html += '<div style="min-width:320px">';
 
-  // ── ルート：IT総合学基礎（上部中央） ──
-  html += '<div style="display:flex;justify-content:center;margin-bottom:0">'+nd('badge-it-bronze',96)+'</div>';
-  // 分岐ライン
-  html += '<div style="position:relative;height:24px;margin:0 auto;width:70%">'
-    +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:24px;background:var(--border)"></div>'
-    +'<div style="position:absolute;top:14px;left:0;right:0;height:2px;background:var(--border)"></div>'
-    +'<div style="position:absolute;bottom:0;left:0;width:2px;height:10px;background:var(--border)"></div>'
-    +'<div style="position:absolute;bottom:0;right:0;width:2px;height:10px;background:var(--border)"></div>'
-    +'</div>';
+  // ── ルート：IT総合学基礎（グリッド外・独立中央配置） ──
+  html += '<div style="text-align:center">'+nd('badge-it-bronze',96)+'</div>';
+
+  // 分岐ライン（SVGで確実に中央から左右へ）
+  html += '<svg width="100%" height="24" style="display:block;overflow:visible">'
+    +'<line x1="50%" y1="0" x2="50%" y2="14" stroke="var(--border)" stroke-width="2"/>'
+    +'<line x1="12%" y1="14" x2="88%" y2="14" stroke="var(--border)" stroke-width="2"/>'
+    +'<line x1="12%" y1="14" x2="12%" y2="24" stroke="var(--border)" stroke-width="2"/>'
+    +'<line x1="88%" y1="14" x2="88%" y2="24" stroke="var(--border)" stroke-width="2"/>'
+    +'</svg>';
 
   // ── テクノロジー系 ＋ ビジネス系 の2列 ──
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">';
@@ -135,7 +136,6 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
 
   // 1: テクノロジー基礎Ⅰ + 数学基礎（横並び）
   html += '<div style="display:flex;justify-content:center;gap:4px">'+nd('badge-tech1-bronze',64)+nd('badge-math-bronze',64)+'</div>';
-  // Ⅰの下のみ線
   html += '<div style="padding-left:calc(50% - 32px - 2px)">'+vls+'</div>';
   // 2: テクノロジー基礎Ⅱ
   html += '<div style="display:flex;justify-content:flex-start;padding-left:calc(50% - 40px)">'+nd('badge-tech2-silver',80)+'</div>';
