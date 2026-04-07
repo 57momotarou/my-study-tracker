@@ -112,18 +112,12 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   var html = '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:14px">専門バッジツリー</div>';
 
-  // ── ルート：IT総合学基礎（上部中央） ──
-  html += '<div style="display:flex;justify-content:center">'+nd('badge-it-bronze',100)+'</div>';
-  // 分岐ライン（IT総合学基礎 → テクノロジー系 ＋ ビジネス系）
-  html += '<div style="position:relative;height:28px;margin:0 auto;width:80%">'
-    +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:28px;background:var(--border)"></div>'
-    +'<div style="position:absolute;top:18px;left:8%;right:8%;height:2px;background:var(--border)"></div>'
-    +'<div style="position:absolute;bottom:0;left:8%;width:2px;height:10px;background:var(--border)"></div>'
-    +'<div style="position:absolute;bottom:0;right:8%;width:2px;height:10px;background:var(--border)"></div>'
-    +'</div>';
+  // 横スクロール対応ラッパー
+  html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px 8px">';
+  html += '<div style="min-width:360px">';
 
-  // ── テクノロジー系 ＋ ビジネス系 の2列 ──
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">';
+  // ── テクノロジー系 ｜ IT総合学基礎（中央） ｜ ビジネス系 の3列レイアウト ──
+  html += '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:start">';
 
   // ──────── テクノロジー系（左列） ────────
   html += '<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:10px 8px">';
@@ -143,6 +137,14 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += '<div style="display:flex;justify-content:space-between;gap:3px">'+nd('badge-network-platinum',54)+nd('badge-security-platinum',54)+nd('badge-software-platinum',54)+nd('badge-ai-platinum',54)+'</div>';
   // IT総合学プラチナ（点線区切り）
   html += '<div style="border-top:1px dashed rgba(96,165,250,0.3);margin-top:8px;padding-top:8px;display:flex;justify-content:center">'+nd('badge-it-platinum',88)+'</div>';
+  html += '</div>';
+
+  // ──────── IT総合学基礎（中央列） ────────
+  html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:24px">';
+  html += '<div style="font-size:9px;font-weight:700;color:var(--amber);text-align:center;margin-bottom:10px;letter-spacing:0.5px">⭐ ルート</div>';
+  html += nd('badge-it-bronze',92);
+  html += vl;
+  html += '<div style="width:2px;flex:1;background:linear-gradient(var(--border),transparent);margin:0 auto"></div>';
   html += '</div>';
 
   // ──────── ビジネス系（右列） ────────
@@ -166,6 +168,8 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   html += '</div>';
 
   html += '</div>'; // end grid
+  html += '</div>'; // end min-width
+  html += '</div>'; // end scroll
 
   // 凡例
   html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)">';
