@@ -53,8 +53,12 @@ function renderTodayTimetable(subjects, sem, semId) {
     const nextLesson  = doneLes + 1;
     const isTodayDone = doneCh >= nextLesson * CPL || doneLes >= s.lessons;
 
+    // 次の未完了コマの締切日（ソート用）
+    const nextDeadline = nextLesson <= s.lessons
+      ? getLessonDeadline(nextLesson, s, sem)
+      : new Date('2099-01-01');
     return { s, doneCh, doneLes, target, rec, late, ttDay,
-             isToday, isOverdue, isLate, isTodayDone, nextLesson };
+             isToday, isOverdue, isLate, isTodayDone, nextLesson, nextDeadline };
   });
 
   // 表示対象を3種に分類（重複しないよう優先順位で排他）
@@ -98,7 +102,7 @@ function renderTodayTimetable(subjects, sem, semId) {
   if (overdueItems.length > 0) {
     ttEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:var(--amber);margin:${lateItems.length>0?'12px':'0'} 0 8px;padding:6px 10px;background:var(--amber-dim);border-radius:6px;border-left:3px solid var(--amber)">📌 前日以前の未消化</div>`;
     overdueItems
-      .sort((a, b) => a.rec - b.rec)
+      .sort((a, b) => a.nextDeadline - b.nextDeadline)
       .forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'overdue'));
   }
 
