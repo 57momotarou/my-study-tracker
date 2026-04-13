@@ -45,8 +45,12 @@ function renderTodayTimetable(subjects, sem, semId) {
     const effectiveTtDow    = ttDow === 0 ? 7 : ttDow;
     const isPastThisWeek    = ttDay !== undefined && effectiveTtDow < effectiveTodayDow;
 
-    // 「積み残し」= 今日の科目ではなく、nextLessonが未完了（週またぎでも残す）
-    const isOverdue = !isToday && ttDay !== undefined && doneLes < s.lessons && doneLes < nextLesson;
+    // 「積み残し」= 割り当て曜日が今日より前（週またぎでも残す）かつ未完了
+    // isPastThisWeek: 今週の曜日比較（月<火<水...）
+    // 先週以前の科目: 今週の割り当て曜日がまだ来ていないが未完了 → 先週やるべきだった
+    // → 今日でなく、かつ doneLes < s.lessons（全完了でない）なら積み残しとして表示
+    //   ただし「今日より後の曜日」（水〜土など未来）は除外
+    const isOverdue = isPastThisWeek && doneLes < s.lessons;
 
     // 今日の予定：今日の曜日で未完了（今日のコマ=nextLessonを終えていない）
     const nextLesson = doneLes + 1;
@@ -60,9 +64,7 @@ function renderTodayTimetable(subjects, sem, semId) {
   // ② 今日の時間割科目
   const todayItems   = withState.filter(i => i.isToday);
 
-  const hasAnything = overdueItems.length > 0 || todayItems.some(i => !i.isTodayDone);
-
-  if (!hasAnything && todayItems.length === 0 && overdueItems.length === 0) {
+  if (todayItems.length === 0 && overdueItems.length === 0) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はありません</div>
