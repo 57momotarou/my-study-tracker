@@ -6,10 +6,11 @@
 // ============================================================
 // TODAY 時間割カード（メイン）
 //
-// 表示対象：
-//   【遅刻中】  late>0 の科目（時間割割り当て問わず）
-//   【積み残し】今日より前の曜日が割り当て＆未完了（週またぎ対応）
-//   【今日の予定】今日の曜日に割り当て＆未完了
+// 表示ルール：
+//   【遅刻中】  late>0 の科目 → 遅刻コマ数が多い順
+//   【今日やること】以下の科目を次コマ締切が近い順で一本化して表示
+//     - 今日の曜日が割り当て＆未完了
+//     - 今日より前の曜日が割り当て＆未完了（積み残し・週またぎ対応）
 // ============================================================
 function renderTodayTimetable(subjects, sem, semId) {
   const ttEl = document.getElementById('today-timetable');
@@ -22,8 +23,8 @@ function renderTodayTimetable(subjects, sem, semId) {
     return;
   }
 
-  const now      = new Date();
-  const todayDow = now.getDay(); // 0=日,1=月,...,6=土
+  const now        = new Date();
+  const todayDow   = now.getDay();
   const todayTtIdx = todayDow >= 1 && todayDow <= 6 ? todayDow - 1 : -1;
 
   const withState = subjects.map(s => {
@@ -32,47 +33,46 @@ function renderTodayTimetable(subjects, sem, semId) {
     const target  = getTodayTarget(s, sem);
     const rec     = getTodayRecommended(s, sem);
     const late    = Math.max(0, target - doneLes);
-    const ttDay   = getTimetableDay(s.code, semId); // 0=月〜5=土 or undefined
+    const ttDay   = getTimetableDay(s.code, semId);
 
-    // 今日の曜日に割り当てられているか
+    // 今日の割り当てか
     const isToday = ttDay !== undefined && ttDay === todayTtIdx;
 
-    // 今日より前の曜日が割り当てられているか（週内比較）
-    const ttDow = ttDay !== undefined ? ttDay + 1 : -1;
+    // 今日より前の曜日割り当てか
+    const ttDow    = ttDay !== undefined ? ttDay + 1 : -1;
     const effToday = todayDow === 0 ? 7 : todayDow;
-    const effTt    = ttDow === 0 ? 7 : ttDow;
-    const isPastThisWeek = ttDay !== undefined && effTt < effToday;
+    const effTt    = ttDow   === 0 ? 7 : ttDow;
+    const isPast   = ttDay !== undefined && effTt < effToday;
 
-    // 「積み残し」= 今日の曜日より前に割り当て＆未完了（週またぎでも残る）
-    const isOverdue = isPastThisWeek && doneLes < s.lessons;
-
-    // 「遅刻中」= 出席認定期限を過ぎたコマが未完了（時間割割り当て問わず）
-    const isLate = late > 0;
-
-    // 今日の予定完了判定
+    // 次コマの締切（ミリ秒）
     const nextLesson  = doneLes + 1;
     const isTodayDone = doneCh >= nextLesson * CPL || doneLes >= s.lessons;
-
-    // 次の未完了コマの締切日（ソート用・ミリ秒数値で保存）
     const nextDeadline = nextLesson <= s.lessons
       ? getLessonDeadline(nextLesson, s, sem).getTime()
       : new Date('2099-01-01').getTime();
+
+    // 表示対象か
+    const isLate    = late > 0;
+    // 今日やること = 今日の曜日 or 過去の曜日 かつ 未完了
+    const isWorkItem = !isLate && (isToday || isPast) && doneLes < s.lessons;
+
     return { s, doneCh, doneLes, target, rec, late, ttDay,
-             isToday, isOverdue, isLate, isTodayDone, nextLesson, nextDeadline };
+             isToday, isPast, isLate, isWorkItem, isTodayDone,
+             nextLesson, nextDeadline };
   });
 
-  // 表示対象を3種に分類（重複しないよう優先順位で排他）
-  // 優先: 遅刻中 > 積み残し > 今日の予定
-  const lateItems    = withState.filter(i => i.isLate);
-  const lateSet      = new Set(lateItems.map(i => i.s.code));
-  const overdueItems = withState.filter(i => i.isOverdue && !i.isToday && !lateSet.has(i.s.code));
-  const overdueSet   = new Set(overdueItems.map(i => i.s.code));
-  const todayItems   = withState.filter(i => i.isToday && !lateSet.has(i.s.code) && !overdueSet.has(i.s.code));
+  const lateItems = withState.filter(i => i.isLate)
+    .sort((a, b) => b.late - a.late);
 
-  const hasContent = lateItems.length > 0 || overdueItems.length > 0 || todayItems.some(i => !i.isTodayDone);
+  // 今日やること：締切の近い順（完了済みは末尾）
+  const workItems = withState.filter(i => i.isWorkItem)
+    .sort((a, b) => {
+      if (a.isTodayDone !== b.isTodayDone) return a.isTodayDone ? 1 : -1;
+      return a.nextDeadline - b.nextDeadline;
+    });
 
   // 何もない
-  if (!hasContent && todayItems.length === 0) {
+  if (lateItems.length === 0 && workItems.length === 0) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はありません</div>
@@ -80,9 +80,8 @@ function renderTodayTimetable(subjects, sem, semId) {
     return;
   }
 
-  // 今日の予定が全完了かつ遅刻・積み残しなし
-  if (lateItems.length === 0 && overdueItems.length === 0 &&
-      todayItems.length > 0 && todayItems.every(i => i.isTodayDone)) {
+  // 全完了
+  if (lateItems.length === 0 && workItems.length > 0 && workItems.every(i => i.isTodayDone)) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">今日の予定はすべて完了！</div>
@@ -93,28 +92,17 @@ function renderTodayTimetable(subjects, sem, semId) {
   // ── 遅刻中（最優先） ──
   if (lateItems.length > 0) {
     ttEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px;padding:6px 10px;background:var(--red-dim);border-radius:6px;border-left:3px solid var(--red)">🔴 遅刻中 — 今すぐ受講を</div>`;
-    lateItems
-      .sort((a, b) => b.late - a.late)
-      .forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'late'));
+    lateItems.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'late'));
   }
 
-  // ── 積み残し ──
-  if (overdueItems.length > 0) {
-    ttEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:var(--amber);margin:${lateItems.length>0?'12px':'0'} 0 8px;padding:6px 10px;background:var(--amber-dim);border-radius:6px;border-left:3px solid var(--amber)">📌 前日以前の未消化</div>`;
-    overdueItems
-      .sort((a, b) => a.nextDeadline - b.nextDeadline)
-      .forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'overdue'));
-  }
-
-  // ── 今日の予定 ──
-  if (todayItems.length > 0) {
-    const hasAbove = lateItems.length > 0 || overdueItems.length > 0;
-    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin:${hasAbove?'12px':'0'} 0 8px">📋 今日の予定</div>`;
-    todayItems
-      .sort((a, b) => {
-        if (a.isTodayDone !== b.isTodayDone) return a.isTodayDone ? 1 : -1;
-        return 0;
-      })
-      .forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
+  // ── 今日やること（締切順・一本化） ──
+  if (workItems.length > 0) {
+    const hasAbove = lateItems.length > 0;
+    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin:${hasAbove ? '12px' : '0'} 0 8px">📋 今日やること（締切が近い順）</div>`;
+    workItems.forEach(item => {
+      // 前日以前の積み残しか今日の予定かをmodeで区別
+      const mode = item.isPast ? 'overdue' : 'today';
+      _renderTodayCard(ttEl, item, sem, semId, mode);
+    });
   }
 }
