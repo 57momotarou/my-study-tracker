@@ -45,8 +45,8 @@ function renderTodayTimetable(subjects, sem, semId) {
     const effectiveTtDow    = ttDow === 0 ? 7 : ttDow;
     const isPastThisWeek    = ttDay !== undefined && effectiveTtDow < effectiveTodayDow;
 
-    // 「積み残し」= 今週の割り当て曜日を過ぎていて、recまで未完
-    const isOverdue = isPastThisWeek && (doneLes < rec || late > 0);
+    // 「積み残し」= 今日の科目ではなく、nextLessonが未完了（週またぎでも残す）
+    const isOverdue = !isToday && ttDay !== undefined && doneLes < s.lessons && doneLes < nextLesson;
 
     // 今日の予定：今日の曜日で未完了（今日のコマ=nextLessonを終えていない）
     const nextLesson = doneLes + 1;
@@ -125,9 +125,9 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
     badgeText = `🔴 ${late}コマ遅刻中`; badgeClass = 'badge-danger';
   } else if (forceShowAsOverdue) {
     // 積み残し（遅刻ではないが割り当て曜日を過ぎた）
-    goalL = rec; goalCh = CPL;
-    goalLabel = '今日中に消化しよう'; goalColor = 'var(--amber)';
-    badgeText = `⏰ 積み残し`; badgeClass = 'badge-warn';
+    goalL = nextLesson; goalCh = CPL;
+    goalLabel = '前日以前の未消化 — 先に終わらせよう'; goalColor = 'var(--amber)';
+    badgeText = `📌 前日以前`; badgeClass = 'badge-warn';
   } else {
     goalL = nextLesson; goalCh = CPL;
     goalLabel = '今日の予定'; goalColor = 'var(--amber)';
@@ -139,11 +139,11 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
   const nowLbl = inLes > 0 ? `コマ${doneLes+1} 第${inLes}章まで完了` : doneLes > 0 ? `コマ${doneLes} 完了` : '未受講';
 
   // 章グリッド（横スクロール対応）
-  const _doneLesForScroll = doneLes;
-  let btnHtml = '<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="' + _doneLesForScroll + '"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
+  let btnHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
   for (let lesson = 1; lesson <= s.lessons; lesson++) {
     const lateL  = isLessonLate(lesson, s, sem);
-    const weekL  = lesson <= rec && lesson > doneLes;
+    // 今日やるべきコマ：nextLesson（今日の予定）またはrecまでの未完コマ
+    const weekL  = lesson > doneLes && (lesson === nextLesson || lesson <= rec);
     const notYet = !isLessonAvailable(lesson, s, sem);
     const lOp   = notYet ? 'opacity:0.2;' : '';
     btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,28px);grid-template-rows:28px;gap:1px;${lOp}">`;
@@ -199,11 +199,4 @@ function _renderTodayCard(ttEl, item, sem, semId, forceShowAsOverdue) {
         <span style="opacity:0.4">■ 未開講</span>
       </div>
     </div>`;
-
-  // 章グリッドを未完了部分が見えるよう自動スクロール
-  const _LESSON_W = 115;
-  ttEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
-    const dl = parseInt(wrap.dataset.doneLes) || 0;
-    if (dl > 0) { wrap.scrollLeft = Math.max(0, (dl - 1) * _LESSON_W); }
-  });
 }
