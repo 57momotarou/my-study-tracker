@@ -53,10 +53,10 @@ function renderTodayTimetable(subjects, sem, semId) {
     const nextLesson  = doneLes + 1;
     const isTodayDone = doneCh >= nextLesson * CPL || doneLes >= s.lessons;
 
-    // 次の未完了コマの締切日（ソート用）
+    // 次の未完了コマの締切日（ソート用・ミリ秒数値で保存）
     const nextDeadline = nextLesson <= s.lessons
-      ? getLessonDeadline(nextLesson, s, sem)
-      : new Date('2099-01-01');
+      ? getLessonDeadline(nextLesson, s, sem).getTime()
+      : new Date('2099-01-01').getTime();
     return { s, doneCh, doneLes, target, rec, late, ttDay,
              isToday, isOverdue, isLate, isTodayDone, nextLesson, nextDeadline };
   });
