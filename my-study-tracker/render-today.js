@@ -31,9 +31,6 @@ function renderToday() {
   // 今週ストリップ
   renderWeekStrip(subjects, sem, semId);
 
-  // 先取りおすすめ
-  renderAdvance(subjects, sem, semId);
-
   // 迫っている締切
   renderUpcoming(subjects, sem);
 }
