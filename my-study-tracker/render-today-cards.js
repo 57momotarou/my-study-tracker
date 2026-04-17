@@ -37,6 +37,13 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
     goalColor = 'var(--amber)';
     badgeText = '📌 前日以前';
     badgeClass = 'badge-warn';
+  } else if (mode === 'tomorrow') {
+    goalL     = nextLesson;
+    goalCh    = CPL;
+    goalLabel = '明日の予定（先取り）';
+    goalColor = 'var(--green)';
+    badgeText = `📅 明日コマ${nextLesson}`;
+    badgeClass = 'badge-ok';
   } else {
     // today
     goalL     = nextLesson;
