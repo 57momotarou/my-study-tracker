@@ -145,14 +145,10 @@ function renderProgressPage() {
       </div>`;
   });
 
-  // 章グリッドを未完了部分が見えるよう自動スクロール
-  // コマ幅 = 4ボタン×28px + 3gap×1px + コマ間gap2px = 115px/コマ
-  const LESSON_W = 115;
+  // 章グリッドを次のコマが左端に来るよう自動スクロール
+  const LESSON_W = 115; // 4ボタン×28px + gap = 約115px/コマ
   listEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
-    const doneLes = parseInt(wrap.dataset.doneLes) || 0;
-    if (doneLes > 0) {
-      // 完了済みコマより1コマ前から表示（最後の完了コマ〜次のコマが見える）
-      wrap.scrollLeft = Math.max(0, (doneLes - 1) * LESSON_W);
-    }
+    const dl = parseInt(wrap.dataset.doneLes) || 0;
+    if (dl > 0) { wrap.scrollLeft = dl * LESSON_W; }
   });
 }

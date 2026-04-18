@@ -88,7 +88,7 @@ function renderTodayTimetable(subjects, sem, semId) {
     _renderTodayCard(ttEl, item, sem, semId, 'overdue');
     // 残り件数を表示
     if (overdueList.length > 1) {
-      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${overdueList.length - 1} 科目の積み残しあり（終わると次が表示されます）</div>`;
+      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${overdueList.length - 1} 科目</div>`;
     }
     return;
   }
@@ -98,7 +98,7 @@ function renderTodayTimetable(subjects, sem, semId) {
     ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">📋 今日の予定</div>`;
     _renderTodayCard(ttEl, todayList[0], sem, semId, 'today');
     if (todayList.length > 1) {
-      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${todayList.length - 1} 科目あり（終わると次が表示されます）</div>`;
+      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${todayList.length - 1} 科目</div>`;
     }
     // 完了済みを末尾に表示
     todayDoneList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
@@ -111,7 +111,7 @@ function renderTodayTimetable(subjects, sem, semId) {
     ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✅ 今日の予定完了！ 明日（${dayNames[tomorrowDow]}）の予定を先取り</div>`;
     _renderTodayCard(ttEl, tomorrowList[0], sem, semId, 'tomorrow');
     if (tomorrowList.length > 1) {
-      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">明日はあと ${tomorrowList.length - 1} 科目あります</div>`;
+      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">明日はあと ${tomorrowList.length - 1} 科目</div>`;
     }
     // 今日の完了済みも表示
     todayDoneList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));

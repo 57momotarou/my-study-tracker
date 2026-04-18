@@ -126,6 +126,6 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
   const LESSON_W = 115;
   ttEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
     const dl = parseInt(wrap.dataset.doneLes) || 0;
-    if (dl > 0) { wrap.scrollLeft = Math.max(0, (dl - 1) * LESSON_W); }
+    if (dl > 0) { wrap.scrollLeft = dl * LESSON_W; } // 次のコマ（未完了）が左端
   });
 }
