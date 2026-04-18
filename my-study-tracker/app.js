@@ -260,6 +260,35 @@ function _updateTodayChapterButtons(code, semId) {
   const doneLes = Math.floor(doneCh / 4);
   const rec = getTodayRecommended(s, sem);
 
+  // 積み残しリストが変化した（コマ完了 or 取り消し）場合は時間割カードを再描画
+  // isPast判定はrenderTodayTimetable内と同じロジックで計算
+  const now = new Date();
+  const todayDow = now.getDay();
+  const effToday = todayDow === 0 ? 7 : todayDow;
+  const ttDay = getTimetableDay(code, semId);
+  const ttDow = ttDay !== undefined ? ttDay + 1 : -1;
+  const effTt = ttDow === 0 ? 7 : ttDow;
+  const isPast = ttDay !== undefined && effTt < effToday;
+  const allDone = doneLes >= s.lessons;
+
+  // この科目がisPast（積み残し対象）かつ今タップでコマ完了/取り消しが起きたなら再描画
+  if (isPast) {
+    const subjects = getEnrolledSubjects(semId);
+    renderTodayTimetable(subjects, sem, semId);
+    // アラートも更新
+    const alertsEl = document.getElementById('today-alerts');
+    if (alertsEl) {
+      alertsEl.innerHTML = '';
+      subjects.forEach(s2 => {
+        const done2 = Math.floor(getCompletedLessons(s2.code) / 4);
+        const late2 = getTodayTarget(s2, sem) - done2;
+        if (late2 >= 3)      alertsEl.innerHTML += `<div class="alert alert-danger">⚠️ <b>${s2.name}</b> 遅刻${late2}コマ！繰り越し優先で</div>`;
+        else if (late2 >= 1) alertsEl.innerHTML += `<div class="alert alert-warn">📌 <b>${s2.name}</b> ${late2}コマ遅刻中 — 優先受講を</div>`;
+      });
+    }
+    return; // 全再描画したので以降の差分更新は不要
+  }
+
   document.querySelectorAll('#today-timetable .lesson-btn').forEach(btn => {
     const onclick = btn.getAttribute('onclick') || '';
     if (!onclick.includes(`'${code}'`)) return;
