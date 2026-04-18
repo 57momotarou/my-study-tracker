@@ -55,7 +55,7 @@ function renderTodayTimetable(subjects, sem, semId) {
       ? getLessonDeadline(nextLesson, s, sem).getTime()
       : new Date('2099-01-01').getTime();
 
-    return { s, doneCh, doneLes, late, ttDay,
+    return { s, doneCh, doneLes, rec, late, ttDay,
              isToday, isTomorrow, isPast, allDone, isTodayDone,
              nextLesson, nextDeadline };
   });
