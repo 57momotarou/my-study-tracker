@@ -243,9 +243,58 @@ function toggleChapter(code, chapterNum, semId) {
   else return;
   saveState();
   renderProgressPage();
-  renderToday();
+  // TODAYタブは全再描画せず章ボタンの色だけ差分更新（点滅防止）
+  _updateTodayChapterButtons(code, semId);
   renderBadgesPage();
   if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
 }
 function toggleLesson(code, lessonNum, semId) { toggleChapter(code, lessonNum*4, semId); }
+
+// TODAYタブの章グリッドボタンを再描画せずに色だけ更新
+function _updateTodayChapterButtons(code, semId) {
+  const doneCh = getCompletedLessons(code);
+  const s = ALL_SUBJECTS.find(x => x.code === code);
+  if (!s) return;
+  const sem = getCurrentSemester();
+  const color = getCategoryColor(s.category);
+  const doneLes = Math.floor(doneCh / 4);
+  const rec = getTodayRecommended(s, sem);
+
+  document.querySelectorAll('#today-timetable .lesson-btn').forEach(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    if (!onclick.includes(`'${code}'`)) return;
+    // chapterNumを取得
+    const m = onclick.match(/toggleChapter\('[^']+',(\d+),/);
+    if (!m) return;
+    const chNum = parseInt(m[1]);
+    const lesson = Math.ceil(chNum / 4);
+    const isDone  = chNum <= doneCh;
+    const lateL   = isLessonLate(lesson, s, sem);
+    const notYet  = !isLessonAvailable(lesson, s, sem);
+    const isTargetLesson = lesson > doneLes && (lesson === doneLes + 1 || lesson <= rec);
+    const isLateC = !isDone && lateL;
+    const isWeekC = !isDone && !isLateC && isTargetLesson;
+
+    btn.className = 'lesson-btn' + (isDone ? ' done' : '');
+    if (isDone)       { btn.style.background = color; btn.style.color = '#000'; btn.style.border = ''; }
+    else if (isLateC) { btn.style.background = 'var(--red-dim)'; btn.style.color = 'var(--red)'; btn.style.border = '1px solid var(--red)'; }
+    else if (isWeekC) { btn.style.background = 'var(--amber-dim)'; btn.style.color = 'var(--amber)'; btn.style.border = '1px solid var(--amber)'; }
+    else              { btn.style.background = 'var(--bg3)'; btn.style.color = 'var(--text3)'; btn.style.border = ''; }
+    btn.style.pointerEvents = notYet ? 'none' : '';
+  });
+
+  // progress%・ステータステキストもついでに更新（今日カードの外のやつは触らない）
+  // アラートと迫っている締切は再描画
+  const alertsEl = document.getElementById('today-alerts');
+  if (alertsEl) {
+    const subjects = getEnrolledSubjects(semId);
+    alertsEl.innerHTML = '';
+    subjects.forEach(s2 => {
+      const done2 = Math.floor(getCompletedLessons(s2.code) / 4);
+      const late2 = getTodayTarget(s2, sem) - done2;
+      if (late2 >= 3)      alertsEl.innerHTML += `<div class="alert alert-danger">⚠️ <b>${s2.name}</b> 遅刻${late2}コマ！繰り越し優先で</div>`;
+      else if (late2 >= 1) alertsEl.innerHTML += `<div class="alert alert-warn">📌 <b>${s2.name}</b> ${late2}コマ遅刻中 — 優先受講を</div>`;
+    });
+  }
+}
 

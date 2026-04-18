@@ -47,10 +47,7 @@ function renderTimetableBanner(subjects, semId) {
   card.className = 'card';
   card.style.marginBottom = '12px';
   card.innerHTML = `<div class="card-label">TIMETABLE</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:0">時間割</div>
-      <button onclick="resetTimetable(${semId})" style="font-size:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);padding:3px 8px;border-radius:99px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">リセット</button>
-    </div>
+    <div class="card-title">時間割</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:10px">📌 科目名をタップして曜日を変更できます</div>`;
 
   // 週間時間割グリッド
@@ -109,15 +106,6 @@ function renderTimetableBanner(subjects, semId) {
 
   el.innerHTML='';
   el.appendChild(card);
-}
-
-function resetTimetable(semId) {
-  const tt=loadTimetable();
-  delete tt[semId];
-  saveTimetable(tt);
-  ensureAutoTimetable(semId);
-  renderSchedulePage();
-  renderToday();
 }
 
 // 曜日変更ピッカー
@@ -277,9 +265,9 @@ function renderMonthSchedule(subjects, sem, semId) {
   });
 
   const el=document.getElementById('schedule-month');
-  let html=`<div style="overflow:hidden;width:100%;box-sizing:border-box"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+  let html=`<div style="overflow:hidden;width:100%;box-sizing:border-box"><div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;margin-bottom:4px">
     ${DOW.map((d,i)=>`<div style="text-align:center;font-size:10px;padding:3px 0;font-weight:600;color:${i===0?'#ef4444':i===6?'#60a5fa':'var(--text3)'}">${d}</div>`).join('')}
-  </div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
+  </div><div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px">`;
 
   for (let i=0;i<firstDow;i++) html+=`<div></div>`;
 
@@ -333,13 +321,13 @@ function renderMonthSchedule(subjects, sem, semId) {
     }));
 
     html+=`<div onclick="${hasContent?`showDayDetail('${tapData}')`:''}"
-      style="min-height:54px;border-radius:6px;padding:3px 4px;
+      style="min-height:44px;border-radius:4px;padding:2px 3px;overflow:hidden;
         background:${isToday?'var(--amber-dim)':isKimatsu?'var(--purple-dim)':hasContent?'var(--bg3)':'transparent'};
         border:1px solid ${isToday?'var(--amber)':isKimatsu?'var(--purple)':hasContent?'var(--border)':'transparent'};
-        display:flex;flex-direction:column;gap:2px;
+        display:flex;flex-direction:column;gap:1px;
         cursor:${hasContent?'pointer':'default'};opacity:${isPast&&!hasContent?'0.35':'1'}">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:11px;font-weight:${isToday?'700':'500'};color:${dayColor}">${day}</span>
+        <span style="font-size:10px;font-weight:${isToday?'700':'500'};color:${dayColor}">${day}</span>
         ${dotColor?`<div style="width:4px;height:4px;border-radius:50%;background:${dotColor}"></div>`:''}
       </div>
       ${labels.join('')}${more}${kimatsuLabel}
