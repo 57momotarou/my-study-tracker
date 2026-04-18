@@ -146,7 +146,8 @@ function renderProgressPage() {
   });
 
   // 章グリッドを次のコマが左端に来るよう自動スクロール
-  const LESSON_W = 115; // 4ボタン×28px + gap = 約115px/コマ
+  // コマ幅 = 4px×28 + gap1px×3 = 115px、コマ間gap = 2px → 1コマあたり117px
+  const LESSON_W = 117;
   listEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
     const dl = parseInt(wrap.dataset.doneLes) || 0;
     if (dl > 0) { wrap.scrollLeft = dl * LESSON_W; }

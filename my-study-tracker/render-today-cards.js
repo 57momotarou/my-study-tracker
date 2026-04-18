@@ -122,10 +122,12 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
       </div>
     </div>`;
 
-  // 章グリッドを自動スクロール（完了済み部分の末尾が見えるように）
-  const LESSON_W = 115;
-  ttEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
+  // 章グリッドを自動スクロール：この呼び出しで追加した最後のwrapだけをスクロール
+  const LESSON_W = 117; // 4px×28 + gap1×3=115 + コマ間gap2 = 117
+  const wraps = ttEl.querySelectorAll('.chapter-scroll-wrap');
+  if (wraps.length > 0) {
+    const wrap = wraps[wraps.length - 1]; // 最後に追加されたもの
     const dl = parseInt(wrap.dataset.doneLes) || 0;
-    if (dl > 0) { wrap.scrollLeft = dl * LESSON_W; } // 次のコマ（未完了）が左端
-  });
+    if (dl > 0) { wrap.scrollLeft = dl * LESSON_W; }
+  }
 }
