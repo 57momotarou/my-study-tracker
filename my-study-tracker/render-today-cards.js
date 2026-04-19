@@ -33,9 +33,9 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
   } else if (mode === 'overdue') {
     goalL     = nextLesson;
     goalCh    = CPL;
-    goalLabel = '前日以前の未消化 — 先に終わらせよう';
+    goalLabel = '積み残し — 先に終わらせよう';
     goalColor = 'var(--amber)';
-    badgeText = '📌 前日以前';
+    badgeText = '⚠️ 積み残し';
     badgeClass = 'badge-warn';
   } else if (mode === 'tomorrow') {
     goalL     = nextLesson;
