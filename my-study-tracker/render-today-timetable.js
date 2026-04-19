@@ -3,8 +3,9 @@
 // TODAYタブ：表示対象の判定ロジック
 // ============================================================
 // 表示ルール（1科目ずつ順番に）：
-//   1. 積み残し（時間割の割り当て曜日を過ぎたのに未完了 or 期限切れ）→ 1科目 + あと〇科目
-//   2. 積み残しがすべて完了 → 今日の時間割科目を1科目表示
+//   1. 積み残し（期限切れコマあり or 割り当て曜日を過ぎた＆今日割り当て以外）→ 1科目 + あと〇科目
+//      ※今日割り当て科目でも期限切れコマがあれば積み残し表示
+//   2. 積み残しがすべて完了 → 今日の時間割科目（late===0のもの）を1科目表示
 //   3. 今日も全部完了 → 明日の時間割科目を1科目表示
 //   4. 全完了 → 🎉
 // ============================================================
@@ -51,8 +52,9 @@ function renderTodayTimetable(subjects, sem, semId) {
       isPast = assignedDate < today0;
     }
 
-    // 積み残し：今週の割り当て曜日を過ぎた or 期限切れコマがある
-    const isOverdue = !allDone && (isPast || late > 0);
+    // 積み残し：期限切れコマがある、または（今日以外の曜日割り当てで割り当て日を過ぎた）
+    // 今日割り当て科目でもlate>0なら積み残し（期限切れコマを先に処理）
+    const isOverdue = !allDone && (late > 0 || (!isToday && isPast));
 
     // 今日のコマを終えているか
     const isTodayDone = doneCh >= nextLesson * CPL || allDone;
@@ -74,14 +76,14 @@ function renderTodayTimetable(subjects, sem, semId) {
     .filter(i => i.isOverdue)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
-  // 2. 今日の予定：今日の割り当てで未完了かつ積み残しなし
+  // 2. 今日の予定：今日の割り当てで積み残しなし（late===0）かつ今日コマ未完
   const todayList = withState
-    .filter(i => i.isToday && !i.allDone && !i.isTodayDone && !i.isOverdue)
+    .filter(i => i.isToday && !i.allDone && !i.isTodayDone && i.late === 0)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
-  // 今日の完了済み
+  // 今日の完了済み（積み残しなし）
   const todayDoneList = withState
-    .filter(i => i.isToday && (i.allDone || i.isTodayDone) && !i.isOverdue);
+    .filter(i => i.isToday && i.late === 0 && (i.allDone || i.isTodayDone));
 
   // 3. 明日の予定
   const tomorrowList = withState
