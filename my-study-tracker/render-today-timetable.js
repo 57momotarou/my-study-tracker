@@ -39,13 +39,19 @@ function renderTodayTimetable(subjects, sem, semId) {
     const isToday    = ttDay !== undefined && ttDay === todayTtIdx;
     const isTomorrow = ttDay !== undefined && ttDay === tomorrowTtIdx;
 
-    // 時間割の割り当て曜日が今日より前か
-    const ttDow    = ttDay !== undefined ? ttDay + 1 : -1;
-    const effToday = todayDow === 0 ? 7 : todayDow;
-    const effTt    = ttDow   === 0 ? 7 : ttDow;
-    const isPast   = ttDay !== undefined && effTt < effToday;
+    // 今週の割り当て曜日の実際の日付が今日より前か
+    // ttDay: 0=月,1=火,...,5=土 → getDay(): 月=1,火=2,...,土=6
+    const ttDow = ttDay !== undefined ? ttDay + 1 : -1;
+    let isPast = false;
+    if (ttDay !== undefined) {
+      const assignedDate = new Date(now);
+      assignedDate.setHours(0, 0, 0, 0);
+      assignedDate.setDate(now.getDate() + (ttDow - todayDow));
+      const today0 = new Date(now); today0.setHours(0, 0, 0, 0);
+      isPast = assignedDate < today0;
+    }
 
-    // 積み残し：割り当て曜日を過ぎた or 期限切れコマがある
+    // 積み残し：今週の割り当て曜日を過ぎた or 期限切れコマがある
     const isOverdue = !allDone && (isPast || late > 0);
 
     // 今日のコマを終えているか
