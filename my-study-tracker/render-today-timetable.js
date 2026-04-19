@@ -40,21 +40,29 @@ function renderTodayTimetable(subjects, sem, semId) {
     const isToday    = ttDay !== undefined && ttDay === todayTtIdx;
     const isTomorrow = ttDay !== undefined && ttDay === tomorrowTtIdx;
 
-    // 今週の割り当て曜日の実際の日付が今日より前か
+    // 先週の割り当て日（直近の割り当て日）が過ぎているか（積み残し判定）
     // ttDay: 0=月,1=火,...,5=土 → getDay(): 月=1,火=2,...,土=6
     const ttDow = ttDay !== undefined ? ttDay + 1 : -1;
     let isPast = false;
     if (ttDay !== undefined) {
-      const assignedDate = new Date(now);
-      assignedDate.setHours(0, 0, 0, 0);
-      assignedDate.setDate(now.getDate() + (ttDow - todayDow));
       const today0 = new Date(now); today0.setHours(0, 0, 0, 0);
-      isPast = assignedDate < today0;
+      // 今週の割り当て曜日の日付
+      const assignedThisWeek = new Date(today0);
+      assignedThisWeek.setDate(today0.getDate() + (ttDow - todayDow));
+      // 直近の割り当て日：今週の割り当て日が今日以前なら今週分、今日より後なら先週分
+      let lastAssigned;
+      if (assignedThisWeek <= today0) {
+        lastAssigned = assignedThisWeek; // 今週の割り当て日（今日 or 今日より前）
+      } else {
+        lastAssigned = new Date(assignedThisWeek);
+        lastAssigned.setDate(assignedThisWeek.getDate() - 7); // 先週の割り当て日
+      }
+      // 直近の割り当て日が今日より前なら積み残し（今日の分は今日の予定）
+      isPast = lastAssigned < today0;
     }
 
-    // 積み残し：期限切れコマがある、または（今日以外の曜日割り当てで割り当て日を過ぎた）
-    // 今日割り当て科目でもlate>0なら積み残し（期限切れコマを先に処理）
-    const isOverdue = !allDone && (late > 0 || (!isToday && isPast));
+    // 積み残し：期限切れコマがある、または（直近の割り当て日が今日より前で未完了）
+    const isOverdue = !allDone && (late > 0 || isPast);
 
     // 今日のコマを終えているか
     const isTodayDone = doneCh >= nextLesson * CPL || allDone;
