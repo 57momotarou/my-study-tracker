@@ -312,11 +312,16 @@ function _updateTodayChapterButtons(code, semId) {
     btn.style.pointerEvents = notYet ? 'none' : '';
   });
 
-  // progress%・ステータステキストもついでに更新（今日カードの外のやつは触らない）
-  // アラートと迫っている締切は再描画
+  // 「あと〇科目」カウント・今日完了判定の更新のためtimetableを再描画
+  const subjects = getEnrolledSubjects(semId);
+  renderTodayTimetable(subjects, sem, semId);
+
+  // 迫っている締切を更新
+  renderUpcoming(subjects, sem);
+
+  // アラートを更新
   const alertsEl = document.getElementById('today-alerts');
   if (alertsEl) {
-    const subjects = getEnrolledSubjects(semId);
     alertsEl.innerHTML = '';
     subjects.forEach(s2 => {
       const done2 = Math.floor(getCompletedLessons(s2.code) / 4);
