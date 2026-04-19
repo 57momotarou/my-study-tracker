@@ -3,8 +3,8 @@
 // TODAYタブ：表示対象の判定ロジック
 // ============================================================
 // 表示ルール（1科目ずつ順番に）：
-//   1. 積み残し（前日以前・未完了）を締切が近い順 → 1科目表示
-//   2. 積み残しが全部完了 → 今日の時間割科目を1科目表示
+//   1. 積み残し（今日時点でlate>0の科目）を締切が近い順 → 1科目表示 + あと〇科目
+//   2. 積み残しがすべて完了 → 今日の時間割科目を1科目表示
 //   3. 今日も全部完了 → 明日の時間割科目を1科目表示
 //   4. 全完了 → 🎉
 // ============================================================
@@ -22,30 +22,22 @@ function renderTodayTimetable(subjects, sem, semId) {
   const now        = new Date();
   const todayDow   = now.getDay(); // 0=日,1=月,...,6=土
   const todayTtIdx = todayDow >= 1 && todayDow <= 6 ? todayDow - 1 : -1;
-  // 明日のttIdx
-  const tomorrowDow    = (todayDow + 1) % 7;
-  const tomorrowTtIdx  = tomorrowDow >= 1 && tomorrowDow <= 6 ? tomorrowDow - 1 : -1;
+  const tomorrowDow   = (todayDow + 1) % 7;
+  const tomorrowTtIdx = tomorrowDow >= 1 && tomorrowDow <= 6 ? tomorrowDow - 1 : -1;
 
   // 各科目の状態を計算
   const withState = subjects.map(s => {
-    const doneCh   = getCompletedLessons(s.code);
-    const doneLes  = Math.floor(doneCh / CPL);
-    const target   = getTodayTarget(s, sem);
-    const rec      = getTodayRecommended(s, sem);
-    const late     = Math.max(0, target - doneLes);
-    const ttDay    = getTimetableDay(s.code, semId);
+    const doneCh     = getCompletedLessons(s.code);
+    const doneLes    = Math.floor(doneCh / CPL);
+    const target     = getTodayTarget(s, sem);
+    const rec        = getTodayRecommended(s, sem);
+    const late       = Math.max(0, target - doneLes);
+    const ttDay      = getTimetableDay(s.code, semId);
     const nextLesson = doneLes + 1;
     const allDone    = doneLes >= s.lessons;
 
-    // 今日・明日の割り当てか
     const isToday    = ttDay !== undefined && ttDay === todayTtIdx;
     const isTomorrow = ttDay !== undefined && ttDay === tomorrowTtIdx;
-
-    // 今日より前の曜日か（積み残し判定用）
-    const ttDow    = ttDay !== undefined ? ttDay + 1 : -1;
-    const effToday = todayDow === 0 ? 7 : todayDow;
-    const effTt    = ttDow   === 0 ? 7 : ttDow;
-    const isPast   = ttDay !== undefined && effTt < effToday;
 
     // 今日のコマを終えているか
     const isTodayDone = doneCh >= nextLesson * CPL || allDone;
@@ -56,39 +48,38 @@ function renderTodayTimetable(subjects, sem, semId) {
       : new Date('2099-01-01').getTime();
 
     return { s, doneCh, doneLes, rec, late, ttDay,
-             isToday, isTomorrow, isPast, allDone, isTodayDone,
+             isToday, isTomorrow, allDone, isTodayDone,
              nextLesson, nextDeadline };
   });
 
   // ── グループ分け ──
 
-  // 1. 積み残し：前日以前の割り当てで遅刻コマが残っている科目（late===0で除外）
+  // 1. 積み残し：今日時点でlate>0の科目（曜日問わず）
   const overdueList = withState
-    .filter(i => i.isPast && !i.allDone && i.late > 0)
+    .filter(i => !i.allDone && i.late > 0)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
-  // 2. 今日の予定：今日の割り当てで未完了
+  // 2. 今日の予定：今日の割り当てで未完了かつ積み残しなし
   const todayList = withState
-    .filter(i => i.isToday && !i.allDone && !i.isTodayDone)
+    .filter(i => i.isToday && !i.allDone && !i.isTodayDone && i.late === 0)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
   // 今日の完了済み
   const todayDoneList = withState
     .filter(i => i.isToday && (i.allDone || i.isTodayDone));
 
-  // 3. 明日の予定：明日の割り当てで未完了（今日・積み残しが全部終わった場合のみ）
+  // 3. 明日の予定
   const tomorrowList = withState
     .filter(i => i.isTomorrow && !i.allDone)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
-  // 積み残しがまだある → 最初の1科目を表示
+  // 積み残しあり → 1科目表示 + あと〇科目
   if (overdueList.length > 0) {
-    const item = overdueList[0];
-    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">📌 前日以前の未消化（締切順）</div>`;
-    _renderTodayCard(ttEl, item, sem, semId, 'overdue');
-    // 残り件数を表示
-    if (overdueList.length > 1) {
-      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${overdueList.length - 1} 科目</div>`;
+    const total = overdueList.length;
+    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">⚠️ 積み残しあり（締切が近い順）全${total}科目</div>`;
+    _renderTodayCard(ttEl, overdueList[0], sem, semId, 'overdue');
+    if (total > 1) {
+      ttEl.innerHTML += `<div style="font-size:12px;color:var(--amber);font-weight:700;padding:10px 12px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:8px;text-align:center">📌 あと ${total - 1} 科目の積み残しがあります</div>`;
     }
     return;
   }
@@ -100,12 +91,11 @@ function renderTodayTimetable(subjects, sem, semId) {
     if (todayList.length > 1) {
       ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${todayList.length - 1} 科目</div>`;
     }
-    // 完了済みを末尾に表示
     todayDoneList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
     return;
   }
 
-  // 今日の予定も全完了 → 明日の予定を1科目表示
+  // 今日も完了 → 明日の予定を先取り
   if (tomorrowList.length > 0) {
     const dayNames = ['日','月','火','水','木','金','土'];
     ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✅ 今日の予定完了！ 明日（${dayNames[tomorrowDow]}）の予定を先取り</div>`;
@@ -113,7 +103,6 @@ function renderTodayTimetable(subjects, sem, semId) {
     if (tomorrowList.length > 1) {
       ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">明日はあと ${tomorrowList.length - 1} 科目</div>`;
     }
-    // 今日の完了済みも表示
     todayDoneList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
     return;
   }
