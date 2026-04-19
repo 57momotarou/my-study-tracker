@@ -62,9 +62,9 @@ function renderTodayTimetable(subjects, sem, semId) {
 
   // ── グループ分け ──
 
-  // 1. 積み残し：前日以前の割り当てで未完了（全完了科目は除く）
+  // 1. 積み残し：前日以前の割り当てで遅刻コマが残っている科目（late===0で除外）
   const overdueList = withState
-    .filter(i => i.isPast && !i.allDone)
+    .filter(i => i.isPast && !i.allDone && i.late > 0)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
   // 2. 今日の予定：今日の割り当てで未完了
