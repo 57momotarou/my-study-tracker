@@ -3,8 +3,7 @@
 // TODAYタブ：表示対象の判定ロジック
 // ============================================================
 // 表示ルール（1科目ずつ順番に）：
-//   1. 積み残し（時間割の割り当て曜日を過ぎたのに未完了）を締切が近い順 → 1科目表示 + あと〇科目
-//      ※期限切れ（late>0）も含む
+//   1. 積み残し（時間割の割り当て曜日を過ぎたのに未完了 or 期限切れ）→ 1科目 + あと〇科目
 //   2. 積み残しがすべて完了 → 今日の時間割科目を1科目表示
 //   3. 今日も全部完了 → 明日の時間割科目を1科目表示
 //   4. 全完了 → 🎉
@@ -40,15 +39,13 @@ function renderTodayTimetable(subjects, sem, semId) {
     const isToday    = ttDay !== undefined && ttDay === todayTtIdx;
     const isTomorrow = ttDay !== undefined && ttDay === tomorrowTtIdx;
 
-    // 時間割の割り当て曜日が今日より前か（積み残し判定）
-    // 日曜(0)→7に変換して比較
-    const ttDow    = ttDay !== undefined ? ttDay + 1 : -1; // ttDay=0(月)→1, ttDay=5(土)→6
+    // 時間割の割り当て曜日が今日より前か
+    const ttDow    = ttDay !== undefined ? ttDay + 1 : -1;
     const effToday = todayDow === 0 ? 7 : todayDow;
     const effTt    = ttDow   === 0 ? 7 : ttDow;
     const isPast   = ttDay !== undefined && effTt < effToday;
 
-    // 積み残し：時間割の割り当て曜日を過ぎたのにまだ次のコマが残っている
-    // または期限切れコマがある
+    // 積み残し：割り当て曜日を過ぎた or 期限切れコマがある
     const isOverdue = !allDone && (isPast || late > 0);
 
     // 今日のコマを終えているか
@@ -66,7 +63,7 @@ function renderTodayTimetable(subjects, sem, semId) {
 
   // ── グループ分け ──
 
-  // 1. 積み残し：時間割の割り当て曜日を過ぎた＆未完了、または期限切れ
+  // 1. 積み残し：割り当て曜日を過ぎた or 期限切れ
   const overdueList = withState
     .filter(i => i.isOverdue)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
