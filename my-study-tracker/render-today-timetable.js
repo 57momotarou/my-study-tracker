@@ -61,8 +61,12 @@ function renderTodayTimetable(subjects, sem, semId) {
       isPast = lastAssigned < today0;
     }
 
-    // 積み残し：期限切れコマがある、または（直近の割り当て日が今日より前で未完了）
+    // 積み残し：期限切れコマがある、または直近の割り当て日が今日より前で未完了
+    // 今日割り当て科目はisPast=falseなので今日の予定として扱われる
     const isOverdue = !allDone && (late > 0 || isPast);
+
+    // ★ 積み残しと判定された今日割り当て科目もisTodayからは除外済み
+    //    todayList は late===0 のみなので重複しない
 
     // 今日のコマを終えているか
     const isTodayDone = doneCh >= nextLesson * CPL || allDone;

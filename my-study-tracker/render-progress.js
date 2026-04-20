@@ -60,7 +60,19 @@ function renderProgressPage() {
     <div class="prog-wrap" style="height:8px"><div class="prog-bar" style="width:${pctAll}%;background:var(--amber)"></div></div>
   </div>`;
 
+  // カテゴリ順に並べる（専門→教養→外国語）
+  const catOrder = {'専門':0,'教養':1,'外国語':2};
+  subjects.sort((a,b) => (catOrder[a.category]??9) - (catOrder[b.category]??9));
+
+  let currentCat = null;
   subjects.forEach(s => {
+    // カテゴリ見出し
+    if (s.category !== currentCat) {
+      currentCat = s.category;
+      const catColor = getCategoryColor(s.category);
+      const catLabel = s.category === '専門' ? '💻 専門科目' : s.category === '教養' ? '🌿 教養科目' : '🌐 外国語科目';
+      listEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:${catColor};letter-spacing:1px;padding:8px 2px 4px;border-bottom:1px solid ${catColor}44;margin-bottom:8px">${catLabel}</div>`;
+    }
     const totalChapters    = s.lessons * CPL;
     const doneChapters     = getCompletedLessons(s.code);
     const doneLessons      = Math.floor(doneChapters / CPL);
@@ -143,7 +155,7 @@ function renderProgressPage() {
           <span style="opacity:0.4">■ 未開講</span>
         </div>
       </div>`;
-  });
+  });  // subjects.forEach end
 
   // 章グリッドを次のコマが左端に来るよう自動スクロール
   // コマ幅 = 4px×28 + gap1px×3 = 115px、コマ間gap = 2px → 1コマあたり117px
