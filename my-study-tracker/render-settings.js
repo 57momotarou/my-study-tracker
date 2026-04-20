@@ -121,13 +121,27 @@ function renderEnrolledSummary() {
     return;
   }
 
-  listEl.innerHTML = subjects.map(s => `
-    <div class="enrolled-item">
+  // カテゴリ順にソート（専門→教養→外国語）
+  const catOrder = {'専門':0,'教養':1,'外国語':2};
+  const sorted = [...subjects].sort((a,b) => (catOrder[a.category]??9) - (catOrder[b.category]??9));
+
+  // カテゴリ区切りを挿入しながら描画
+  let html = '';
+  let lastCat = null;
+  sorted.forEach(s => {
+    if (s.category !== lastCat) {
+      lastCat = s.category;
+      const catColor = getCategoryColor(s.category);
+      const catLabel = s.category === '専門' ? '💻 専門' : s.category === '教養' ? '🌿 教養' : '🌐 外国語';
+      html += `<div style="font-size:10px;font-weight:700;color:${catColor};letter-spacing:1px;padding:8px 0 4px;border-bottom:1px solid ${catColor}44;margin-bottom:4px">${catLabel}</div>`;
+    }
+    html += `<div class="enrolled-item">
       <div class="enrolled-dot" style="background:${getCategoryColor(s.category)}"></div>
       <div class="enrolled-name">${s.name}</div>
       <div class="enrolled-credits">${s.credits}単位</div>
-    </div>
-  `).join('');
+    </div>`;
+  });
+  listEl.innerHTML = html;
 
   const totalCredits = subjects.reduce((a, s) => a + s.credits, 0);
   const senmonCount  = subjects.filter(s => s.category === '専門').length;

@@ -185,7 +185,7 @@ const BADGES = [
   { id: 'badge-security-gold', name: 'セキュリティ', level: 'gold', category: '専門',
     requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS304','CS305','CS361'] } },
   { id: 'badge-software-gold', name: 'ソフトウェア', level: 'gold', category: '専門',
-    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS252E','CS303E','CS350E'] } },
+    requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS252E','CS303E','CS358E','CS359E'] } },
   { id: 'badge-ai-gold', name: 'AI', level: 'gold', category: '専門',
     requirements: { prerequisite: 'badge-tech2-silver', codes: ['CS353','CS354E','CS356E'] } },
 

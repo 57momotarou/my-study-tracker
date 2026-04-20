@@ -251,19 +251,18 @@ function toggleChapter(code, chapterNum, semId) {
 function toggleLesson(code, lessonNum, semId) { toggleChapter(code, lessonNum*4, semId); }
 
 // TODAYタブ更新（点滅防止 + 数字ズレ防止）
+// renderToday()を同期的に呼び出し、その後rAF×2でスクロール復元
+// ※render-today-cards.jsのrAF内スクロール処理は無効化済み（二重実行防止）
 function _updateTodayChapterButtons(code, semId) {
-  // rAF×1で先にスクロール位置を記録してからrenderToday、その後復元
   const LESSON_W = 117;
+  // 同期的にrenderToday（overdueListが最新状態で確定してから描画）
+  renderToday();
+  // 描画確定後にスクロール復元（rAF×2）
   requestAnimationFrame(() => {
-    // 1) renderToday で全再描画（overdueList が最新の状態で計算される）
-    renderToday();
-    // 2) rAF×2で描画確定後にスクロール位置を復元
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        document.querySelectorAll('#today-timetable .chapter-scroll-wrap').forEach(wrap => {
-          const dl = parseInt(wrap.dataset.doneLes) || 0;
-          if (dl > 0) wrap.scrollLeft = dl * LESSON_W;
-        });
+      document.querySelectorAll('#today-timetable .chapter-scroll-wrap').forEach(wrap => {
+        const dl = parseInt(wrap.dataset.doneLes) || 0;
+        if (dl > 0) wrap.scrollLeft = dl * LESSON_W;
       });
     });
   });
