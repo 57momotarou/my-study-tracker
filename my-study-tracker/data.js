@@ -239,9 +239,9 @@ const BADGES = [
   { id: 'badge-academic-writing', name: 'アカデミックライティング', level: 'bronze', category: '教養',
     requirements: { codes: ['SD302E'] } },
   { id: 'badge-startup-kyoyo', name: '教養スタートアップ', level: 'bronze', category: '教養',
-    requirements: { codes: ['GESS101','GEHU101','GENS101','GECO101'] } },
+    requirements: { codes: ['GESS101','GEHM101','GENS101','SD101E'] } },
   { id: 'badge-communication', name: 'コミュニケーション', level: 'bronze', category: '教養',
-    requirements: { codes: ['GEHU201','GECO201'] } },
+    requirements: { codes: ['CS309E','SD111','SD301E'] } },
 
   // ── 外国語 ────────────────────────────────────────────
   { id: 'badge-english-bronze', name: '総合英語', level: 'bronze', category: '外国語',
@@ -249,7 +249,7 @@ const BADGES = [
   { id: 'badge-english-silver1', name: '実践英語Ⅰ', level: 'silver', category: '外国語',
     requirements: { prerequisite: 'badge-english-bronze', codes: ['ENGL301E','ENGL302E'] } },
   { id: 'badge-english-silver2', name: '実践英語Ⅱ', level: 'silver', category: '外国語',
-    requirements: { prerequisite: 'badge-english-silver1', codes: ['ENGL401E','ENGL402E'] } },
+    requirements: { prerequisite: 'badge-english-silver1', codes: ['ENGL351E','ENGL352E'] } },
   { id: 'badge-chinese-bronze', name: '中国語基礎', level: 'bronze', category: '外国語',
     requirements: { codes: ['CHIN101E','CHIN201E'] } },
 ];
