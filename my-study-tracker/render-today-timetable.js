@@ -1,13 +1,12 @@
 // ============================================================
 // my-study-tracker - render-today-timetable.js
-// TODAYタブ：表示対象の判定ロジック
+// TODAYタブ：表示対象の判定ロジック（締切ベース）
 // ============================================================
-// 表示ルール（1科目ずつ順番に）：
-//   1. 積み残し（期限切れコマあり or 割り当て曜日を過ぎた＆今日割り当て以外）→ 1科目 + あと〇科目
-//      ※今日割り当て科目でも期限切れコマがあれば積み残し表示
-//   2. 積み残しがすべて完了 → 今日の時間割科目（late===0のもの）を1科目表示
-//   3. 今日も全部完了 → 明日の時間割科目を1科目表示
-//   4. 全完了 → 🎉
+// 表示ルール：
+//   1. 期限切れ（late > 0）           → 遅刻中 締切近い順・1科目 + あとN科目バナー
+//   2. 7日以内に締切（daysToNext <= 7）→ 今週やるべき 全科目表示 + 合計学習時間
+//   3. 8日以上先（daysToNext > 7）    → 先取り推奨 最大2科目
+//   4. 全完了                          → 🎉
 // ============================================================
 function renderTodayTimetable(subjects, sem, semId) {
   const ttEl = document.getElementById('today-timetable');
@@ -20,11 +19,7 @@ function renderTodayTimetable(subjects, sem, semId) {
     return;
   }
 
-  const now        = new Date();
-  const todayDow   = now.getDay(); // 0=日,1=月,...,6=土
-  const todayTtIdx = todayDow >= 1 && todayDow <= 6 ? todayDow - 1 : -1;
-  const tomorrowDow   = (todayDow + 1) % 7;
-  const tomorrowTtIdx = tomorrowDow >= 1 && tomorrowDow <= 6 ? tomorrowDow - 1 : -1;
+  const now = new Date();
 
   // 各科目の状態を計算
   const withState = subjects.map(s => {
@@ -32,111 +27,70 @@ function renderTodayTimetable(subjects, sem, semId) {
     const doneLes    = Math.floor(doneCh / CPL);
     const target     = getTodayTarget(s, sem);
     const rec        = getTodayRecommended(s, sem);
-    const late       = Math.max(0, target - doneLes); // 期限切れコマ数
-    const ttDay      = getTimetableDay(s.code, semId);
+    const late       = Math.max(0, target - doneLes);
     const nextLesson = doneLes + 1;
     const allDone    = doneLes >= s.lessons;
 
-    const isToday    = ttDay !== undefined && ttDay === todayTtIdx;
-    const isTomorrow = ttDay !== undefined && ttDay === tomorrowTtIdx;
-
-    // 先週の割り当て日（直近の割り当て日）が過ぎているか（積み残し判定）
-    // ttDay: 0=月,1=火,...,5=土 → getDay(): 月=1,火=2,...,土=6
-    const ttDow = ttDay !== undefined ? ttDay + 1 : -1;
-    let isPast = false;
-    if (ttDay !== undefined) {
-      const today0 = new Date(now); today0.setHours(0, 0, 0, 0);
-      // 今週の割り当て曜日の日付
-      const assignedThisWeek = new Date(today0);
-      assignedThisWeek.setDate(today0.getDate() + (ttDow - todayDow));
-      // 直近の割り当て日：今週の割り当て日が今日以前なら今週分、今日より後なら先週分
-      let lastAssigned;
-      if (assignedThisWeek <= today0) {
-        lastAssigned = assignedThisWeek; // 今週の割り当て日（今日 or 今日より前）
-      } else {
-        lastAssigned = new Date(assignedThisWeek);
-        lastAssigned.setDate(assignedThisWeek.getDate() - 7); // 先週の割り当て日
-      }
-      // 直近の割り当て日が今日より前なら積み残し（今日の分は今日の予定）
-      isPast = lastAssigned < today0;
-    }
-
-    // 積み残し：期限切れコマがある、または直近の割り当て日が今日より前で未完了
-    // 今日割り当て科目はisPast=falseなので今日の予定として扱われる
-    const isOverdue = !allDone && (late > 0 || isPast);
-
-    // ★ 積み残しと判定された今日割り当て科目もisTodayからは除外済み
-    //    todayList は late===0 のみなので重複しない
-
-    // 今日のコマを終えているか
-    const isTodayDone = doneCh >= nextLesson * CPL || allDone;
-
-    // 次コマ締切（ミリ秒）
     const nextDeadline = !allDone && nextLesson <= s.lessons
       ? getLessonDeadline(nextLesson, s, sem).getTime()
       : new Date('2099-01-01').getTime();
 
-    return { s, doneCh, doneLes, rec, late, ttDay,
-             isToday, isTomorrow, isPast, allDone, isTodayDone, isOverdue,
-             nextLesson, nextDeadline };
+    const daysToNext = Math.ceil((nextDeadline - now.getTime()) / 86400000);
+
+    return { s, doneCh, doneLes, rec, late, allDone, nextLesson, nextDeadline, daysToNext };
   });
 
-  // ── グループ分け ──
+  // 全完了チェック
+  if (withState.every(i => i.allDone)) {
+    ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
+      <div style="font-size:32px;margin-bottom:8px">🎉</div>
+      <div style="font-size:15px;font-weight:700">すべての科目が完了！</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">お疲れ様でした</div></div>`;
+    return;
+  }
 
-  // 1. 積み残し：割り当て曜日を過ぎた or 期限切れ
-  const overdueList = withState
-    .filter(i => i.isOverdue)
+  // グループ1：期限切れ（late > 0）
+  const lateList = withState
+    .filter(i => !i.allDone && i.late > 0)
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
-  // 2. 今日の予定：今日の割り当てで積み残しなし（late===0）かつ今日コマ未完
-  const todayList = withState
-    .filter(i => i.isToday && !i.allDone && !i.isTodayDone && i.late === 0)
-    .sort((a, b) => a.nextDeadline - b.nextDeadline);
-
-  // 今日の完了済み（積み残しなし）
-  const todayDoneList = withState
-    .filter(i => i.isToday && i.late === 0 && (i.allDone || i.isTodayDone));
-
-  // 3. 明日の予定
-  const tomorrowList = withState
-    .filter(i => i.isTomorrow && !i.allDone && !i.isOverdue)
-    .sort((a, b) => a.nextDeadline - b.nextDeadline);
-
-  // 積み残しあり → 1科目表示 + あと〇科目
-  if (overdueList.length > 0) {
-    const total = overdueList.length;
-    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">⚠️ 積み残しあり（締切が近い順）全${total}科目</div>`;
-    _renderTodayCard(ttEl, overdueList[0], sem, semId, 'overdue');
+  if (lateList.length > 0) {
+    const total = lateList.length;
+    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">🔴 遅刻中（締切が近い順）全${total}科目</div>`;
+    _renderTodayCard(ttEl, lateList[0], sem, semId, 'overdue');
     if (total > 1) {
-      ttEl.innerHTML += `<div style="font-size:12px;color:var(--amber);font-weight:700;padding:10px 12px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:8px;text-align:center">📌 あと ${total - 1} 科目の積み残しがあります</div>`;
+      ttEl.innerHTML += `<div style="font-size:12px;color:var(--red);font-weight:700;padding:10px 12px;background:var(--red-dim);border:1px solid var(--red);border-radius:8px;text-align:center">🔴 あと ${total - 1} 科目も遅刻中です</div>`;
     }
     return;
   }
 
-  // 積み残しなし → 今日の予定
-  if (todayList.length > 0) {
-    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">📋 今日の予定</div>`;
-    _renderTodayCard(ttEl, todayList[0], sem, semId, 'today');
-    if (todayList.length > 1) {
-      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">あと ${todayList.length - 1} 科目</div>`;
-    }
-    todayDoneList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
+  // グループ2：7日以内に締切（daysToNext <= 7）
+  const urgentList = withState
+    .filter(i => !i.allDone && i.daysToNext <= 7)
+    .sort((a, b) => a.nextDeadline - b.nextDeadline);
+
+  if (urgentList.length > 0) {
+    const totalHours = urgentList.reduce((sum, i) => {
+      return sum + (i.s.deadline_type === '専門' ? 1.5 : 1);
+    }, 0);
+    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">📋 今週やるべき科目（全${urgentList.length}科目 / 合計約${totalHours}h）</div>`;
+    urgentList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
     return;
   }
 
-  // 今日も完了 → 明日の予定を先取り
-  if (tomorrowList.length > 0) {
-    const dayNames = ['日','月','火','水','木','金','土'];
-    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✅ 今日の予定完了！ 明日（${dayNames[tomorrowDow]}）の予定を先取り</div>`;
-    _renderTodayCard(ttEl, tomorrowList[0], sem, semId, 'tomorrow');
-    if (tomorrowList.length > 1) {
-      ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;text-align:center">明日はあと ${tomorrowList.length - 1} 科目</div>`;
-    }
-    todayDoneList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
+  // グループ3：先取り推奨（daysToNext > 7）
+  const advanceList = withState
+    .filter(i => !i.allDone)
+    .sort((a, b) => a.nextDeadline - b.nextDeadline)
+    .slice(0, 2);
+
+  if (advanceList.length > 0) {
+    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✨ 先取り推奨（締切まで余裕あり）</div>`;
+    advanceList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'tomorrow'));
     return;
   }
 
-  // 全完了
+  // フォールバック
   ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
     <div style="font-size:32px;margin-bottom:8px">🎉</div>
     <div style="font-size:15px;font-weight:700">今日の予定はすべて完了！</div>

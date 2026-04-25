@@ -199,38 +199,33 @@ function renderOpenDateList(semId) {
       openDate  = new Date(sem.start);
     }
 
-    var now       = new Date();
-    var isOpen    = openDate && openDate <= now;
-    var color     = getCategoryColor(s.category);
-    var openStr   = openDate  ? openDate.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '-';
-    var closeStr  = closeDate ? closeDate.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '-';
-    var openType  = s.open_type === '一斉' ? '一斉' : '順次';
-    var ttDay     = getTimetableDay(s.code, semId);
-    var dayNames  = ['月','火','水','木','金','土'];
-    var dayStr    = ttDay !== undefined ? dayNames[ttDay]+'曜' : '';
+    var now      = new Date();
+    var isOpen   = openDate && openDate <= now;
+    var color    = getCategoryColor(s.category);
+    var openStr  = openDate  ? openDate.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '-';
+    var closeStr = closeDate ? closeDate.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'}) : '-';
+    var openType = s.open_type === '一斉' ? '一斉' : '順次';
 
-    return { s, color, isOpen, openStr, closeStr, openType, dayStr };
+    return { s, color, isOpen, openStr, closeStr, openType };
   }).sort(function(a,b){
-    // 開講日順（未開講→開講済み→完了）
     if (a.isOpen !== b.isOpen) return a.isOpen ? -1 : 1;
     return a.openStr.localeCompare(b.openStr);
   });
 
   var html = '';
-  html += '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;margin-bottom:4px">';
+  html += '<div style="display:grid;grid-template-columns:1fr auto auto;gap:0;margin-bottom:4px">';
   html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 6px">科目</div>';
   html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 4px">開講</div>';
   html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 4px">最終</div>';
-  html += '<div style="font-size:10px;font-weight:700;color:var(--text3);padding:4px 4px">曜日</div>';
   html += '</div>';
 
   rows.forEach(function(row) {
-    var bg     = row.isOpen ? 'transparent' : 'rgba(255,255,255,0.02)';
-    var op     = row.isOpen ? '1' : '0.5';
-    var badge  = row.isOpen
+    var bg    = row.isOpen ? 'transparent' : 'rgba(255,255,255,0.02)';
+    var op    = row.isOpen ? '1' : '0.5';
+    var badge = row.isOpen
       ? '<span style="font-size:9px;background:var(--green-dim,rgba(16,185,129,0.15));color:var(--green);padding:1px 5px;border-radius:99px">開講中</span>'
       : '<span style="font-size:9px;background:var(--bg3);color:var(--text3);padding:1px 5px;border-radius:99px">開講前</span>';
-    html += '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;border-bottom:1px solid var(--border);background:'+bg+';opacity:'+op+'">';
+    html += '<div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:1px solid var(--border);background:'+bg+';opacity:'+op+'">';
     html += '<div style="padding:7px 6px;min-width:0">';
     html += '<div style="display:flex;align-items:center;gap:5px">';
     html += '<div style="width:6px;height:6px;border-radius:50%;background:'+row.color+';flex-shrink:0"></div>';
@@ -240,7 +235,6 @@ function renderOpenDateList(semId) {
     html += '</div>';
     html += '<div style="padding:7px 4px;font-size:11px;color:var(--text2);white-space:nowrap;align-self:center">'+row.openStr+'</div>';
     html += '<div style="padding:7px 4px;font-size:11px;color:var(--text3);white-space:nowrap;align-self:center">'+row.closeStr+'</div>';
-    html += '<div style="padding:7px 4px;font-size:11px;color:#60a5fa;white-space:nowrap;align-self:center">'+row.dayStr+'</div>';
     html += '</div>';
   });
 
@@ -296,7 +290,7 @@ function renderGraduationChecker(semId) {
   }
 
   var html = '<div style="text-align:center;margin-bottom:16px">'
-    +'<div style="font-size:36px;font-weight:700;color:'+(totalPct>=100?'var(--green)':'var(--amber)')+'">'+totalPct+'%</div>'
+    +'<div style="font-size:36px;font-weight:700;color:'+(totalPct>=100?'var(--green)':'var(--amber)')+'">'+(totalPct)+'%</div>'
     +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+totalEarned+' / '+GRAD_TOTAL+' 単位取得済み</div>'
     +'</div>';
 

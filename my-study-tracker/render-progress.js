@@ -84,6 +84,17 @@ function renderProgressPage() {
     const color            = getCategoryColor(s.category);
     const openLabel        = s.open_type === '一斉' ? '一斉' : '順次';
 
+    // 次の締切タグ
+    const nextLesson = doneLessons + 1;
+    let nextDlTag = '';
+    if (nextLesson <= s.lessons) {
+      const nextDl   = getLessonDeadline(nextLesson, s, sem);
+      const daysLeft = Math.ceil((nextDl - new Date()) / 86400000);
+      const dlColor  = daysLeft < 0 || daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? 'var(--amber)' : 'var(--text3)';
+      const dlLabel  = daysLeft < 0 ? `${Math.abs(daysLeft)}日超過` : `あと${daysLeft}日`;
+      nextDlTag = `<span style="font-size:10px;background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:99px;color:${dlColor};margin-left:4px">📅 コマ${nextLesson} ${dlLabel}</span>`;
+    }
+
     let statusText  = '✅ 出席認定 順調';
     let statusColor = 'var(--green)';
     if (doneLessons >= s.lessons) { statusText='🎓 受講完了'; statusColor=color; }
@@ -124,12 +135,6 @@ function renderProgressPage() {
       ? `コマ${doneLessons+1}の第${doneChapterInLes}章まで完了`
       : doneLessons > 0 ? `コマ${doneLessons}まで完了` : '未受講';
 
-    // 時間割の曜日表示
-    const ttDay = getTimetableDay(s.code, semId);
-    const dayTag = ttDay !== undefined
-      ? `<span style="font-size:10px;background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:99px;color:var(--text3);margin-left:4px">📅${DAY_NAMES[ttDay+1]}曜</span>`
-      : '';
-
     listEl.innerHTML += `
       <div class="progress-subject-card">
         <div class="ps-header">
@@ -145,7 +150,7 @@ function renderProgressPage() {
             <button onclick="showDeadlineModal('${s.code}',${semId})" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:10px;padding:3px 8px;border-radius:99px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap">締切一覧</button>
           </div>
         </div>
-        <div class="ps-meta">${progressLabel} ・ <span style="color:var(--text3)">${openLabel}開講</span>${late>0?` ・ <span style="color:var(--red)">遅刻${late}コマ</span>`:''}${dayTag}</div>
+        <div class="ps-meta">${progressLabel} ・ <span style="color:var(--text3)">${openLabel}開講</span>${late>0?` ・ <span style="color:var(--red)">遅刻${late}コマ</span>`:''}${nextDlTag}</div>
         <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>
         ${btnHtml}
         <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--text3)">
@@ -155,10 +160,10 @@ function renderProgressPage() {
           <span style="opacity:0.4">■ 未開講</span>
         </div>
       </div>`;
-  });  // subjects.forEach end
+  });
 
   // 章グリッドを次のコマが左端に来るよう自動スクロール
-  // コマ幅 = 4px×28 + gap1px×3 = 115px、コマ間gap = 2px → 1コマあたり117px
+  // コマ幅 = 4×28px + gap1px×3 = 115px、コマ間gap = 2px → 1コマあたり117px
   const LESSON_W = 117;
   listEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
     const dl = parseInt(wrap.dataset.doneLes) || 0;

@@ -3,26 +3,15 @@
 // TODAYタブ：科目カード描画
 // ============================================================
 
-// mode: 'late'=遅刻中 / 'overdue'=積み残し / 'today'=今日の予定
+// mode: 'overdue'=遅刻中 / 'today'=今週やるべき / 'tomorrow'=先取り推奨
 function _renderTodayCard(ttEl, item, sem, semId, mode) {
-  const { s, doneCh, doneLes, rec, late, isTodayDone, nextLesson } = item;
+  const { s, doneCh, doneLes, rec, late, nextLesson } = item;
   const color = getCategoryColor(s.category);
   const pct   = Math.round(doneCh / (s.lessons * CPL) * 100);
 
-  // 完了カード（コンパクト）
-  if (isTodayDone && mode === 'today') {
-    ttEl.innerHTML += `<div class="today-subject-card" style="border-left:3px solid var(--green);opacity:0.75;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:18px">✅</span>
-        <div style="flex:1;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
-        <span style="font-size:10px;color:var(--green)">今日完了</span>
-      </div></div>`;
-    return;
-  }
-
   let goalL, goalCh, goalLabel, goalColor, badgeText, badgeClass;
 
-  if (mode === 'late') {
+  if (mode === 'overdue') {
     const next = doneCh + 1;
     goalL     = Math.ceil(next / CPL);
     goalCh    = ((next - 1) % CPL) + 1;
@@ -30,25 +19,18 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
     goalColor = 'var(--red)';
     badgeText = `🔴 ${late}コマ遅刻中`;
     badgeClass = 'badge-danger';
-  } else if (mode === 'overdue') {
-    goalL     = nextLesson;
-    goalCh    = CPL;
-    goalLabel = '積み残し — 先に終わらせよう';
-    goalColor = 'var(--amber)';
-    badgeText = '⚠️ 積み残し';
-    badgeClass = 'badge-warn';
   } else if (mode === 'tomorrow') {
     goalL     = nextLesson;
     goalCh    = CPL;
-    goalLabel = '明日の予定（先取り）';
+    goalLabel = '先取り推奨（締切に余裕あり）';
     goalColor = 'var(--green)';
-    badgeText = `📅 明日コマ${nextLesson}`;
+    badgeText = `✨ コマ${nextLesson}`;
     badgeClass = 'badge-ok';
   } else {
-    // today
+    // today（7日以内）
     goalL     = nextLesson;
     goalCh    = CPL;
-    goalLabel = '今日の予定';
+    goalLabel = '今週中に受講しよう';
     goalColor = 'var(--amber)';
     badgeText = `📅 コマ${nextLesson}`;
     badgeClass = 'badge-warn';
@@ -66,7 +48,6 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
     const lateL  = isLessonLate(lesson, s, sem);
     const notYet = !isLessonAvailable(lesson, s, sem);
     const lOp    = notYet ? 'opacity:0.2;' : '';
-    // 今日やるべきコマ：nextLesson か recまでの未完コマ
     const isTargetLesson = lesson > doneLes && (lesson === nextLesson || lesson <= rec);
     btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,28px);grid-template-rows:28px;gap:1px;${lOp}">`;
     for (let ch = 1; ch <= CPL; ch++) {
@@ -117,10 +98,9 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
       <div style="display:flex;gap:10px;margin-top:6px;font-size:10px;color:var(--text3)">
         <span><span style="color:${color}">■</span> 完了</span>
         <span><span style="color:var(--red)">■</span> 遅刻</span>
-        <span><span style="color:var(--amber)">■</span> 今日</span>
+        <span><span style="color:var(--amber)">■</span> 今週</span>
         <span style="opacity:0.4">■ 未開講</span>
       </div>
     </div>`;
-
-  // スクロール復元はapp.jsの_updateTodayChapterButtonsで一元管理（rAF二重実行防止）
+  // スクロール復元はapp.jsの_updateTodayAfterToggleで一元管理（rAF二重実行防止）
 }
