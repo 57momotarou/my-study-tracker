@@ -1,9 +1,7 @@
 // ============================================================
 // my-study-tracker - render-progress.js
-// 進捗タブ（章単位管理：1コマ=4章）
+// 進捗タブ（コマ単位管理）
 // ============================================================
-
-const CHAPTERS_PER_LESSON = 4;
 
 function renderProgressPage() {
   const selectorEl = document.getElementById('semester-progress-selector');
@@ -33,14 +31,12 @@ function renderProgressPage() {
     return;
   }
 
-  // 全体サマリー
-  const CPL      = CHAPTERS_PER_LESSON;
-  const totalCh  = subjects.reduce((a,s)=>a+s.lessons*CPL,0);
-  const doneCh   = subjects.reduce((a,s)=>a+getCompletedLessons(s.code),0);
-  const pctAll   = totalCh>0?Math.round(doneCh/totalCh*100):0;
-  const doneLen  = subjects.reduce((a,s)=>a+Math.floor(getCompletedLessons(s.code)/CPL),0);
-  const totalLen = subjects.reduce((a,s)=>a+s.lessons,0);
-  const lateCount= subjects.filter(s=>Math.floor(getCompletedLessons(s.code)/CPL)<getTodayTarget(s,sem)).length;
+  // 全体サマリー（コマ単位）
+  const CPL       = 4; // 1コマ=4章（内部データ互換用）
+  const doneLen   = subjects.reduce((a,s)=>a+Math.floor(getCompletedLessons(s.code)/CPL),0);
+  const totalLen  = subjects.reduce((a,s)=>a+s.lessons,0);
+  const pctAll    = totalLen>0?Math.round(doneLen/totalLen*100):0;
+  const lateCount = subjects.filter(s=>Math.floor(getCompletedLessons(s.code)/CPL)<getTodayTarget(s,sem)).length;
 
   listEl.innerHTML += `<div class="card">
     <div style="display:flex;gap:10px;margin-bottom:10px">
@@ -66,23 +62,20 @@ function renderProgressPage() {
 
   let currentCat = null;
   subjects.forEach(s => {
-    // カテゴリ見出し
     if (s.category !== currentCat) {
       currentCat = s.category;
       const catColor = getCategoryColor(s.category);
       const catLabel = s.category === '専門' ? '💻 専門科目' : s.category === '教養' ? '🌿 教養科目' : '🌐 外国語科目';
       listEl.innerHTML += `<div style="font-size:11px;font-weight:700;color:${catColor};letter-spacing:1px;padding:8px 2px 4px;border-bottom:1px solid ${catColor}44;margin-bottom:8px">${catLabel}</div>`;
     }
-    const totalChapters    = s.lessons * CPL;
-    const doneChapters     = getCompletedLessons(s.code);
-    const doneLessons      = Math.floor(doneChapters / CPL);
-    const doneChapterInLes = doneChapters % CPL;
-    const target           = getTodayTarget(s, sem);
-    const recommended      = getTodayRecommended(s, sem);
-    const pct              = Math.round(doneChapters / totalChapters * 100);
-    const late             = Math.max(0, target - doneLessons);
-    const color            = getCategoryColor(s.category);
-    const openLabel        = s.open_type === '一斉' ? '一斉' : '順次';
+
+    const doneLessons  = Math.floor(getCompletedLessons(s.code) / CPL);
+    const target       = getTodayTarget(s, sem);
+    const recommended  = getTodayRecommended(s, sem);
+    const pct          = Math.round(doneLessons / s.lessons * 100);
+    const late         = Math.max(0, target - doneLessons);
+    const color        = getCategoryColor(s.category);
+    const openLabel    = s.open_type === '一斉' ? '一斉' : '順次';
 
     // 次の締切タグ
     const nextLesson = doneLessons + 1;
@@ -97,43 +90,31 @@ function renderProgressPage() {
 
     let statusText  = '✅ 出席認定 順調';
     let statusColor = 'var(--green)';
-    if (doneLessons >= s.lessons) { statusText='🎓 受講完了'; statusColor=color; }
-    else if (late >= 1)           { statusText=`🔴 遅刻${late}コマ — 繰り越し優先で受講を`; statusColor='var(--red)'; }
-    else if (recommended > doneLessons) {
-      const need = recommended * CPL - doneChapters;
-      statusText=`🟡 今週あと${need}章（${recommended-doneLessons}コマ分）で出席認定`; statusColor='var(--amber)';
-    }
+    if (doneLessons >= s.lessons)   { statusText='🎓 受講完了'; statusColor=color; }
+    else if (late >= 1)             { statusText=`🔴 遅刻${late}コマ — 繰り越し優先で受講を`; statusColor='var(--red)'; }
+    else if (recommended > doneLessons) { statusText=`🟡 今週あと${recommended-doneLessons}コマで出席認定`; statusColor='var(--amber)'; }
 
-    // 章グリッド：横スクロール対応・均等サイズ保証
-    let btnHtml = '<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="' + doneLessons + '"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">';
+    // コマ単位ボタングリッド（横スクロール対応）
+    let btnHtml = `<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="${doneLessons}"><div style="display:flex;flex-wrap:nowrap;gap:3px;width:max-content">`;
     for (let lesson = 1; lesson <= s.lessons; lesson++) {
-      const isLessonLate_ = isLessonLate(lesson, s, sem);
-      const isThisWeek    = lesson <= recommended && lesson > doneLessons;
-      const isNotYet      = !isLessonAvailable(lesson, s, sem);
-      const lessonOp      = isNotYet ? 'opacity:0.2;' : '';
+      const isDone    = lesson <= doneLessons;
+      const isLate_   = !isDone && isLessonLate(lesson, s, sem);
+      const isTarget  = !isDone && lesson <= recommended && lesson > doneLessons;
+      const isNotYet  = !isLessonAvailable(lesson, s, sem);
+      const noClick   = isNotYet ? 'pointer-events:none;' : '';
+      const opacity   = isNotYet ? 'opacity:0.25;' : '';
 
-      btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,28px);grid-template-rows:28px;gap:1px;${lessonOp}">`;
-      for (let ch = 1; ch <= CPL; ch++) {
-        const chNum         = (lesson-1)*CPL + ch;
-        const isDone        = chNum <= doneChapters;
-        const isLateChapter = !isDone && isLessonLate_;
-        const isThisWeekCh  = !isDone && !isLateChapter && isThisWeek;
+      let btnStyle = '';
+      if (isDone)        btnStyle = `background:${color};color:#000;border-color:${color}`;
+      else if (isLate_)  btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
+      else if (isTarget) btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
+      else               btnStyle = 'background:var(--bg3);color:var(--text3);border:1px solid var(--border)';
 
-        let btnStyle = '';
-        const noClick = isNotYet ? 'pointer-events:none;' : '';
-        if (isDone)             btnStyle = 'background:' + color + ';color:#000';
-        else if (isLateChapter) btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
-        else if (isThisWeekCh)  btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
-
-        btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="width:28px;height:28px;${btnStyle}${noClick}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
-      }
-      btnHtml += '</div>';
+      btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleLesson('${s.code}',${lesson},${semId})" style="width:36px;height:36px;font-size:11px;${btnStyle}${noClick}${opacity}" title="コマ${lesson}">${lesson}</button>`;
     }
     btnHtml += '</div></div>';
 
-    const progressLabel = doneChapterInLes > 0
-      ? `コマ${doneLessons+1}の第${doneChapterInLes}章まで完了`
-      : doneLessons > 0 ? `コマ${doneLessons}まで完了` : '未受講';
+    const progressLabel = doneLessons > 0 ? `コマ${doneLessons}まで完了` : '未受講';
 
     listEl.innerHTML += `
       <div class="progress-subject-card">
@@ -162,9 +143,8 @@ function renderProgressPage() {
       </div>`;
   });
 
-  // 章グリッドを次のコマが左端に来るよう自動スクロール
-  // コマ幅 = 4×28px + gap1px×3 = 115px、コマ間gap = 2px → 1コマあたり117px
-  const LESSON_W = 117;
+  // 完了済みの次のコマが左端に来るよう自動スクロール（1コマ=39px）
+  const LESSON_W = 39;
   listEl.querySelectorAll('.chapter-scroll-wrap').forEach(function(wrap) {
     const dl = parseInt(wrap.dataset.doneLes) || 0;
     if (dl > 0) { wrap.scrollLeft = dl * LESSON_W; }

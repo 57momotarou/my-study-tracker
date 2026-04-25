@@ -37,7 +37,8 @@ function renderBadgesPage() {
     '<div class="badge-summary-item"><div class="badge-summary-num" style="color:var(--amber)">'+counts[2]+'</div><div class="badge-summary-label">🥇 ゴールド</div></div>' +
     '<div class="badge-summary-item"><div class="badge-summary-num" style="color:#67e8f9">'+counts[3]+'</div><div class="badge-summary-label">💎 プラチナ</div></div>' +
     '</div>' +
-    '<div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">合計 '+earned.length+' / '+BADGES.length+' バッジ取得済み</div>';
+    '<div style="font-size:12px;color:var(--text3);text-align:center;margin-top:6px">合計 '+earned.length+' / '+BADGES.length+' バッジ取得済み</div>' +
+    '<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px">バッジをタップすると必要科目を確認できます</div>';
 
   var container = document.getElementById('badge-list-container');
   container.innerHTML = '';
@@ -53,7 +54,8 @@ function renderBadgesPage() {
     html += '<div class="card-title" style="margin-bottom:10px">'+cat+'バッジ</div>';
     catBadges.forEach(function(badge) {
       var ie=isEarned(badge), lcfg=LCFG[badge.level]||LCFG.bronze, p=getProg(badge), pct=p.total>0?Math.round(p.done/p.total*100):0;
-      html += '<div class="badge-card'+(ie?' earned':'')+'" style="'+(ie?'color:'+lcfg.color:'opacity:0.6')+'">';
+      var badgeId = badge.id;
+      html += '<div class="badge-card'+(ie?' earned':'')+'" style="'+(ie?'color:'+lcfg.color:'opacity:0.6')+';cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="showBadgeModal(\''+badgeId+'\')">';
       html += '<div class="badge-icon">'+(ie?lcfg.icon:'🔒')+'</div>';
       html += '<div class="badge-info">';
       html += '<div class="badge-level-tag" style="'+(ie?'background:'+lcfg.bg+';color:'+lcfg.color:'background:var(--bg3);color:var(--text3)')+'">'+lcfg.label+'</div>';
@@ -69,6 +71,81 @@ function renderBadgesPage() {
     section.innerHTML = html;
     container.appendChild(section);
   });
+}
+
+// ============================================================
+// バッジ必要科目モーダル
+// ============================================================
+function showBadgeModal(badgeId) {
+  var badge = BADGES.find(function(b){ return b.id===badgeId; });
+  if (!badge) return;
+
+  var allCodes = new Set();
+  SEMESTERS.forEach(function(sem){ getEnrolledCodes(sem.id).forEach(function(c){ allCodes.add(c); }); });
+
+  var LCFG = BADGE_LEVEL_CONFIG;
+  var lcfg = LCFG[badge.level] || LCFG.bronze;
+  var req  = badge.requirements || {};
+  var codes = req.codes || [];
+
+  // 前提バッジ
+  var preBadge = req.prerequisite ? BADGES.find(function(b){ return b.id===req.prerequisite; }) : null;
+
+  var existing = document.getElementById('badge-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'badge-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;padding-bottom:env(safe-area-inset-bottom)';
+
+  var subjectRows = '';
+  if (codes.length > 0) {
+    codes.forEach(function(code) {
+      var s = ALL_SUBJECTS.find(function(x){ return x.code===code; });
+      var isEnrolled = allCodes.has(code);
+      var name = s ? s.name : code;
+      var credits = s ? s.credits+'単位' : '';
+      var catColor = s ? getCategoryColor(s.category) : 'var(--text3)';
+      subjectRows += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
+        + '<span style="font-size:16px;flex-shrink:0">'+(isEnrolled?'✅':'⬜')+'</span>'
+        + '<div style="width:6px;height:6px;border-radius:50%;background:'+catColor+';flex-shrink:0"></div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:'+(isEnrolled?'700':'400')+';color:'+(isEnrolled?'var(--text)':'var(--text2)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</div>'
+        + '<div style="font-size:10px;color:var(--text3)">'+code+(credits?' ・ '+credits:'')+'</div></div>'
+        + '</div>';
+    });
+  } else {
+    subjectRows = '<div style="font-size:12px;color:var(--text3);padding:8px 0">'+(req.description||'条件未定義')+'</div>';
+  }
+
+  var doneCount = codes.filter(function(c){ return allCodes.has(c); }).length;
+  var pct = codes.length > 0 ? Math.round(doneCount/codes.length*100) : 0;
+
+  var preHtml = '';
+  if (preBadge) {
+    var preLcfg = LCFG[preBadge.level] || LCFG.bronze;
+    preHtml = '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;margin-bottom:12px">'
+      + '<span style="font-size:14px">🔗</span>'
+      + '<div style="font-size:12px;color:var(--text3)">前提バッジ：<span style="color:'+preLcfg.color+';font-weight:700">'+preBadge.name+'</span></div>'
+      + '</div>';
+  }
+
+  modal.innerHTML = '<div style="background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:20px 16px">'
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">'
+    + '<div>'
+    + '<div style="font-size:10px;font-family:\'Space Mono\',monospace;color:'+lcfg.color+';letter-spacing:2px;margin-bottom:4px">'+lcfg.label.toUpperCase()+'</div>'
+    + '<div style="font-size:18px;font-weight:700">'+badge.name+'</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:4px">'+doneCount+' / '+codes.length+' 科目履修済み（'+pct+'%）</div>'
+    + '</div>'
+    + '<button onclick="document.getElementById(\'badge-modal\').remove()" style="background:var(--bg3);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0">×</button>'
+    + '</div>'
+    + (codes.length > 0 ? '<div class="prog-wrap" style="margin-bottom:16px"><div class="prog-bar" style="width:'+pct+'%;background:'+lcfg.color+'"></div></div>' : '')
+    + preHtml
+    + '<div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;margin-bottom:6px">必要科目</div>'
+    + subjectRows
+    + '</div>';
+
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 // ============================================================
@@ -95,44 +172,35 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
         +'<div style="width:75%;height:3px;background:var(--bg2);border-radius:99px;overflow:hidden;margin-top:2px">'
         +'<div style="width:'+pct+'%;height:100%;background:'+(ie?lcfg.color:'#444')+'"></div></div>';
     }
-    return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    // タップでモーダル表示
+    return '<div onclick="showBadgeModal(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
       +'padding:7px 4px;border-radius:10px;border:2px solid '+bc+';background:'+bg+';'
-      +'width:'+w+'px;flex-shrink:0;box-sizing:border-box;min-height:68px">'
+      +'width:'+w+'px;flex-shrink:0;box-sizing:border-box;min-height:68px;cursor:pointer;-webkit-tap-highlight-color:transparent">'
       +'<div style="font-size:'+fi+'">'+icon+'</div>'
       +'<div style="font-size:'+fn+';font-weight:700;color:'+tc+';text-align:center;line-height:1.3;margin-top:3px;width:100%">'+b.name+'</div>'
       +bar+'</div>';
   }
 
-  var vl  = '<div style="width:2px;height:14px;background:var(--border);margin:0 auto"></div>';
   var vls = '<div style="width:2px;height:10px;background:var(--border);margin:0 auto"></div>';
-  // 4列の縦線セット
   var vl4 = '<div style="display:flex;justify-content:space-around"><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div></div>';
-  var vl5 = '<div style="display:flex;justify-content:space-around"><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div><div style="width:2px;height:10px;background:var(--border)"></div></div>';
 
   var html = '<div class="card-label">💻 専門</div>';
   html += '<div class="card-title" style="margin-bottom:10px">専門バッジツリー</div>';
 
-  // ── IT総合学基礎（独立行・中央固定） ──
-  // スクロールなし・バッジサイズを縦画面に合わせて調整
   html += '<div style="display:flex;justify-content:center">';
   html += nd('badge-it-bronze', 88);
   html += '</div>';
 
-  // 縦線
   html += '<div style="display:flex;justify-content:center">';
   html += '<div style="width:2px;height:10px;background:var(--border)"></div>';
   html += '</div>';
 
-  // 分岐横線（2列の各中心へ）
-  // カードpadding=16px、gap=6px なので各列中心 = (100%-6px)/4 ≈ 左から24.5%と75.5%
-  // シンプルに left:0 right:0 で横線を引き、両端から縦線を下ろす
   html += '<div style="position:relative;height:10px;margin:0 2px">';
   html += '<div style="position:absolute;top:0;left:calc(25% - 1px);right:calc(25% - 1px);height:2px;background:var(--border)"></div>';
   html += '<div style="position:absolute;top:0;left:calc(25% - 1px);width:2px;height:10px;background:var(--border)"></div>';
   html += '<div style="position:absolute;top:0;right:calc(25% - 1px);width:2px;height:10px;background:var(--border)"></div>';
   html += '</div>';
 
-  // 2列グリッド（スクロールなし）
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
 
   // 左列: テクノロジー系
