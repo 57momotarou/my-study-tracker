@@ -42,15 +42,28 @@ function renderBadgesPage() {
 
   var container = document.getElementById('badge-list-container');
   container.innerHTML = '';
+
+  // 専門バッジツリー
   container.appendChild(buildBadgeTree(getBadge, isEarned, getProg, LCFG));
 
-  ['教養','外国語'].forEach(function(cat) {
+  // 専門以外のカテゴリ（教養・外国語）を動的に収集して表示
+  // BADGESから直接categoryを取得することで表示漏れを防ぐ
+  var nonSenmonCategories = [];
+  BADGES.forEach(function(b) {
+    if (b.category && b.category !== '専門' && nonSenmonCategories.indexOf(b.category) === -1) {
+      nonSenmonCategories.push(b.category);
+    }
+  });
+
+  nonSenmonCategories.forEach(function(cat) {
     var catBadges = BADGES.filter(function(b){ return b.category===cat; });
     if (!catBadges.length) return;
+
+    var catIcon = cat === '教養' ? '🌿' : cat === '外国語' ? '🌐' : '📌';
     var section = document.createElement('div');
     section.className = 'card';
     section.style.marginBottom = '12px';
-    var html = '<div class="card-label">'+((CATEGORY_CONFIG[cat]&&CATEGORY_CONFIG[cat].icon)||'📌')+' '+cat.toUpperCase()+'</div>';
+    var html = '<div class="card-label">'+catIcon+' '+cat.toUpperCase()+'</div>';
     html += '<div class="card-title" style="margin-bottom:10px">'+cat+'バッジ</div>';
     catBadges.forEach(function(badge) {
       var ie=isEarned(badge), lcfg=LCFG[badge.level]||LCFG.bronze, p=getProg(badge), pct=p.total>0?Math.round(p.done/p.total*100):0;
@@ -88,7 +101,6 @@ function showBadgeModal(badgeId) {
   var req  = badge.requirements || {};
   var codes = req.codes || [];
 
-  // 前提バッジ
   var preBadge = req.prerequisite ? BADGES.find(function(b){ return b.id===req.prerequisite; }) : null;
 
   var existing = document.getElementById('badge-modal');
@@ -149,8 +161,7 @@ function showBadgeModal(badgeId) {
 }
 
 // ============================================================
-// バッジツリー
-// 完全縦積み：テクノロジー系→ビジネス系 の順に縦に並べる
+// バッジツリー（専門）
 // ============================================================
 function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
   var wrap = document.createElement('div');
@@ -172,7 +183,6 @@ function buildBadgeTree(getBadge, isEarned, getProg, LCFG) {
         +'<div style="width:75%;height:3px;background:var(--bg2);border-radius:99px;overflow:hidden;margin-top:2px">'
         +'<div style="width:'+pct+'%;height:100%;background:'+(ie?lcfg.color:'#444')+'"></div></div>';
     }
-    // タップでモーダル表示
     return '<div onclick="showBadgeModal(\''+id+'\')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
       +'padding:7px 4px;border-radius:10px;border:2px solid '+bc+';background:'+bg+';'
       +'width:'+w+'px;flex-shrink:0;box-sizing:border-box;min-height:68px;cursor:pointer;-webkit-tap-highlight-color:transparent">'

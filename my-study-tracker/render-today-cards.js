@@ -5,64 +5,53 @@
 
 // mode: 'overdue'=遅刻中 / 'today'=今週やるべき / 'tomorrow'=先取り推奨
 function _renderTodayCard(ttEl, item, sem, semId, mode) {
-  const { s, doneCh, doneLes, rec, late, nextLesson } = item;
+  const { s, doneLes, rec, late, nextLesson } = item;
   const color = getCategoryColor(s.category);
-  const pct   = Math.round(doneCh / (s.lessons * CPL) * 100);
+  const pct   = Math.round(doneLes / s.lessons * 100);
 
-  let goalL, goalCh, goalLabel, goalColor, badgeText, badgeClass;
+  let goalLesson, goalLabel, goalColor, badgeText, badgeClass;
 
   if (mode === 'overdue') {
-    const next = doneCh + 1;
-    goalL     = Math.ceil(next / CPL);
-    goalCh    = ((next - 1) % CPL) + 1;
-    goalLabel = '今すぐ取り掛かろう';
-    goalColor = 'var(--red)';
-    badgeText = `🔴 ${late}コマ遅刻中`;
+    goalLesson = doneLes + 1; // 次に受けるべきコマ
+    goalLabel  = '今すぐ取り掛かろう';
+    goalColor  = 'var(--red)';
+    badgeText  = `🔴 ${late}コマ遅刻中`;
     badgeClass = 'badge-danger';
   } else if (mode === 'tomorrow') {
-    goalL     = nextLesson;
-    goalCh    = CPL;
-    goalLabel = '先取り推奨（締切に余裕あり）';
-    goalColor = 'var(--green)';
-    badgeText = `✨ コマ${nextLesson}`;
+    goalLesson = nextLesson;
+    goalLabel  = '先取り推奨（締切に余裕あり）';
+    goalColor  = 'var(--green)';
+    badgeText  = `✨ コマ${nextLesson}`;
     badgeClass = 'badge-ok';
   } else {
     // today（7日以内）
-    goalL     = nextLesson;
-    goalCh    = CPL;
-    goalLabel = '今週中に受講しよう';
-    goalColor = 'var(--amber)';
-    badgeText = `📅 コマ${nextLesson}`;
+    goalLesson = nextLesson;
+    goalLabel  = '今週中に受講しよう';
+    goalColor  = 'var(--amber)';
+    badgeText  = `📅 コマ${nextLesson}`;
     badgeClass = 'badge-warn';
   }
 
-  const done   = doneCh >= (goalL - 1) * CPL + goalCh;
-  const inLes  = doneCh % CPL;
-  const nowLbl = inLes > 0
-    ? `コマ${doneLes+1} 第${inLes}章まで完了`
-    : doneLes > 0 ? `コマ${doneLes} 完了` : '未受講';
+  const done   = doneLes >= goalLesson;
+  const nowLbl = doneLes > 0 ? `コマ${doneLes} 完了` : '未受講';
 
-  // 章グリッド（横スクロール・自動スクロール対応）
-  let btnHtml = `<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="${doneLes}"><div style="display:flex;flex-wrap:nowrap;gap:2px;width:max-content">`;
+  // コマ単位ボタン（横スクロール対応）
+  let btnHtml = `<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="${doneLes}"><div style="display:flex;flex-wrap:nowrap;gap:3px;width:max-content">`;
   for (let lesson = 1; lesson <= s.lessons; lesson++) {
-    const lateL  = isLessonLate(lesson, s, sem);
-    const notYet = !isLessonAvailable(lesson, s, sem);
-    const lOp    = notYet ? 'opacity:0.2;' : '';
-    const isTargetLesson = lesson > doneLes && (lesson === nextLesson || lesson <= rec);
-    btnHtml += `<div style="display:grid;grid-template-columns:repeat(4,28px);grid-template-rows:28px;gap:1px;${lOp}">`;
-    for (let ch = 1; ch <= CPL; ch++) {
-      const chNum   = (lesson - 1) * CPL + ch;
-      const isDone  = chNum <= doneCh;
-      const isLateC = !isDone && lateL;
-      const isWeekC = !isDone && !isLateC && isTargetLesson;
-      const nc      = notYet ? 'pointer-events:none;' : '';
-      let st = '';
-      if (isDone)       st = `background:${color};color:#000`;
-      else if (isLateC) st = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
-      else if (isWeekC) st = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
-      btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleChapter('${s.code}',${chNum},${semId})" style="width:28px;height:28px;${st}${nc}" title="コマ${lesson} 第${ch}章">${lesson}-${ch}</button>`;
-    }
-    btnHtml += '</div>';
+    const isDone    = lesson <= doneLes;
+    const isLate_   = !isDone && isLessonLate(lesson, s, sem);
+    const isTarget  = !isDone && lesson <= rec && lesson > doneLes;
+    const isNotYet  = !isLessonAvailable(lesson, s, sem);
+    const noClick   = isNotYet ? 'pointer-events:none;' : '';
+    const opacity   = isNotYet ? 'opacity:0.25;' : '';
+
+    let btnStyle = '';
+    if (isDone)        btnStyle = `background:${color};color:#000;border-color:${color}`;
+    else if (isLate_)  btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
+    else if (isTarget) btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
+    else               btnStyle = 'background:var(--bg3);color:var(--text3);border:1px solid var(--border)';
+
+    btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleLesson('${s.code}',${lesson},${semId})" style="width:36px;height:36px;font-size:11px;${btnStyle}${noClick}${opacity}" title="コマ${lesson}">${lesson}</button>`;
   }
   btnHtml += '</div></div>';
 
@@ -83,10 +72,8 @@ function _renderTodayCard(ttEl, item, sem, semId, mode) {
               <div style="font-size:11px;color:var(--text3);margin-top:2px">余裕があれば次のコマも</div></div></div>`
           : `<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
               <span style="font-size:13px;color:var(--text2)">コマ</span>
-              <span style="font-size:32px;font-weight:700;font-family:'Space Mono',monospace;color:${goalColor};line-height:1">${goalL}</span>
-              <span style="font-size:13px;color:var(--text2)">の 第</span>
-              <span style="font-size:32px;font-weight:700;font-family:'Space Mono',monospace;color:${goalColor};line-height:1">${goalCh}</span>
-              <span style="font-size:13px;color:var(--text2)">章まで</span></div>
+              <span style="font-size:40px;font-weight:700;font-family:'Space Mono',monospace;color:${goalColor};line-height:1">${goalLesson}</span>
+              <span style="font-size:13px;color:var(--text2)">を受講</span></div>
               <div style="font-size:11px;color:${goalColor};margin-top:4px;font-weight:600">${goalLabel}</div>`}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">

@@ -4,7 +4,7 @@
 // ============================================================
 // 表示ルール：
 //   1. 期限切れ（late > 0）           → 遅刻中 締切近い順・1科目 + あとN科目バナー
-//   2. 7日以内に締切（daysToNext <= 7）→ 今週やるべき 全科目表示 + 合計学習時間
+//   2. 7日以内に締切（daysToNext <= 7）→ 全科目表示
 //   3. 8日以上先（daysToNext > 7）    → 先取り推奨 最大2科目
 //   4. 全完了                          → 🎉
 // ============================================================
@@ -70,10 +70,6 @@ function renderTodayTimetable(subjects, sem, semId) {
     .sort((a, b) => a.nextDeadline - b.nextDeadline);
 
   if (urgentList.length > 0) {
-    const totalHours = urgentList.reduce((sum, i) => {
-      return sum + (i.s.deadline_type === '専門' ? 1.5 : 1);
-    }, 0);
-    ttEl.innerHTML += `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">📋 今週やるべき科目（全${urgentList.length}科目 / 合計約${totalHours}h）</div>`;
     urgentList.forEach(item => _renderTodayCard(ttEl, item, sem, semId, 'today'));
     return;
   }
