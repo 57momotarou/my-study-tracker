@@ -159,13 +159,14 @@ function toggleLesson(code, lessonNum, semId) { toggleChapter(code, lessonNum*4,
 
 // TODAYタブ更新（点滅防止 + 数字ズレ防止）
 function _updateTodayAfterToggle() {
-  const LESSON_W = 117;
   renderToday();
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      // 今日タブ：各wrapのdata-lesson-wからコマ幅を取得してスクロール
       document.querySelectorAll('#today-timetable .chapter-scroll-wrap').forEach(wrap => {
         const dl = parseInt(wrap.dataset.doneLes) || 0;
-        if (dl > 0) wrap.scrollLeft = dl * LESSON_W;
+        const lw = parseInt(wrap.dataset.lessonW) || 39;
+        if (dl > 0) wrap.scrollLeft = dl * lw;
       });
     });
   });
