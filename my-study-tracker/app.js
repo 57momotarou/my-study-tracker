@@ -142,8 +142,35 @@ function getCategoryColor(cat)     { return (CATEGORY_CONFIG[cat]||{}).color||'#
 function renderHeader()            { document.getElementById('header-semester').textContent = getCurrentSemester().name; }
 
 // ============================================================
-// 章記録（toggleChapterはインラインonclickから呼ばれる）
+// コマ記録
+// toggleLesson: コマ単位でトグル（進捗タブ・今日タブのコマボタンから呼ばれる）
+//   押したコマが未完了 → そのコマまで完了にする（lessonNum * 4 を progress に保存）
+//   押したコマが最後の完了コマ → 1つ前のコマまでに戻す（(lessonNum-1) * 4 を保存）
+// toggleChapter: 章単位でトグル（旧互換・未使用）
 // ============================================================
+function toggleLesson(code, lessonNum, semId) {
+  const CPL     = 4;
+  const current = getCompletedLessons(code);         // 現在の章数（コマ数×4）
+  const doneLes = Math.floor(current / CPL);          // 現在の完了コマ数
+
+  if (lessonNum > doneLes) {
+    // 未完了コマを押した → そのコマまで完了
+    state.progress[code] = lessonNum * CPL;
+  } else if (lessonNum === doneLes) {
+    // 最後の完了コマを押した → 1つ前のコマまでに戻す
+    state.progress[code] = (lessonNum - 1) * CPL;
+  } else {
+    // それ以前の完了済みコマを押した → 何もしない
+    return;
+  }
+
+  saveState();
+  renderProgressPage();
+  _updateTodayAfterToggle();
+  renderBadgesPage();
+  if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
+}
+
 function toggleChapter(code, chapterNum, semId) {
   const current = getCompletedLessons(code);
   if      (chapterNum === current + 1) state.progress[code] = chapterNum;
@@ -155,14 +182,12 @@ function toggleChapter(code, chapterNum, semId) {
   renderBadgesPage();
   if (document.getElementById('page-schedule').classList.contains('active')) renderSchedulePage();
 }
-function toggleLesson(code, lessonNum, semId) { toggleChapter(code, lessonNum*4, semId); }
 
 // TODAYタブ更新（点滅防止 + 数字ズレ防止）
 function _updateTodayAfterToggle() {
   renderToday();
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      // 今日タブ：各wrapのdata-lesson-wからコマ幅を取得してスクロール
       document.querySelectorAll('#today-timetable .chapter-scroll-wrap').forEach(wrap => {
         const dl = parseInt(wrap.dataset.doneLes) || 0;
         const lw = parseInt(wrap.dataset.lessonW) || 39;
