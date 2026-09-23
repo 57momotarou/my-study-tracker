@@ -3,7 +3,7 @@
 // ============================================================
 
 const BACKUP_FORMAT = 'my-study-tracker-backup';
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 function setupDataTransfer() {
@@ -36,6 +36,8 @@ async function exportStudyData() {
         enrollments: normalizeEnrollments(state.enrollments),
         progress: normalizeProgress(state.progress),
         currentSemesterId: state.currentSemesterId,
+        records: normalizeRecords(state.records),
+        applications: normalizeApplications(state.applications),
       },
     };
 
@@ -71,6 +73,7 @@ async function exportStudyData() {
 async function importStudyData(file) {
   const importButton = document.getElementById('data-import-btn');
   setDataTransferBusy(importButton, true, '確認中...');
+  dataTransferInProgress = true;
 
   try {
     if (file.size > MAX_BACKUP_BYTES) throw new Error('バックアップファイルが大きすぎます。');
@@ -82,29 +85,17 @@ async function importStudyData(file) {
     const progressCount = Object.keys(imported.progress).length;
 
     const accepted = window.confirm(
-      `履修 ${enrollmentCount}科目・進捗 ${progressCount}科目を復元します。\n` +
+      `履修 ${enrollmentCount}科目・動画進捗 ${progressCount}科目、成績・提出記録 ${Object.values(imported.records).reduce((sum, records) => sum + Object.keys(records).length, 0)}科目、申請予定 ${imported.applications.length}件を復元します。\n` +
+      (payload.version === 1 ? '旧形式のため成績・課題・期末・申請予定は空になります。\n' : '') +
       '現在この端末にあるデータは置き換わります。続けますか？'
     );
     if (!accepted) return;
 
-    const previous = {
-      enrollments: state.enrollments,
-      progress: state.progress,
-      currentSemesterId: state.currentSemesterId,
-    };
-
-    state.enrollments = imported.enrollments;
-    state.progress = imported.progress;
-    state.currentSemesterId = imported.currentSemesterId;
-
-    const saved = saveState() && writeStoredValue(KEYS.migrated, '1');
-    if (!saved) {
-      state.enrollments = previous.enrollments;
-      state.progress = previous.progress;
-      state.currentSemesterId = previous.currentSemesterId;
-      saveState();
-      throw new Error('復元データを端末に保存できませんでした。');
-    }
+    Object.assign(state, imported);
+    if (!saveState()) throw new Error('復元データを端末に保存できませんでした。現在の記録は保持しています。');
+    // 復元後は古い入力途中の申請を持ち越さない。
+    const form = document.getElementById('application-form');
+    if (form) form.dataset.dirty = 'false';
 
     renderHeader();
     renderActivePage();
@@ -118,6 +109,8 @@ async function importStudyData(file) {
     );
   } finally {
     setDataTransferBusy(importButton, false);
+    dataTransferInProgress = false;
+    applyPendingUpdate();
   }
 }
 
@@ -132,6 +125,16 @@ function parseBackupPayload(payload) {
   if (!isPlainObject(payload.data.enrollments) || !isPlainObject(payload.data.progress)) {
     throw new Error('バックアップの内容が壊れています。');
   }
+  if (payload.version === 2) {
+    const validEnrollments = Object.entries(payload.data.enrollments).every(([id, codes]) =>
+      SEMESTERS.some(sem => String(sem.id) === id) && Array.isArray(codes)
+      && codes.every(code => typeof code === 'string' && SUBJECT_BY_CODE.has(code)));
+    const validProgress = Object.entries(payload.data.progress).every(([code, value]) =>
+      SUBJECT_BY_CODE.has(code) && Number.isInteger(value) && value >= 0 && value <= SUBJECT_BY_CODE.get(code).lessons * 4);
+    if (!validEnrollments || !validProgress || !SEMESTERS.some(sem => sem.id === payload.data.currentSemesterId)) {
+      throw new Error('履修・動画進捗・学期の内容を確認できません。バックアップとアプリの版を確認してください。');
+    }
+  }
 
   const enrollments = normalizeEnrollments(payload.data.enrollments);
   const progress = normalizeProgress(payload.data.progress);
@@ -140,7 +143,9 @@ function parseBackupPayload(payload) {
     ? requestedSemesterId
     : getDefaultSemesterId();
 
-  return { enrollments, progress, currentSemesterId };
+  const records = payload.version === 1 ? {} : validateRecords(payload.data.records);
+  const applications = payload.version === 1 ? [] : normalizeApplications(payload.data.applications, true);
+  return { enrollments, progress, currentSemesterId, records, applications };
 }
 
 function isPlainObject(value) {
@@ -158,7 +163,7 @@ function downloadBackupFile(file, filename) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function formatLocalDate(date) {

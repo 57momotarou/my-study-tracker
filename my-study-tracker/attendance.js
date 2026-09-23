@@ -60,7 +60,7 @@ function getLessonDeadline(lessonNum, subject, semester) {
       return parseDateValue(dateStr);
     }
   }
-  // テーブルがない学期（秋学期以降）は計算式でフォールバック
+  // 未提供の学期は概算。画面に未確定の案内を表示する。
   const start = parseDateValue(semester.start);
   const deadlineDow = subject.deadline_type === '専門' ? 4 : 2;
   const daysToFirst = (deadlineDow - start.getDay() + 7) % 7;
@@ -72,33 +72,26 @@ function getLessonDeadline(lessonNum, subject, semester) {
   return dl;
 }
 
-// コマnがすでに受講可能かどうか（順次開講は開講前は不可）
-// 教養後期の開講開始日（5月26日）
-const KYOYO_KOKI_START = '2026-05-26';
-
-function isLessonAvailable(lessonNum, subject, semester) {
+function getLessonStart(lessonNum, subject, semester) {
   const key = getAttendanceKey(subject, semester);
   if (key && semester.attendance && semester.attendance[key]) {
     const entry = semester.attendance[key][lessonNum];
     if (entry) {
-      // 順次開講：startがあればそれで判定（コマ1含む全コマ）
       if (typeof entry === 'object' && entry.start) {
-        return parseDateValue(entry.start) <= new Date();
+        return parseDateValue(entry.start.includes('T') ? entry.start : entry.start + 'T12:00:00+09:00');
       }
-      // 教養後期（一斉開講・5/26から）：全コマ5/26以降で開講
       if (key === 'kyoyo_koki') {
-        return parseDateValue(KYOYO_KOKI_START) <= new Date();
+        return parseDateValue(semester.lateTermStart);
       }
-      // senmon_issai, kyoyo_zenki, gaikokugo, study_skill等:
-      // 学期開始と同時に一斉開講
-      return true;
+      return parseDateValue(semester.lectureStart || semester.start + 'T12:00:00+09:00');
     }
   }
-  // テーブルなし（秋学期以降）は学期開始日で判定
-  if (semester.start) {
-    return parseDateValue(semester.start) <= new Date();
-  }
-  return true;
+  return parseDateValue(semester.start + 'T12:00:00+09:00');
+}
+
+// 一斉開講も、学期開始前や当日正午前には受講可能と表示しない。
+function isLessonAvailable(lessonNum, subject, semester) {
+  return getLessonStart(lessonNum, subject, semester) <= new Date();
 }
 
 // 今日時点で期限が過ぎているコマ数（遅刻の基準）

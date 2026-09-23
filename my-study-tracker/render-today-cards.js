@@ -22,7 +22,7 @@ function buildTodayCard(item, sem, semId, mode) {
     badgeClass = 'badge-warn';
   }
 
-  const nowLbl = doneLes > 0 ? `コマ${doneLes} 完了` : '未受講';
+  const nowLbl = doneLes > 0 ? `コマ${doneLes} 視聴済み` : '未視聴';
 
   // コマ単位ボタン（横スクロール対応）
   // data-done-les: 完了済みコマ数（スクロール復元用）
@@ -58,7 +58,7 @@ function buildTodayCard(item, sem, semId, mode) {
         <span class="today-subject-badge ${badgeClass}" style="flex-shrink:0">${badgeText}</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:11px;color:var(--text3)">現在：${nowLbl}</span>
+        <span style="font-size:11px;color:var(--text3)">動画：${nowLbl}</span>
         <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${color}">${pct}%</span>
       </div>
       <div class="prog-wrap" style="margin-bottom:0"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>

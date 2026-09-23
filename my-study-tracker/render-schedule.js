@@ -10,6 +10,7 @@ function renderSchedulePage() {
   const semId    = state.currentSemesterId;
   const subjects = getEnrolledSubjects(semId);
   renderMonthSchedule(subjects, sem, semId);
+  renderApplicationPanel();
 }
 
 // 期末試験日取得
@@ -32,7 +33,7 @@ function renderMonthSchedule(subjects, sem, semId) {
   const firstDow=new Date(year,month,1).getDay();
   const daysInMonth=new Date(year,month+1,0).getDate();
   const DOW=['日','月','火','水','木','金','土'];
-  const kimatsuDate=getKimatsuDate(sem);
+  const exams = getRelevantExams(sem);
 
   // 締切マップ
   const dlMap={};
@@ -43,7 +44,8 @@ function renderMonthSchedule(subjects, sem, semId) {
       if (dl.getFullYear()===year&&dl.getMonth()===month) {
         const k=dl.getDate();
         if (!dlMap[k]) dlMap[k]=[];
-        dlMap[k].push({s,n,isDone:n<=done,isLate:n>done&&dl<now});
+        const recorded = isLessonRecorded(semId, s.code, n);
+        dlMap[k].push({s,n,isDone:recorded,isLate:!recorded&&dl<now});
       }
     }
   });
@@ -61,7 +63,13 @@ function renderMonthSchedule(subjects, sem, semId) {
     const isToday=date.toDateString()===now.toDateString();
     const isPast=date<new Date(now.getFullYear(),now.getMonth(),now.getDate())&&!isToday;
     const dlItems=dlMap[day]||[];
-    const isKimatsu=kimatsuDate&&kimatsuDate.getFullYear()===year&&kimatsuDate.getMonth()===month&&kimatsuDate.getDate()===day;
+    const dayExams = exams.filter(exam => {
+      const date = parseDateValue(exam.date);
+      return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day;
+    });
+    const isKimatsu = dayExams.length > 0;
+    const dayKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayApplications = getApplications(semId).filter(item => item.date === dayKey);
 
     const hasLate=dlItems.some(i=>i.isLate), hasPend=dlItems.some(i=>!i.isDone&&!i.isLate), hasDone=dlItems.some(i=>i.isDone);
     let dotColor='';
@@ -81,12 +89,13 @@ function renderMonthSchedule(subjects, sem, semId) {
     const kimatsuLabel=isKimatsu?`<div style="font-size:8px;color:var(--purple);background:var(--purple-dim);border-radius:3px;padding:1px 3px">📝期末</div>`:'';
 
     const dayColor=isToday?'var(--amber)':dow===0?'#ef4444':dow===6?'#60a5fa':isPast?'var(--text3)':'var(--text2)';
-    const hasContent=dlItems.length>0||isKimatsu;
+    const hasContent=dlItems.length>0||isKimatsu||dayApplications.length>0;
 
     const tapData=encodeURIComponent(JSON.stringify({
       date:`${year}/${month+1}/${day}`,
       deadlines:dlItems.map(i=>({name:i.s.name,n:i.n,isDone:i.isDone,isLate:i.isLate,cat:i.s.category})),
-      kimatsu:isKimatsu,
+      exams:dayExams.map(exam => exam.label),
+      applications: dayApplications,
     }));
 
     html+=`<div ${hasContent?`data-day-detail="${tapData}" role="button" tabindex="0" aria-label="${month+1}月${day}日の予定を表示"`:''}
@@ -100,6 +109,7 @@ function renderMonthSchedule(subjects, sem, semId) {
         ${dotColor?`<div style="width:4px;height:4px;border-radius:50%;background:${dotColor}"></div>`:''}
       </div>
       ${labels.join('')}${more}${kimatsuLabel}
+      ${dayApplications.length ? `<div class="calendar-application">申請 ${dayApplications.length}件</div>` : ''}
     </div>`;
   }
 
@@ -107,8 +117,8 @@ function renderMonthSchedule(subjects, sem, semId) {
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--text3)">
     <span><span style="color:var(--amber)">■</span>締切(未)</span>
     <span><span style="color:var(--red)">■</span>遅刻</span>
-    <span><span style="color:var(--green)">■</span>完了</span>
-    <span>📝期末</span>
+    <span><span style="color:var(--green)">■</span>動画＋課題済</span>
+    <span>📝期末</span><span>申請：自分の予定</span>
     <span style="margin-left:auto">タップで詳細</span>
   </div>`;
   el.innerHTML=html;
@@ -144,11 +154,17 @@ function showDayDetail(dataJson) {
   modal.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;padding-bottom:env(safe-area-inset-bottom)';
 
   let content='';
-  if (data.kimatsu) content+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)"><span style="font-size:20px">📝</span><div><div style="font-size:13px;font-weight:700;color:var(--purple)">期末試験 締切日</div><div style="font-size:11px;color:var(--text3)">専門・順次開講科目 ・ 12:00まで</div></div></div>`;
+  (data.exams || []).forEach(label => {
+    content += `<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:13px;color:var(--purple)">📝 ${label}</div><div style="font-size:11px;color:var(--text2)">締切 12:00</div></div>`;
+  });
+
+  (data.applications || []).forEach(item => {
+    content += `<div class="application-item"><strong>${escapeText(item.title)}</strong><p class="settings-note">${item.allDay ? '終日' : escapeText(item.time) + '（日本時間）'} · ${item.done ? '対応済み' : '未完了'}</p><p class="application-notes">${escapeText(item.notes)}</p></div>`;
+  });
 
   (data.deadlines||[]).forEach(({name,n,isDone,isLate,cat})=>{
     const color=(CATEGORY_CONFIG[cat]||{}).color||'#64748b';
-    const status=isDone?`<span style="color:var(--green)">✅ 完了</span>`:isLate?`<span style="color:var(--red)">🔴 遅刻中</span>`:`<span style="color:var(--amber)">⏰ 要受講</span>`;
+    const status=isDone?`<span style="color:var(--green)">動画＋課題済</span>`:isLate?`<span style="color:var(--red)">🔴 遅刻中</span>`:`<span style="color:var(--amber)">動画・課題を確認</span>`;
     content+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${name}</div>

@@ -40,6 +40,7 @@ function renderSettingsPage() {
   });
 
   const enrolled = getEnrolledCodes(state.currentSemesterId);
+  const semester = getCurrentSemester();
 
   // 他の学期で選択済みのコードを収集（今の学期は除く）
   const enrolledInOtherSems = new Set();
@@ -52,9 +53,11 @@ function renderSettingsPage() {
     ? ALL_SUBJECTS
     : ALL_SUBJECTS.filter(s => s.category === state.activeSubjectFilter);
 
-  // 他学期選択済みは非表示（今学期選択済みは表示）
+  // 他学期で履修した科目も、再履修として選択できる。
+  const search = (document.getElementById('subject-search')?.value || '').trim().toLocaleLowerCase();
   const filtered = baseList.filter(s =>
-    !enrolledInOtherSems.has(s.code) || enrolled.includes(s.code)
+    (!s.legacy || enrolled.includes(s.code))
+    && (!search || `${s.code} ${s.name}`.toLocaleLowerCase().includes(search))
   );
 
   // カテゴリ/タイプでグループ化
@@ -73,20 +76,24 @@ function renderSettingsPage() {
       const isChecked = enrolled.includes(s.code);
       const color = getCategoryColor(s.category);
       const subjectType = s.type || s.category;
+      const availability = getSubjectAvailability(s, semester);
+      const disabled = !availability.selectable && !isChecked;
+      const notes = [enrolledInOtherSems.has(s.code) ? '他学期でも選択済み（再履修として選択可）' : '', availability.note, s.entry_required ? '事前エントリー・選考あり' : '', s.open_type === '未確認' ? '開講方式はシラバスで確認' : ''].filter(Boolean);
       const openTag = s.open_type === '一斉'
         ? `<span style="font-size:10px;color:var(--blue);margin-left:4px;">○一斉</span>`
         : '';
       listHtml += `
-        <div class="subject-row ${isChecked ? 'checked' : ''}" data-code="${s.code}">
+        <button type="button" class="subject-row ${isChecked ? 'checked' : ''}" data-code="${s.code}" aria-pressed="${isChecked}" ${disabled ? 'disabled' : ''}>
           <div class="subject-row-check" style="${isChecked ? `background:${color};border-color:${color}` : ''}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div class="subject-row-info">
             <div class="subject-row-name">${s.name}${openTag}</div>
             <div class="subject-row-meta">${s.code} ・ ${subjectType} ・ ${s.lessons}回</div>
+            ${notes.length ? `<div class="subject-note">${notes.join(' / ')}</div>` : ''}
           </div>
           <div class="subject-row-credits">${s.credits}単位</div>
-        </div>`;
+        </button>`;
     });
   });
   listEl.innerHTML = listHtml || '<div class="empty-state"><div class="empty-state-text">表示できる科目がありません</div></div>';
@@ -94,6 +101,7 @@ function renderSettingsPage() {
   // チェックボックスのクリックイベント
   listEl.querySelectorAll('.subject-row').forEach(row => {
     row.addEventListener('click', () => {
+      if (row.disabled) return;
       const code = row.dataset.code;
       const semId = state.currentSemesterId;
       if (!state.enrollments[semId]) state.enrollments[semId] = [];
@@ -181,28 +189,8 @@ function renderOpenDateList(semId) {
 
   // 各科目の開講日・締切を収集
   var rows = subjects.map(function(s) {
-    var key = getAttendanceKey(s, sem);
-    var openDate = null, closeDate = null;
-
-    if (key && sem.attendance[key]) {
-      var tbl = sem.attendance[key];
-      // 開講日（コマ1のstart、または後期開講日）
-      if (key === 'kyoyo_koki') {
-        openDate = parseDateValue(typeof KYOYO_KOKI_START !== 'undefined' ? KYOYO_KOKI_START : '2026-05-26');
-      } else if (tbl[1]) {
-        var e1 = tbl[1];
-        if (typeof e1 === 'object' && e1.start) openDate = parseDateValue(e1.start);
-        else openDate = parseDateValue(sem.start);
-      } else {
-        openDate = parseDateValue(sem.start);
-      }
-      // 最終締切（最後のコマ）
-      var lastN = s.lessons;
-      var last  = tbl[lastN];
-      if (last) closeDate = parseDateValue(typeof last === 'string' ? last : last.end);
-    } else {
-      openDate  = parseDateValue(sem.start);
-    }
+    var openDate = getLessonStart(1, s, sem);
+    var closeDate = getLessonDeadline(s.lessons, s, sem);
 
     var now      = new Date();
     var isEnded  = Boolean(closeDate && closeDate < now);
@@ -251,89 +239,25 @@ function renderOpenDateList(semId) {
 }
 
 // ============================================================
-// 卒業単位チェッカー
-// サイバー大学卒業要件：124単位（必修26単位含む）
-//   専門：62単位以上（必修16単位）
-//   教養：38単位以上（必修2単位）
-//   外国語：8単位（全必修）
-// ============================================================
-function renderGraduationChecker(semId) {
-  var el = document.getElementById('graduation-content');
+// 卒業要件と履修計画（成績・在籍年数を自動認定しない）
+function renderGraduationChecker() {
+  const el = document.getElementById('graduation-content');
   if (!el) return;
-
-  var allSubjects = [];
-  var allCodes = new Set();
-  SEMESTERS.forEach(function(sem) {
-    getEnrolledSubjects(sem.id).forEach(function(s) {
-      if (!allCodes.has(s.code)) { allCodes.add(s.code); allSubjects.push(s); }
-    });
-  });
-
-  var REQUIRED_CODES = ['BA101','CS101','CS102','CS103','CS153','CS154','CS156','PM101',
-    'SD101E','SD301E','ENGL101E','ENGL151E','ENGL201E','ENGL251E'];
-  var GRAD_TOTAL = 124, GRAD_SENMON = 62, GRAD_KYOYO = 38, GRAD_GAIKOKUGO = 8;
-
-  var earned = {'専門':0,'教養':0,'外国語':0};
-  allSubjects.forEach(function(s){ earned[s.category] = (earned[s.category]||0) + s.credits; });
-
-  var requiredDone = 0, requiredMissing = [];
-  REQUIRED_CODES.forEach(function(code) {
-    if (allCodes.has(code)) { requiredDone++; }
-    else { var s=SUBJECT_BY_CODE.get(code); if(s) requiredMissing.push(s); }
-  });
-
-  var totalEarned = (earned['専門']||0)+(earned['教養']||0)+(earned['外国語']||0);
-  var totalPct = Math.min(100, Math.round(totalEarned/GRAD_TOTAL*100));
-
-  function bar(pct, color) {
-    return '<div class="prog-wrap" style="height:5px"><div class="prog-bar" style="width:'+pct+'%;background:'+color+'"></div></div>';
+  const plan = getGraduationPlan([...getAllPlannedCodes()]);
+  function row(label, done, need) {
+    const pct = Math.min(100, Math.round(done / need * 100));
+    return `<div class="plan-row"><div><span>${label}</span><strong>${done} / ${need}単位</strong></div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:var(--blue)"></div></div></div>`;
   }
-  function row(label, done, need, color) {
-    var pct=Math.min(100,Math.round(done/need*100)), ok=done>=need;
-    var c=ok?'var(--green)':color;
-    return '<div style="margin-bottom:10px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
-      +'<span style="font-size:12px;color:var(--text2)">'+label+'</span>'
-      +'<span style="font-size:12px;font-weight:700;color:'+c+'">'+done+'<span style="color:var(--text3);font-weight:400">/'+need+'単位</span>'+(ok?' ✅':'')+'</span>'
-      +'</div>'+bar(pct,c)+'</div>';
-  }
-
-  var html = '<div style="text-align:center;margin-bottom:16px">'
-    +'<div style="font-size:36px;font-weight:700;color:'+(totalPct>=100?'var(--green)':'var(--amber)')+'">'+(totalPct)+'%</div>'
-    +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+totalEarned+' / '+GRAD_TOTAL+' 単位取得済み</div>'
-    +'</div>';
-
-  html += '<div class="prog-wrap" style="height:8px;margin-bottom:16px"><div class="prog-bar" style="width:'+totalPct+'%;background:'+(totalPct>=100?'var(--green)':'var(--amber)')+'"></div></div>';
-
-  html += row('専門科目', earned['専門']||0, GRAD_SENMON, 'var(--amber)');
-  html += row('教養科目', earned['教養']||0, GRAD_KYOYO, 'var(--green)');
-  html += row('外国語科目', earned['外国語']||0, GRAD_GAIKOKUGO, 'var(--purple)');
-
-  html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-    +'<span style="font-size:12px;font-weight:700;color:var(--text2)">必修科目</span>'
-    +'<span style="font-size:12px;color:'+(requiredMissing.length===0?'var(--green)':'var(--red)')+'">'+requiredDone+'/'+REQUIRED_CODES.length+(requiredMissing.length===0?' ✅':'')+'</span>'
-    +'</div>';
-
-  if (requiredMissing.length > 0) {
-    html += '<div style="font-size:10px;color:var(--red);margin-bottom:4px">未履修の必修科目：</div>';
-    requiredMissing.forEach(function(s) {
-      html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--text3)">'
-        +'<div style="width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0"></div>'
-        +s.name+'<span style="font-size:10px;color:var(--text3)">('+s.credits+'単位)</span></div>';
-    });
-  } else {
-    html += '<div style="font-size:11px;color:var(--green)">すべての必修科目を履修済みです</div>';
-  }
-  html += '</div>';
-
-  var remaining = Math.max(0, GRAD_TOTAL - totalEarned);
-  if (remaining > 0) {
-    html += '<div style="margin-top:10px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text3);text-align:center">'
-      +'あと <span style="color:var(--amber);font-weight:700">'+remaining+'</span> 単位で卒業要件達成</div>';
-  } else {
-    html += '<div style="margin-top:10px;padding:8px 12px;background:var(--green-dim);border-radius:8px;font-size:12px;color:var(--green);text-align:center;font-weight:700">🎓 卒業単位要件達成！</div>';
-  }
-
-  el.innerHTML = html;
+  el.innerHTML = `<p class="settings-note">MCカリキュラムの履修計画です。選択した科目を集計しており、単位修得・卒業を認定するものではありません。</p>
+    <div class="plan-total"><strong>${plan.counted}<small> / 124</small></strong><span>要件に割り当てた計画単位</span></div>
+    ${row('専門（必修18単位を含む）', plan.totals['専門'], 62)}
+    ${row('教養（必修2単位を含む）', plan.totals['教養'], 24)}
+    ${row('外国語・必修', Math.min(8, plan.totals['外国語']), 8)}
+    ${row('外国語・選択（教養で代替可）', plan.foreignElective + plan.liberalReplacement, 4)}
+    ${row('共通区分', plan.common, 26)}
+    <p class="settings-note">外国語選択のうち${plan.liberalReplacement}単位を教養で代替。共通は上記を超える単位から割り当て、外国語の算入は8単位までです。科目選択の合計：${plan.total}単位。</p>
+    <details class="plan-missing"><summary>必修科目：計画済み ${MC_REQUIRED_CODES.length - plan.missing.length} / ${MC_REQUIRED_CODES.length}科目</summary>
+    ${plan.missing.length ? '<ul>' + plan.missing.map(code => `<li>${SUBJECT_BY_CODE.get(code).name}</li>`).join('') + '</ul>' : '<p>すべての必修科目が計画に含まれています。</p>'}</details>
+    <p class="settings-note">${plan.meetsPlan ? '科目区分と必修の計画条件を満たしています。' : '不足する区分・必修を履修計画に追加してください。'}卒業には単位の修得と在学年数等の確認が必要です。CP・編入・認定単位がある場合は学生ガイドも確認してください。</p>`;
 }

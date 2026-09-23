@@ -1,11 +1,16 @@
 const CACHE_PREFIX = 'my-study-tracker-';
-const CACHE = `${CACHE_PREFIX}v66`;
+const CACHE = `${CACHE_PREFIX}v67`;
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './data.js',
+  './curriculum.js',
+  './student-guide.js',
+  './study-records.js',
+  './calendar-export.js',
+  './pwa-update.js',
   './manifest.json',
   './icon.svg',
   './icon-180.png',
@@ -27,7 +32,7 @@ const APP_SHELL = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache => cache.addAll(APP_SHELL.map(url => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -46,9 +51,13 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || !url.href.startsWith(self.registration.scope)) return;
 
   if (event.request.mode === 'navigate') {
-    event.respondWith(networkFirst(event.request, './index.html'));
+    // キャッシュ済みの同じ版のHTMLとJSを一緒に使用する。新版はSWのinstallでまとめて取得。
+    event.respondWith(caches.open(CACHE).then(async cache =>
+      (await cache.match('./index.html')) || networkFirst(event.request, './index.html')));
     return;
   }
 
@@ -61,16 +70,18 @@ async function networkFirst(request, fallbackUrl) {
     if (isCacheable(response)) await putInCache(request, response.clone());
     return response;
   } catch (error) {
-    const cached = await caches.match(request);
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(request);
     if (cached) return cached;
-    const fallback = await caches.match(fallbackUrl);
+    const fallback = await cache.match(fallbackUrl);
     if (fallback) return fallback;
     throw error;
   }
 }
 
 async function cacheFirst(request) {
-  const cached = await caches.match(request);
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
   if (cached) return cached;
 
   const response = await fetch(request);

@@ -44,8 +44,8 @@ function renderTodayTimetable(subjects, sem, semId) {
   if (withState.every(i => i.allDone)) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
-      <div style="font-size:15px;font-weight:700">すべての科目が完了！</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px">お疲れ様でした</div></div>`;
+      <div style="font-size:15px;font-weight:700">すべての動画を視聴済み！</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">課題・期末の記録は「進捗」で確認できます</div></div>`;
     return;
   }
 
@@ -90,6 +90,6 @@ function renderTodayTimetable(subjects, sem, semId) {
   // フォールバック
   ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
     <div style="font-size:32px;margin-bottom:8px">🎉</div>
-    <div style="font-size:15px;font-weight:700">今日の予定はすべて完了！</div>
-    <div style="font-size:12px;color:var(--text3);margin-top:4px">お疲れ様でした</div></div>`;
+    <div style="font-size:15px;font-weight:700">動画視聴の記録が完了！</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">課題・期末の記録は「進捗」で確認できます</div></div>`;
 }

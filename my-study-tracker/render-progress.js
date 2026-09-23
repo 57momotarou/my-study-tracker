@@ -8,7 +8,7 @@ function renderProgressPage() {
   selectorEl.innerHTML = '';
   SEMESTERS.forEach(sem => {
     const codes = getEnrolledCodes(sem.id);
-    if (codes.length === 0) return;
+    if (codes.length === 0 && !Object.keys(state.records[sem.id] || {}).length) return;
     const btn = document.createElement('button');
     btn.className = `filter-btn${state.currentSemesterId === sem.id ? ' active f-専門' : ''}`;
     btn.textContent = sem.name.replace('年度', '').replace('学期', 'S');
@@ -26,6 +26,11 @@ function renderProgressPage() {
   const subjects = getEnrolledSubjects(semId);
   const listEl   = document.getElementById('progress-subject-list');
 
+  document.querySelectorAll('[data-progress-view]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.progressView === progressView));
+  });
+  if (progressView === 'grades') { renderGrades(listEl, semId); return; }
+
   if (subjects.length === 0) {
     listEl.innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">この学期に登録された科目がありません</div><div class="empty-state-sub">「設定」タブで履修登録してください</div></div></div>`;
     return;
@@ -38,19 +43,19 @@ function renderProgressPage() {
   const pctAll    = totalLen>0?Math.round(doneLen/totalLen*100):0;
   const lateCount = subjects.filter(s=>Math.floor(getCompletedLessons(s.code)/CPL)<getTodayTarget(s,sem)).length;
 
-  let html = `<div class="card">
+  let html = `<p class="settings-note">動画の視聴進捗は全学期共通の記録です。課題・期末は学期ごとに記録します。再履修時の動画進捗は前の学期と共有されます。</p><div class="card">
     <div style="display:flex;gap:10px;margin-bottom:10px">
       <div style="flex:1;background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
         <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--amber)">${pctAll}%</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">全体進捗</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">動画進捗</div>
       </div>
       <div style="flex:1;background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
         <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700">${doneLen}<span style="font-size:13px;color:var(--text3)">/${totalLen}</span></div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">完了コマ</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">視聴済コマ</div>
       </div>
       <div style="flex:1;background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
         <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${lateCount>0?'var(--red)':'var(--green)'}">${lateCount}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">遅刻科目</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">動画の遅れ</div>
       </div>
     </div>
     <div class="prog-wrap" style="height:8px"><div class="prog-bar" style="width:${pctAll}%;background:var(--amber)"></div></div>
@@ -92,11 +97,11 @@ function renderProgressPage() {
       nextDlTag = `<span style="font-size:10px;background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:99px;color:${dlColor};margin-left:4px">📅 コマ${nextLesson} ${dlLabel}</span>`;
     }
 
-    let statusText  = '✅ 出席認定 順調';
+    let statusText  = '動画視聴 順調';
     let statusColor = 'var(--green)';
-    if (doneLessons >= s.lessons)   { statusText='🎓 受講完了'; statusColor=color; }
+    if (doneLessons >= s.lessons)   { statusText='動画視聴 完了'; statusColor=color; }
     else if (late >= 1)             { statusText=`🔴 遅刻${late}コマ — 繰り越し優先で受講を`; statusColor='var(--red)'; }
-    else if (recommended > doneLessons) { statusText=`🟡 今週あと${recommended-doneLessons}コマで出席認定`; statusColor='var(--amber)'; }
+    else if (recommended > doneLessons) { statusText=`🟡 今週あと${recommended-doneLessons}コマが視聴目標`; statusColor='var(--amber)'; }
 
     // コマ単位ボタングリッド（横スクロール対応）
     let btnHtml = `<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="${doneLessons}"><div style="display:flex;flex-wrap:nowrap;gap:3px;width:max-content">`;
@@ -119,7 +124,7 @@ function renderProgressPage() {
     }
     btnHtml += '</div></div>';
 
-    const progressLabel = doneLessons > 0 ? `コマ${doneLessons}まで完了` : '未受講';
+    const progressLabel = doneLessons > 0 ? `コマ${doneLessons}まで視聴済み` : '未視聴';
 
     html += `
       <div class="progress-subject-card">
@@ -138,6 +143,7 @@ function renderProgressPage() {
         </div>
         <div class="ps-meta">${progressLabel} ・ <span style="color:var(--text3)">${openLabel}開講</span>${late>0?` ・ <span style="color:var(--red)">遅刻${late}コマ</span>`:''}${nextDlTag}</div>
         <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>
+        <div class="record-caption">動画視聴</div>
         ${btnHtml}
         <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--text3)">
           <span><span style="color:${color}">■</span> 完了</span>
@@ -145,10 +151,12 @@ function renderProgressPage() {
           <span><span style="color:var(--amber)">■</span> 今週期限</span>
           <span style="opacity:0.4">■ 未開講</span>
         </div>
+        ${renderSubjectChecks(s, semId)}
       </div>`;
   });
 
   listEl.innerHTML = html;
+  bindStudyChecks(listEl, semId);
 
   // 完了済みの次のコマが左端に来るよう自動スクロール（1コマ=39px）
   const LESSON_W = 39;

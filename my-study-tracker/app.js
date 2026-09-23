@@ -7,15 +7,21 @@ const KEYS = {
   progress: 'cp-progress',
   currentSem: 'cp-current-sem',
   migrated: 'cp-migrated-v1',
+  records: 'cp-records-v1',
+  applications: 'cp-applications-v1',
 };
 
-let state = { currentSemesterId:1, enrollments:{}, progress:{}, activeSubjectFilter:'all' };
+let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], activeSubjectFilter:'all' };
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadState(); setupNav(); setupDataTransfer(); render(); registerSW();
+  loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); render(); registerSW();
 });
 
+const SAVE_JOURNAL = 'cp-save-journal-v1';
+let lastSavedState = null;
+
 function loadState() {
+  recoverStateSave();
   const rawEnrollments = readStoredJson(KEYS.enrollments, {});
   const rawProgress = readStoredJson(KEYS.progress, {});
   const progress = rawProgress && typeof rawProgress === 'object' && !Array.isArray(rawProgress)
@@ -33,6 +39,8 @@ function loadState() {
 
   state.enrollments = normalizeEnrollments(rawEnrollments);
   state.progress = normalizeProgress(progress);
+  state.records = normalizeRecords(readStoredJson(KEYS.records, {}));
+  state.applications = normalizeApplications(readStoredJson(KEYS.applications, []));
 
   const storedSemesterId = Number.parseInt(readStoredValue(KEYS.currentSem), 10);
   state.currentSemesterId = SEMESTERS.some(sem => sem.id === storedSemesterId)
@@ -40,11 +48,19 @@ function loadState() {
     : getDefaultSemesterId();
 
   // 移行後の値を先に保存し、成功した場合だけ完了マーカーを付ける。
-  if (needsMigration && saveState()) writeStoredValue(KEYS.migrated, '1');
+  lastSavedState = snapshotStudyState();
+  if (needsMigration) saveState();
 }
 
 function readStoredValue(key) {
-  try { return localStorage.getItem(key); }
+  try {
+    const pending = localStorage.getItem(SAVE_JOURNAL);
+    if (pending) {
+      const previous = JSON.parse(pending);
+      if (Object.hasOwn(previous, key)) return previous[key];
+    }
+    return localStorage.getItem(key);
+  }
   catch (error) {
     console.warn('保存データを読み込めませんでした。', error);
     return null;
@@ -103,14 +119,70 @@ function getDefaultSemesterId() {
   return (started[started.length - 1] || SEMESTERS[0]).id;
 }
 
+function snapshotStudyState() {
+  return JSON.parse(JSON.stringify({ enrollments: state.enrollments, progress: state.progress,
+    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications }));
+}
+
+function restoreStoredValues(previous) {
+  let recovered = true;
+  for (const key of Object.values(KEYS)) {
+    if (!Object.hasOwn(previous, key)) continue;
+    try {
+      if (localStorage.getItem(key) === previous[key]) continue;
+      if (previous[key] === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, previous[key]);
+    } catch (error) { recovered = false; }
+  }
+  if (recovered) {
+    try { localStorage.removeItem(SAVE_JOURNAL); }
+    catch (error) { recovered = false; }
+  }
+  return recovered;
+}
+
+function recoverStateSave() {
+  try {
+    const pending = localStorage.getItem(SAVE_JOURNAL);
+    return !pending || restoreStoredValues(JSON.parse(pending));
+  } catch (error) {
+    console.warn('保存処理の回復を保留しました。', error);
+    return false;
+  }
+}
+
+// 複数キーへの書き込みをジャーナルで保護する。失敗・中断時は直前の記録へ戻す。
 function saveState() {
-  const saved = [
-    writeStoredValue(KEYS.enrollments, JSON.stringify(state.enrollments)),
-    writeStoredValue(KEYS.progress, JSON.stringify(state.progress)),
-    writeStoredValue(KEYS.currentSem, String(state.currentSemesterId)),
-  ].every(Boolean);
-  if (!saved) showStorageWarning();
-  return saved;
+  const previous = {};
+  let journalWritten = false;
+  try {
+    if (!recoverStateSave()) throw new Error('前の保存を回復できませんでした。');
+    const values = {
+      [KEYS.enrollments]: JSON.stringify(state.enrollments),
+      [KEYS.progress]: JSON.stringify(state.progress),
+      [KEYS.currentSem]: String(state.currentSemesterId),
+      [KEYS.records]: JSON.stringify(state.records),
+      [KEYS.applications]: JSON.stringify(state.applications),
+      [KEYS.migrated]: '1',
+    };
+    for (const key of Object.keys(values)) previous[key] = localStorage.getItem(key);
+    if (Object.keys(values).some(key => values[key] !== previous[key])) {
+      localStorage.setItem(SAVE_JOURNAL, JSON.stringify(previous));
+      journalWritten = true;
+      for (const [key, value] of Object.entries(values)) {
+        if (value !== previous[key]) localStorage.setItem(key, value);
+      }
+      localStorage.removeItem(SAVE_JOURNAL);
+    }
+    lastSavedState = snapshotStudyState();
+    return true;
+  } catch (error) {
+    if (journalWritten) restoreStoredValues(previous);
+    if (lastSavedState) Object.assign(state, JSON.parse(JSON.stringify(lastSavedState)));
+    console.warn('変更を保存できなかったため、直前の記録に戻しました。', error);
+    showStorageWarning();
+    return false;
+  }
 }
 
 let storageWarningTimer = null;
@@ -127,26 +199,6 @@ function showStorageWarning() {
   }
   clearTimeout(storageWarningTimer);
   storageWarningTimer = setTimeout(() => warning.remove(), 5000);
-}
-
-function registerSW() {
-  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
-  const hadController = Boolean(navigator.serviceWorker.controller);
-  let refreshing = false;
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || refreshing) return;
-    refreshing = true;
-    location.reload();
-  });
-
-  navigator.serviceWorker.register('./sw.js')
-    .then(registration => registration.update().catch(error => {
-      console.warn('更新確認に失敗しました。', error);
-    }))
-    .catch(error => {
-      console.warn('オフライン機能を登録できませんでした。', error);
-    });
 }
 
 // ============================================================
@@ -245,7 +297,14 @@ function getEnrolledCodes(semId)   { return state.enrollments[semId]||[]; }
 function getEnrolledSubjects(semId){ return getEnrolledCodes(semId).map(code=>SUBJECT_BY_CODE.get(code)).filter(Boolean); }
 function getCompletedLessons(code) { return state.progress[code]||0; }
 function getCategoryColor(cat)     { return (CATEGORY_CONFIG[cat]||{}).color||'#64748b'; }
-function renderHeader()            { document.getElementById('header-semester').textContent = getCurrentSemester().name; }
+function renderHeader() {
+  const semester = getCurrentSemester();
+  document.getElementById('header-semester').textContent = semester.name;
+  document.querySelectorAll('[data-schedule-note]').forEach(element => {
+    element.hidden = Boolean(semester.attendance);
+    element.textContent = 'この学期の正式な講義日程は未登録です。表示中の締切は概算のため、大学の案内で確認してください。';
+  });
+}
 
 // ============================================================
 // コマ記録
@@ -255,6 +314,9 @@ function renderHeader()            { document.getElementById('header-semester').
 // toggleChapter: 章単位でトグル（旧互換・未使用）
 // ============================================================
 function toggleLesson(code, lessonNum, semId) {
+  const subject = SUBJECT_BY_CODE.get(code);
+  const semester = SEMESTERS.find(sem => sem.id === semId);
+  if (!subject || !semester || !Number.isInteger(lessonNum) || lessonNum < 1 || lessonNum > subject.lessons || !isLessonAvailable(lessonNum, subject, semester)) return;
   const CPL     = 4;
   const current = getCompletedLessons(code);         // 現在の章数（コマ数×4）
   const doneLes = Math.floor(current / CPL);          // 現在の完了コマ数
@@ -277,6 +339,9 @@ function toggleLesson(code, lessonNum, semId) {
 }
 
 function toggleChapter(code, chapterNum, semId) {
+  const subject = SUBJECT_BY_CODE.get(code);
+  const semester = SEMESTERS.find(sem => sem.id === semId);
+  if (!subject || !semester || !Number.isInteger(chapterNum) || chapterNum < 1 || chapterNum > subject.lessons * 4 || !isLessonAvailable(Math.ceil(chapterNum / 4), subject, semester)) return;
   const current = getCompletedLessons(code);
   if      (chapterNum === current + 1) state.progress[code] = chapterNum;
   else if (chapterNum === current)     state.progress[code] = chapterNum - 1;

@@ -46,6 +46,7 @@
 
     <!-- ===== 今日タブ ===== -->
     <div class="page active" id="page-today">
+      <p class="settings-note" data-schedule-note hidden></p>
       <div id="today-exam-alerts"></div>
       <div id="today-alerts"></div>
 
@@ -64,10 +65,15 @@
 
     <!-- ===== 進捗タブ ===== -->
     <div class="page" id="page-progress">
+      <p class="settings-note" data-schedule-note hidden></p>
       <div class="card">
         <div class="card-label">SEMESTER</div>
         <div class="card-title">学期別進捗</div>
         <div id="semester-progress-selector" class="filter-row"></div>
+      </div>
+      <div class="progress-tabs" aria-label="進捗の表示">
+        <button type="button" data-progress-view="learning" aria-pressed="true" onclick="setProgressView('learning')">動画・課題</button>
+        <button type="button" data-progress-view="grades" aria-pressed="false" onclick="setProgressView('grades')">成績・単位</button>
       </div>
       <div id="progress-subject-list"></div>
     </div>
@@ -84,6 +90,7 @@
 
     <!-- ===== 予定タブ（月カレンダー） ===== -->
     <div class="page" id="page-schedule">
+      <p class="settings-note" data-schedule-note hidden></p>
       <div class="card">
         <div class="card-label">SCHEDULE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -96,19 +103,42 @@
         </div>
         <div id="schedule-month"></div>
       </div>
+      <div class="card">
+        <div class="card-label">CALENDAR</div><div class="card-title">端末カレンダーに書き出す</div>
+        <p class="settings-note">選択中の学期の予定を.icsファイルにします。確定した日時だけを出力し、概算・時刻未確認の予定は含めません。</p>
+        <div class="calendar-options">
+          <label><input type="checkbox" id="calendar-lessons" checked>授業締切</label>
+          <label><input type="checkbox" id="calendar-exams" checked>期末締切</label>
+          <label><input type="checkbox" id="calendar-applications" checked>申請予定</label>
+        </div>
+        <button type="button" class="data-transfer-btn primary" id="calendar-export-btn" onclick="exportStudyCalendar()">カレンダーを出力</button>
+        <p class="settings-note">日本時間で登録した時刻が端末の時間帯に合わせて表示されます。出力後の変更・削除は自動同期されません。再取り込みでは重複する場合があるため、専用カレンダーへの取り込みがおすすめです。通知はカレンダー側で設定してください。</p>
+        <p id="calendar-export-status" class="settings-note" role="status" aria-live="polite"></p>
+      </div>
+      <div id="application-panel"></div>
     </div>
 
     <!-- ===== 設定タブ ===== -->
     <div class="page" id="page-settings">
+      <div class="settings-heading"><div class="card-label">SETTINGS</div><h1>学びの設定</h1><p>履修の準備も、大学の情報もここから。</p></div>
+      <div class="settings-tabs" role="tablist" aria-label="設定メニュー">
+        <button type="button" role="tab" id="settings-tab-enrollment" data-settings-tab="enrollment" aria-controls="settings-enrollment" aria-selected="true">履修設定</button>
+        <button type="button" role="tab" id="settings-tab-guide" data-settings-tab="guide" aria-controls="settings-guide" aria-selected="false">学生ガイド</button>
+        <button type="button" role="tab" id="settings-tab-data" data-settings-tab="data" aria-controls="settings-data" aria-selected="false">データ</button>
+      </div>
+      <div id="settings-enrollment" role="tabpanel" aria-labelledby="settings-tab-enrollment">
       <div class="semester-tabs" id="semester-tabs"></div>
       <div class="card" id="graduation-checker">
         <div class="card-label">GRADUATION</div>
-        <div class="card-title">卒業単位チェッカー</div>
+        <div class="card-title">卒業に向けた履修計画</div>
         <div id="graduation-content"></div>
       </div>
       <div class="card" id="subject-selection-area">
         <div class="card-label">ENROLLMENT</div>
         <div class="card-title">履修科目を選択</div>
+        <label class="search-label" for="subject-search">科目名・コードで検索</label>
+        <input type="search" id="subject-search" class="settings-search" placeholder="例：Python、CS101" autocomplete="off">
+        <p class="settings-note">MC科目表が基準です。開講前・廃止予定の科目は該当学期に選択できません。以前に選択した記録は残ります。</p>
         <div id="subject-filters" class="filter-row"></div>
         <div id="subject-list"></div>
       </div>
@@ -123,17 +153,38 @@
         <div id="enrolled-list"></div>
         <div id="enrolled-stats" class="enrolled-stats"></div>
       </div>
+      </div>
+      <div id="settings-guide" role="tabpanel" aria-labelledby="settings-tab-guide" hidden>
+        <div class="card guide-intro">
+          <div class="card-label">STUDENT GUIDE</div>
+          <div class="card-title">必要な情報を、すぐに。</div>
+          <p>送っていただいた17枚の資料をまとめました。見出しをタップして読めます。</p>
+          <label class="search-label" for="guide-search">学生ガイドを検索</label>
+          <input type="search" id="guide-search" class="settings-search" placeholder="例：卒業、GPA、エントリー" autocomplete="off">
+          <p id="guide-search-status" role="status" aria-live="polite"></p>
+          <p class="guide-version">科目表：2026/6/19時点 · バッジ表：2026/8/1時点<br>変更や個別条件はCloud Campusの案内を確認してください。</p>
+        </div>
+        <div id="student-guide-list"></div>
+      </div>
+      <div id="settings-data" role="tabpanel" aria-labelledby="settings-tab-data" hidden>
+      <div class="card">
+        <div class="card-label">APP UPDATE</div><div class="card-title">アプリの更新 <span id="app-version"></span></div>
+        <p class="settings-note">起動時・アプリに戻ったときに新版を確認します。GitHubへのアップロード後は、公開が完了してからオンラインで開いてください。</p>
+        <button type="button" class="data-transfer-btn" id="app-update-btn">更新を確認</button>
+        <p id="app-update-status" class="settings-note" role="status" aria-live="polite"></p>
+      </div>
       <div class="card" id="data-transfer-card">
         <div class="card-label">DATA</div>
         <div class="card-title">データの引き継ぎ</div>
-        <p class="data-transfer-description">履修科目・学習進捗・選択中の学期を、バックアップファイルで別端末や更新版へ移せます。</p>
+        <p class="data-transfer-description">履修・動画進捗・成績・課題・期末・申請予定をバックアップできます。同じURLでの通常更新では、端末の記録をそのまま引き継ぎます。</p>
         <div class="data-transfer-actions">
           <button type="button" class="data-transfer-btn primary" id="data-export-btn">バックアップを保存</button>
           <button type="button" class="data-transfer-btn" id="data-import-btn">バックアップを復元</button>
           <input type="file" id="data-import-input" accept="application/json,.json" hidden>
         </div>
-        <div class="data-transfer-note">復元すると、現在この端末にある履修・進捗データがバックアップの内容に置き換わります。</div>
+        <div class="data-transfer-note">復元すると、現在この端末にあるすべての学習記録がバックアップの内容に置き換わります。旧形式のバックアップも読み込めます。端末間の自動同期はありません。</div>
         <div id="data-transfer-status" class="data-transfer-status" role="status" aria-live="polite"></div>
+      </div>
       </div>
     </div>
 
@@ -159,7 +210,11 @@
   </nav>
 
   <script src="./data.js"></script>
+  <script src="./curriculum.js"></script>
   <script src="./attendance.js"></script>
+  <script src="./study-records.js"></script>
+  <script src="./calendar-export.js"></script>
+  <script src="./pwa-update.js"></script>
   <script src="./render-today.js"></script>
   <script src="./render-today-timetable.js"></script>
   <script src="./render-today-cards.js"></script>
@@ -169,6 +224,7 @@
   <script src="./render-progress.js"></script>
   <script src="./render-deadlines.js"></script>
   <script src="./data-transfer.js"></script>
+  <script src="./student-guide.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
