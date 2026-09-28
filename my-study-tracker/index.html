@@ -101,10 +101,9 @@
     <div class="page" id="page-schedule">
       <p class="settings-note" data-schedule-note hidden></p>
       <div class="planner-tabs" aria-label="スケジュールの表示">
-        <button data-planner-view="overview" onclick="setPlannerView('overview')" aria-pressed="true">全体</button>
+        <button data-planner-view="month" onclick="setPlannerView('month')" aria-pressed="true">月</button>
         <button data-planner-view="week" onclick="setPlannerView('week')" aria-pressed="false">1週間</button>
-        <button data-planner-view="day" onclick="setPlannerView('day')" aria-pressed="false">1日</button>
-        <button data-planner-view="month" onclick="setPlannerView('month')" aria-pressed="false">月カレンダー</button>
+        <button data-planner-view="overview" onclick="setPlannerView('overview')" aria-pressed="false">全体</button>
       </div>
       <div id="study-planner"></div>
       <div class="card" id="month-card" hidden>
@@ -112,12 +111,14 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <div class="card-title" style="margin-bottom:0">スケジュール</div>
           <div style="display:flex;align-items:center;gap:8px">
-            <button type="button" aria-label="前の月" onclick="scheduleMonthOffset--;renderSchedulePage()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">‹</button>
+            <button type="button" aria-label="前の月" onclick="shiftScheduleMonth(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">‹</button>
             <span id="schedule-month-label" style="font-size:14px;font-weight:700;min-width:80px;text-align:center"></span>
-            <button type="button" aria-label="次の月" onclick="scheduleMonthOffset++;renderSchedulePage()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">›</button>
+            <button type="button" aria-label="次の月" onclick="shiftScheduleMonth(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:16px">›</button>
           </div>
         </div>
         <div id="schedule-month"></div>
+        <div id="schedule-day-details" aria-live="polite"></div>
+        <div id="schedule-plan-status"></div>
       </div>
 
     </div>

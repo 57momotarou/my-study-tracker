@@ -1,186 +1,100 @@
-// ============================================================
-// my-study-tracker - render-schedule.js
-// スケジュールタブ（月カレンダーのみ）
-// ============================================================
-
-let scheduleMonthOffset = 0;
-
+// 月・週間・全体で、同じ最新の学習計画を表示する。
+let scheduleMonthKey=null;
+let lastScheduleMinute=-1;
 function renderSchedulePage() {
-  const sem      = getCurrentSemester();
-  const semId    = state.currentSemesterId;
-  const subjects = getEnrolledSubjects(semId);
-  renderMonthSchedule(subjects, sem, semId);
-  renderStudyPlanner(sem);
+  const sem=getCurrentSemester();if(!sem||!privateDataReady)return;
+  initializePlanner(sem);latestStudyPlan=buildStudyPlan(sem);
+  lastScheduleMinute=Math.floor(Date.now()/60000);
+  renderMonthSchedule(getEnrolledSubjects(sem.id),sem,sem.id,latestStudyPlan);
+  renderStudyPlanner(sem,latestStudyPlan);
+}
+function shiftScheduleMonth(offset) {
+  const [year,month]=scheduleMonthKey.split('-').map(Number),next=new Date(Date.UTC(year,month-1+offset,1));
+  scheduleMonthKey=next.toISOString().slice(0,10);plannerAnchor=scheduleMonthKey;plannerSelectedDay=scheduleMonthKey;renderSchedulePage();
+}
+function selectScheduleDay(day) {
+  if(!validCalendarDate(day))return;
+  plannerSelectedDay=day;plannerAnchor=day;
+  document.querySelectorAll('[data-calendar-day]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.calendarDay===day)));
+  renderScheduleDayDetails(day,getCurrentSemester(),latestStudyPlan);
+}
+function deadlinesForPlanDay(day,semester) {
+  const now=new Date(),items=[];
+  for(const subject of getEnrolledSubjects(semester.id))for(let n=1;n<=subject.lessons;n++) {
+    const deadline=getLessonDeadline(n,subject,semester);if(japanDate(deadline)!==day)continue;
+    const done=isLessonRecorded(semester.id,subject.code,n);
+    items.push({subject,n,deadline,done,late:!done&&deadline<now});
+  }
+  return items;
+}
+function renderMonthSchedule(subjects,sem,semId,plan) {
+  initializePlanner(sem);plan=plan||buildStudyPlan(sem);latestStudyPlan=plan;
+  const [year,month]=scheduleMonthKey.split('-').map(Number),firstDow=planDayOfWeek(scheduleMonthKey),days=new Date(Date.UTC(year,month,0)).getUTCDate();
+  document.getElementById('schedule-month-label').textContent=`${year}年${month}月`;
+  const today=japanDate(),exams=getRelevantExams(sem),el=document.getElementById('schedule-month');
+  const byDay=new Map();plan.sessions.forEach(s=>{if(!byDay.has(s.day))byDay.set(s.day,[]);byDay.get(s.day).push(s);});
+  const deadlineMap=new Map();for(const s of subjects)for(let n=1;n<=s.lessons;n++){const d=japanDate(getLessonDeadline(n,s,sem));if(d.slice(0,7)!==scheduleMonthKey.slice(0,7))continue;if(!deadlineMap.has(d))deadlineMap.set(d,0);deadlineMap.set(d,deadlineMap.get(d)+1);}
+  let html='<div class="month-weekdays">'+['日','月','火','水','木','金','土'].map(d=>`<span>${d}</span>`).join('')+'</div><div class="month-grid">';
+  for(let i=0;i<firstDow;i++)html+='<div class="month-blank" aria-hidden="true"></div>';
+  for(let n=1;n<=days;n++) {
+    const day=`${year}-${String(month).padStart(2,'0')}-${String(n).padStart(2,'0')}`,info=planDayInfo(day),sessions=byDay.get(day)||[],skip=(state.privateData.planner.skipDates||[]).includes(day);
+    const dayExams=exams.filter(e=>japanDate(parseDateValue(e.date))===day),apps=getApplications(semId).filter(a=>a.date===day),count=deadlineMap.get(day)||0;
+    html+=`<button type="button" class="month-day${day===today?' is-today':''}${info.holiday?' is-holiday':''}${skip?' is-skipped':''}" data-calendar-day="${day}" aria-pressed="${plannerSelectedDay===day}" aria-label="${planDateLabel(day)}、学習${sessions.length}枠${skip?'、勉強しない日':''}、詳細を表示">
+      <span class="month-day-number">${n}</span>${skip?'<span class="month-rest">休み</span>':sessions.slice(0,2).map(s=>`<span class="month-study-label" title="${escapeText(s.label)}">${escapeText(SUBJECT_BY_CODE.get(s.code).name)}<small>${s.kind==='exam'?'期末':`コマ${s.lesson}`}</small></span>`).join('')}
+      ${sessions.length>2?`<span class="month-more">＋${sessions.length-2}枠</span>`:''}
+      ${count?`<span class="month-deadline-label">締切${count}件</span>`:''}${dayExams.length?'<span class="month-exam-label">期末締切</span>':''}${apps.length?'<span class="month-personal-label">自分の予定</span>':''}</button>`;
+  }
+  html+='</div><p class="month-legend"><span class="month-study-key">■ その日にやる科目</span><span class="month-deadline-key">■ 大学の締切</span></p><p class="settings-note">日付をタップすると科目・コマ・学習時間が下に表示されます。</p>';
+  el.innerHTML=html;el.querySelectorAll('[data-calendar-day]').forEach(b=>b.addEventListener('click',()=>selectScheduleDay(b.dataset.calendarDay)));
+  document.getElementById('schedule-plan-status').innerHTML=plannerStatusHTML(plan);
+  renderScheduleDayDetails(plannerSelectedDay,sem,plan);
+}
+function renderScheduleDayDetails(day,semester,plan) {
+  const el=document.getElementById('schedule-day-details');if(!el||!day||!plan)return;
+  const sessions=plan.sessions.filter(s=>s.day===day),info=planDayInfo(day),deadlines=deadlinesForPlanDay(day,semester);
+  const exams=getRelevantExams(semester).filter(e=>japanDate(parseDateValue(e.date))===day),apps=getApplications(semester.id).filter(e=>e.date===day);
+  el.innerHTML=`<div class="selected-study-heading"><h3>${planDateLabel(day)}にやること</h3><span>${escapeText(info.label)}</span></div>
+    ${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}
+    ${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">この年の祝日は未登録です。</p>'}
+    ${deadlines.length||exams.length?`<details class="day-deadlines"><summary>この日の大学締切 ${deadlines.length+exams.length}件</summary>${deadlines.map(d=>`<p>${escapeText(d.subject.name)} コマ${d.n}<small>${planTimeLabel(d.deadline)} · ${d.done?'動画・課題済み':d.late?'期限超過':'未完了'}</small></p>`).join('')}${exams.map(e=>`<p>${escapeText(e.label)}<small>${planTimeLabel(parseDateValue(e.date))}まで</small></p>`).join('')}</details>`:''}
+    ${apps.map(a=>`<div class="application-item"><strong>${escapeText(a.title)}</strong><p class="settings-note">${a.allDay?'終日':escapeText(a.time)} · ${a.done?'対応済み':'自分の予定'}</p></div>`).join('')}`;
+  bindPlannerActions(el,semester.id);
+}
+function refreshScheduleForTime() {
+  if(!privateDataReady||document.visibilityState==='hidden'||!document.getElementById('page-schedule')?.classList.contains('active'))return;
+  if(document.activeElement?.matches('input,select,textarea'))return;
+  if(lastScheduleMinute===Math.floor(Date.now()/60000))return;
+  renderSchedulePage();
+}
+function setupScheduleRefresh() {
+  document.addEventListener('visibilitychange',refreshScheduleForTime);
+  window.addEventListener('pageshow',refreshScheduleForTime);window.addEventListener('focus',refreshScheduleForTime);
+  window.setInterval(refreshScheduleForTime,60000);
 }
 
-// 期末試験日取得
-function getKimatsuDate(sem) {
-  if (sem.attendance?.senmon_jyunji?.[16]) {
-    const e=sem.attendance.senmon_jyunji[16];
-    return parseDateValue(typeof e==='string'?e:e.end);
-  }
-  return null;
-}
-
-// ============================================================
-// 月表示：締切・期末のみ
-// ============================================================
-function renderMonthSchedule(subjects, sem, semId) {
-  const now=new Date();
-  const base=new Date(now.getFullYear(),now.getMonth()+scheduleMonthOffset,1);
-  const year=base.getFullYear(), month=base.getMonth();
-  document.getElementById('schedule-month-label').textContent=`${year}年${month+1}月`;
-  const firstDow=new Date(year,month,1).getDay();
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  const DOW=['日','月','火','水','木','金','土'];
-  const exams = getRelevantExams(sem);
-
-  // 締切マップ
-  const dlMap={};
-  subjects.forEach(s=>{
-    const done=Math.floor(getCompletedLessons(s.code)/4);
-    for (let n=1;n<=s.lessons;n++) {
-      const dl=getLessonDeadline(n,s,sem);
-      if (dl.getFullYear()===year&&dl.getMonth()===month) {
-        const k=dl.getDate();
-        if (!dlMap[k]) dlMap[k]=[];
-        const recorded = isLessonRecorded(semId, s.code, n);
-        dlMap[k].push({s,n,isDone:recorded,isLate:!recorded&&dl<now});
-      }
-    }
-  });
-
-  const el=document.getElementById('schedule-month');
-  let html=`<div style="overflow:hidden;width:100%;box-sizing:border-box"><div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;margin-bottom:4px">
-    ${DOW.map((d,i)=>`<div style="text-align:center;font-size:10px;padding:3px 0;font-weight:600;color:${i===0?'#ef4444':i===6?'#60a5fa':'var(--text3)'}">${d}</div>`).join('')}
-  </div><div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px">`;
-
-  for (let i=0;i<firstDow;i++) html+=`<div></div>`;
-
-  for (let day=1;day<=daysInMonth;day++) {
-    const date=new Date(year,month,day);
-    const dow=date.getDay();
-    const isToday=date.toDateString()===now.toDateString();
-    const isPast=date<new Date(now.getFullYear(),now.getMonth(),now.getDate())&&!isToday;
-    const dlItems=dlMap[day]||[];
-    const dayExams = exams.filter(exam => {
-      const date = parseDateValue(exam.date);
-      return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day;
-    });
-    const isKimatsu = dayExams.length > 0;
-    const dayKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const dayApplications = getApplications(semId).filter(item => item.date === dayKey);
-
-    const hasLate=dlItems.some(i=>i.isLate), hasPend=dlItems.some(i=>!i.isDone&&!i.isLate), hasDone=dlItems.some(i=>i.isDone);
-    let dotColor='';
-    if(hasLate) dotColor='var(--red)';
-    else if(hasPend) dotColor='var(--amber)';
-    else if(hasDone) dotColor='var(--green)';
-
-    const labels=[
-      ...dlItems.slice(0,2).map(({s,isDone,isLate})=>{
-        const c=isDone?'var(--green)':isLate?'var(--red)':'var(--amber)';
-        const bg=isDone?'rgba(16,185,129,0.12)':isLate?'rgba(239,68,68,0.12)':'rgba(245,158,11,0.12)';
-        const short=s.name.length>5?s.name.slice(0,4)+'…':s.name;
-        return `<div style="font-size:8px;color:${c};background:${bg};border-radius:3px;padding:1px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${short}</div>`;
-      }),
-    ];
-    const more=dlItems.length>2?`<div style="font-size:8px;color:var(--text3)">+${dlItems.length-2}</div>`:'';
-    const kimatsuLabel=isKimatsu?`<div style="font-size:8px;color:var(--purple);background:var(--purple-dim);border-radius:3px;padding:1px 3px">📝期末</div>`:'';
-
-    const dayColor=isToday?'var(--amber)':dow===0?'#ef4444':dow===6?'#60a5fa':isPast?'var(--text3)':'var(--text2)';
-    const hasContent=dlItems.length>0||isKimatsu||dayApplications.length>0;
-
-    const tapData=encodeURIComponent(JSON.stringify({
-      date:`${year}/${month+1}/${day}`,
-      deadlines:dlItems.map(i=>({name:i.s.name,n:i.n,isDone:i.isDone,isLate:i.isLate,cat:i.s.category})),
-      exams:dayExams.map(exam => exam.label),
-      applications: dayApplications,
-    }));
-
-    html+=`<div ${hasContent?`data-day-detail="${tapData}" role="button" tabindex="0" aria-label="${month+1}月${day}日の予定を表示"`:''}
-      style="min-height:44px;border-radius:4px;padding:2px 3px;overflow:hidden;
-        background:${isToday?'var(--amber-dim)':isKimatsu?'var(--purple-dim)':hasContent?'var(--bg3)':'transparent'};
-        border:1px solid ${isToday?'var(--amber)':isKimatsu?'var(--purple)':hasContent?'var(--border)':'transparent'};
-        display:flex;flex-direction:column;gap:1px;
-        cursor:${hasContent?'pointer':'default'};opacity:${isPast&&!hasContent?'0.35':'1'}">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:10px;font-weight:${isToday?'700':'500'};color:${dayColor}">${day}</span>
-        ${dotColor?`<div style="width:4px;height:4px;border-radius:50%;background:${dotColor}"></div>`:''}
-      </div>
-      ${labels.join('')}${more}${kimatsuLabel}
-      ${dayApplications.length ? `<div class="calendar-application">申請 ${dayApplications.length}件</div>` : ''}
-    </div>`;
-  }
-
-  html+=`</div></div>
-  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--text3)">
-    <span><span style="color:var(--amber)">■</span>締切(未)</span>
-    <span><span style="color:var(--red)">■</span>遅刻</span>
-    <span><span style="color:var(--green)">■</span>動画＋課題済</span>
-    <span>📝期末</span><span>申請：自分の予定</span>
-    <span style="margin-left:auto">タップで詳細</span>
-  </div>`;
-  el.innerHTML=html;
-
-  el.querySelectorAll('[data-day-detail]').forEach(cell => {
-    const openDetail = () => showDayDetail(cell.dataset.dayDetail);
-    cell.addEventListener('click', openDetail);
-    cell.addEventListener('keydown', event => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      openDetail();
-    });
-  });
-}
-
-// ============================================================
-// 日付タップ詳細モーダル
-// ============================================================
-function showDayDetail(dataJson) {
-  let data;
-  try { data=JSON.parse(decodeURIComponent(dataJson)); }
-  catch (error) {
-    console.warn('予定の詳細を開けませんでした。', error);
-    return;
-  }
-  const existing=document.getElementById('day-detail-modal');
-  if (existing) existing.remove();
-  const modal=document.createElement('div');
-  modal.id='day-detail-modal';
-  modal.setAttribute('role','dialog');
-  modal.setAttribute('aria-modal','true');
-  modal.setAttribute('aria-label',`${data.date}の予定`);
-  modal.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;padding-bottom:env(safe-area-inset-bottom)';
-
-  let content='';
-  (data.exams || []).forEach(label => {
-    content += `<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:13px;color:var(--purple)">📝 ${label}</div><div style="font-size:11px;color:var(--text2)">締切 12:00</div></div>`;
-  });
-
-  (data.applications || []).forEach(item => {
-    content += `<div class="application-item"><strong>${escapeText(item.title)}</strong><p class="settings-note">${item.allDay ? '終日' : escapeText(item.time) + '（日本時間）'} · ${item.done ? '対応済み' : '未完了'}</p><p class="application-notes">${escapeText(item.notes)}</p></div>`;
-  });
-
-  (data.deadlines||[]).forEach(({name,n,isDone,isLate,cat})=>{
-    const color=(CATEGORY_CONFIG[cat]||{}).color||'#64748b';
-    const status=isDone?`<span style="color:var(--green)">動画＋課題済</span>`:isLate?`<span style="color:var(--red)">🔴 遅刻中</span>`:`<span style="color:var(--amber)">動画・課題を確認</span>`;
-    content+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-      <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${name}</div>
-      <div style="font-size:11px;color:var(--text3)">コマ${n} ・ 締切 12:00</div></div>${status}</div>`;
-  });
-
-  modal.innerHTML=`<div style="background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-height:70vh;overflow-y:auto;padding:20px 16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div>
-        <div style="font-size:10px;font-family:'Space Mono',monospace;color:var(--amber);letter-spacing:2px">SCHEDULE</div>
-        <div style="font-size:15px;font-weight:700;margin-top:2px">${data.date}</div>
-      </div>
-      <button aria-label="閉じる" onclick="document.getElementById('day-detail-modal').remove()" style="background:var(--bg3);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
-    </div>
-    ${content||'<div style="color:var(--text3);font-size:13px;text-align:center;padding:16px">この日の予定はありません</div>'}
-  </div>`;
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
-  document.body.appendChild(modal);
+// iOSのスクロール領域内でも抑止する。スクロール・長押し・ピンチは妨げない。
+function setupCalendarTouchGuard() {
+  let start=null,lastTap=null;
+  const inScope=target=>target instanceof Element && target.closest('#page-schedule');
+  document.addEventListener('touchstart',event=>{
+    if(!inScope(event.target)||event.touches.length!==1){start=null;lastTap=null;return;}
+    const t=event.touches[0];start={x:t.clientX,y:t.clientY,id:t.identifier,time:event.timeStamp,moved:false};
+  },{capture:true,passive:true});
+  document.addEventListener('touchmove',event=>{
+    if(!start)return;
+    const t=[...event.touches].find(t=>t.identifier===start.id);
+    if(event.touches.length!==1||!t||Math.hypot(t.clientX-start.x,t.clientY-start.y)>10){start.moved=true;lastTap=null;}
+  },{capture:true,passive:true});
+  document.addEventListener('touchcancel',()=>{start=null;lastTap=null;},{capture:true,passive:true});
+  document.addEventListener('touchend',event=>{
+    if(!start||start.moved||event.touches.length||event.changedTouches.length!==1||event.timeStamp-start.time>500||!inScope(event.target)){start=null;lastTap=null;return;}
+    const t=event.changedTouches[0],tap={x:t.clientX,y:t.clientY,time:event.timeStamp};
+    const repeated=lastTap&&tap.time-lastTap.time<400&&Math.hypot(tap.x-lastTap.x,tap.y-lastTap.y)<32;
+    start=null;lastTap=tap;
+    if(!repeated||!event.cancelable)return;
+    event.preventDefault(); // 2回目のブラウザー標準ズームと合成clickを止める。
+    const button=event.target.closest('button,[role="button"]');
+    if(button?.isConnected&&!button.disabled)button.click(); // 操作自体は1回だけ反映。
+  },{capture:true,passive:false});
+  document.addEventListener('dblclick',event=>{if(inScope(event.target))event.preventDefault();},{capture:true,passive:false});
 }

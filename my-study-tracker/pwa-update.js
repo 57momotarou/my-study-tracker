@@ -1,4 +1,4 @@
-const APP_VERSION = '68';
+const APP_VERSION = '69';
 let pwaRegistration = null;
 let pendingAppReload = false;
 let appReloadStarted = false;

@@ -15,7 +15,7 @@ const KEYS = {
 let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], privateData:null, activeSubjectFilter:'all' };
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); setupPrivateData(); render(); registerSW();
+  loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); setupPrivateData(); setupCalendarTouchGuard(); setupScheduleRefresh(); render(); registerSW();
 });
 
 const SAVE_JOURNAL = 'cp-save-journal-v1';
