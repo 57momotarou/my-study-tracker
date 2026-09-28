@@ -20,7 +20,7 @@ function renderToday() {
   const alertRows = [];
   subjects.forEach(s => {
     const done = Math.floor(getCompletedLessons(s.code)/CPL);
-    const late = getTodayTarget(s,sem) - done;
+    const late = getOverdueLessonCount(semId, s, sem);
     if (late>=3)      alertRows.push(`<div class="alert alert-danger">⚠️ <b>${s.name}</b> 動画の遅れ${late}コマ！繰り越し優先で</div>`);
     else if (late>=1) alertRows.push(`<div class="alert alert-warn">📌 <b>${s.name}</b> 動画${late}コマ遅れ — 優先受講を</div>`);
   });
@@ -137,7 +137,7 @@ function renderUpcoming(subjects, sem) {
       <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
-        <div style="font-size:11px;color:var(--text3)">コマ${n} ・ 〜${dateStr} 12:00<br>${getCompletedLessons(s.code) >= n * CPL ? '動画済み · 課題未記録' : getStudyRecord(sem.id, s.code).assignments.includes(n) ? '課題済み · 動画未記録' : '動画・課題未記録'}</div>
+        <div style="font-size:11px;color:var(--text3)">コマ${n} ・ 〜${dateStr} 12:00<br>${isLessonViewed(sem.id, s.code, n) ? '動画済み · 課題未記録' : getStudyRecord(sem.id, s.code).assignments.includes(n) ? '課題済み · 動画未記録' : '動画・課題未記録'}</div>
       </div>
       <span style="font-size:11px;font-weight:700;${ls};flex-shrink:0">${lt}</span></div>`;
   }).join('');

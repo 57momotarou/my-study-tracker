@@ -10,7 +10,7 @@ function renderSchedulePage() {
   const semId    = state.currentSemesterId;
   const subjects = getEnrolledSubjects(semId);
   renderMonthSchedule(subjects, sem, semId);
-  renderApplicationPanel();
+  renderStudyPlanner(sem);
 }
 
 // 期末試験日取得

@@ -24,16 +24,17 @@ function renderTodayTimetable(subjects, sem, semId) {
   // 各科目の状態を計算
   const withState = subjects.map(s => {
     const doneCh     = getCompletedLessons(s.code);
-    const doneLes    = Math.floor(doneCh / CPL);
+    const p          = getCourseProgress(semId, s);
+    const doneLes    = p.viewed;
     const target     = getTodayTarget(s, sem);
     const rec        = getTodayRecommended(s, sem);
-    const late       = Math.max(0, target - doneLes);
-    const nextLesson = doneLes + 1;
-    const allDone    = doneLes >= s.lessons;
+    const late       = getOverdueLessonCount(semId, s, sem);
+    const nextLesson = p.next;
+    const allDone    = p.complete;
 
-    const nextDeadline = !allDone && nextLesson <= s.lessons
+    const nextDeadline = nextLesson !== null
       ? getLessonDeadline(nextLesson, s, sem).getTime()
-      : new Date(2099, 0, 1).getTime();
+      : (getSubjectExam(s, sem) ? parseDateValue(getSubjectExam(s, sem).date).getTime() : new Date(2099, 0, 1).getTime());
 
     const daysToNext = calendarDayDiff(nextDeadline, now);
 
@@ -44,8 +45,8 @@ function renderTodayTimetable(subjects, sem, semId) {
   if (withState.every(i => i.allDone)) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
-      <div style="font-size:15px;font-weight:700">すべての動画を視聴済み！</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px">課題・期末の記録は「進捗」で確認できます</div></div>`;
+      <div style="font-size:15px;font-weight:700">全科目のコマ・期末が完了！</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">課題提出と正式な成績は「進捗」で確認できます</div></div>`;
     return;
   }
 
@@ -90,6 +91,6 @@ function renderTodayTimetable(subjects, sem, semId) {
   // フォールバック
   ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
     <div style="font-size:32px;margin-bottom:8px">🎉</div>
-    <div style="font-size:15px;font-weight:700">動画視聴の記録が完了！</div>
-    <div style="font-size:12px;color:var(--text3);margin-top:4px">課題・期末の記録は「進捗」で確認できます</div></div>`;
+    <div style="font-size:15px;font-weight:700">コマ・期末の記録が完了！</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">課題提出と正式な成績は「進捗」で確認できます</div></div>`;
 }

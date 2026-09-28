@@ -20,6 +20,7 @@ function normalizeRecords(value) {
         assignments: Array.isArray(record.assignments)
           ? [...new Set(record.assignments.filter(n => Number.isInteger(n) && n >= 1 && n <= subject.lessons))].sort((a, b) => a - b) : [],
         examTaken: record.examTaken === true,
+        ...(Array.isArray(record.viewedLessons) ? { viewedLessons: [...new Set(record.viewedLessons.filter(n => Number.isInteger(n) && n >= 1 && n <= subject.lessons))].sort((a,b) => a-b) } : {}),
       };
     });
     if (Object.keys(records).length) result[semester.id] = records;
@@ -36,7 +37,8 @@ function validateRecords(value) {
       if (!subject || !isPlainObject(record)
           || !(record.grade === '' || Object.hasOwn(GRADE_LABELS, record.grade))
           || typeof record.examTaken !== 'boolean' || !Array.isArray(record.assignments)
-          || record.assignments.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)) {
+          || record.assignments.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)
+          || (Object.hasOwn(record, 'viewedLessons') && (!Array.isArray(record.viewedLessons) || record.viewedLessons.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)))) {
         throw new Error('成績・提出記録の内容が不正です。');
       }
     }
@@ -46,6 +48,34 @@ function validateRecords(value) {
 
 function getStudyRecord(semId, code) {
   return state.records[semId]?.[code] || { grade: '', assignments: [], examTaken: false };
+}
+
+function getViewedLessons(semId, code) {
+  const record = getStudyRecord(semId, code);
+  if (Array.isArray(record.viewedLessons)) return record.viewedLessons;
+  const count = Math.min(SUBJECT_BY_CODE.get(code)?.lessons || 0, Math.floor(getCompletedLessons(code) / 4));
+  return Array.from({length:count}, (_, i) => i + 1);
+}
+function isLessonViewed(semId, code, lesson) { return getViewedLessons(semId, code).includes(lesson); }
+function getCourseProgress(semId, subject) {
+  const viewed = getViewedLessons(semId, subject.code), exam = getStudyRecord(semId, subject.code).examTaken;
+  return { viewed:viewed.length, exam, done:viewed.length + Number(exam), total:subject.lessons+1,
+    complete:viewed.length === subject.lessons && exam, next:Array.from({length:subject.lessons}, (_,i)=>i+1).find(n=>!viewed.includes(n)) || null,
+    percent:Math.round((viewed.length + Number(exam))/(subject.lessons+1)*100) };
+}
+function getOverdueLessonCount(semId, subject, semester) {
+  return Array.from({length:subject.lessons}, (_,i)=>i+1).filter(n=>!isLessonViewed(semId,subject.code,n) && isLessonLate(n,subject,semester)).length;
+}
+function renderLessonButtons(subject, semester, semId) {
+  const color=getCategoryColor(subject.category), exam=getStudyRecord(semId,subject.code).examTaken;
+  let html='<div class="lesson-grid" aria-label="コマ・期末の進捗">';
+  for(let n=1;n<=subject.lessons;n++) {
+    const done=isLessonViewed(semId,subject.code,n), late=!done && isLessonLate(n,subject,semester), future=!isLessonAvailable(n,subject,semester);
+    const style=done?`background:${color};color:#081020;border-color:${color}`:late?'background:var(--red-dim);color:var(--red);border-color:var(--red)':'background:var(--bg3);color:var(--text2)';
+    html+=`<button type="button" class="lesson-btn${done?' done':''}" style="${style}" aria-pressed="${done}" aria-label="${escapeText(subject.name)} コマ${n}${future?'（開講前・手動記録）':''}" onclick="toggleLesson('${subject.code}',${n},${semId})">${done?'✓ ':''}${n}</button>`;
+  }
+  html+=`<button type="button" class="lesson-btn final${exam?' done':''}" style="${exam?`background:${color};color:#081020;border-color:${color}`:'background:var(--bg3);color:var(--text2)'}" aria-pressed="${exam}" aria-label="${escapeText(subject.name)} 期末" onclick="toggleFinalExam('${subject.code}',${semId})">${exam?'✓ ':''}期末</button></div>`;
+  return html;
 }
 
 function getRecordedSubjects(semId) {
@@ -71,12 +101,12 @@ function setAssignment(semId, code, lesson, checked) {
 }
 
 function isLessonRecorded(semId, code, lesson) {
-  return getCompletedLessons(code) >= lesson * 4 && getStudyRecord(semId, code).assignments.includes(lesson);
+  return isLessonViewed(semId, code, lesson) && getStudyRecord(semId, code).assignments.includes(lesson);
 }
 
 function getAttendanceSummary(semId, subject) {
   const record = getStudyRecord(semId, subject.code);
-  const count = record.assignments.filter(n => getCompletedLessons(subject.code) >= n * 4).length;
+  const count = record.assignments.filter(n => isLessonViewed(semId, subject.code, n)).length;
   return { count, required: Math.ceil(subject.lessons * 2 / 3) };
 }
 
@@ -152,12 +182,12 @@ function setProgressView(view) {
   renderProgressPage();
 }
 
-function renderGrades(container, semId) {
+function renderGradeSummary(semId) {
   const semester = getGradeSummary(semId), all = getGradeSummary();
   const plan = getGraduationPlan(all.passedCodes);
-  const subjects = getRecordedSubjects(semId);
   const formatGPA = summary => summary.gpa === null ? '未計算' : summary.gpa.toFixed(2);
-  container.innerHTML = `<div class="card">
+  const r = GRADUATION_RULES;
+  return `<div class="card">
     <div class="card-label">GRADES</div><div class="card-title">成績と修得単位</div>
     <div class="record-stats">
       <div><strong>${formatGPA(semester)}</strong><span>この学期の参考GPA</span></div>
@@ -167,14 +197,19 @@ function renderGrades(container, semId) {
     <p class="settings-note">A=4・B=3・C=2・D=1・F=0。Fも単位数の分母に含み、K・P・未登録は除きます。
     この学期のGPA対象：${semester.gpaCredits}単位。修得単位は同じ科目を1回だけ数えます。</p>
     <details class="plan-missing"><summary>MC卒業要件に照らした修得記録を見る</summary>
-      <p class="settings-note">A〜Dの登録分を要件に割り当て：${plan.counted}/124単位。
-      専門 ${plan.totals['専門']}/62・教養 ${plan.totals['教養']}/24・外国語 ${plan.totals['外国語']}/12・共通割当 ${plan.common}/26。
+      <p class="settings-note">A〜Dの登録分を要件に割り当て：${plan.counted}/${r.total}単位。
+      専門 ${plan.totals['専門']}/${r.specialized}・教養 ${plan.totals['教養']}/${r.liberal}・外国語 ${plan.totals['外国語']}/${r.foreignRequired+r.foreignElective}・共通割当 ${plan.common}/${r.common}。
       Pのみの認定 ${all.recognizedCredits}単位は区分未確認のため、この判定には含めません。</p>
       <p class="settings-note">未修得の必修：${plan.missing.length ? plan.missing.map(code => escapeText(SUBJECT_BY_CODE.get(code).name)).join('、') : '登録上はなし'}。</p>
       <p class="settings-note">履修予定は設定の「履修計画」で確認できます。卒業・認定単位の正式な判定は大学で確認してください。</p>
     </details>
     <p class="settings-note">参考GPAは登録した全履修回を集計します。再履修時の公式な扱いは大学で確認してください。${all.repeated ? '同じ科目の複数学期の成績が含まれています。' : ''}</p>
   </div>
+`;
+}
+function renderGrades(container, semId) {
+  const subjects = getRecordedSubjects(semId);
+  container.innerHTML = `<div id="grade-summary">${renderGradeSummary(semId)}</div>
   <div class="card"><div class="card-title">この学期の成績を登録</div>
     <p class="settings-note">大学で発表された評価を選択してください。変更は自動保存されます。</p>
     ${subjects.length ? subjects.map(subject => `<label class="grade-row"><span><strong>${escapeText(subject.name)}</strong>
@@ -186,7 +221,8 @@ function renderGrades(container, semId) {
   container.querySelectorAll('[data-grade]').forEach(select => select.addEventListener('change', () => {
     const code = select.dataset.grade;
     changeStudyRecord(semId, code, { grade: select.value });
-    renderGrades(container, semId);
-    container.querySelector(`[data-grade="${code}"]`)?.focus({ preventScroll: true });
+    select.value = getStudyRecord(semId, code).grade;
+    document.getElementById('grade-summary').innerHTML = renderGradeSummary(semId);
+    select.blur();
   }));
 }

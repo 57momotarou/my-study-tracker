@@ -173,7 +173,7 @@ function renderApplicationPanel() {
       state.applications = [...state.applications.filter(item => item.id !== id), normalized];
       if (!saveState()) throw new Error('保存できませんでした。入力を残しています。');
       form.dataset.dirty = 'false';
-      renderSchedulePage();
+      renderApplicationPanel();
       document.getElementById('application-status').textContent = '予定を保存しました。';
       applyPendingUpdate();
     } catch (error) { document.getElementById('application-status').textContent = error.message; }
@@ -212,6 +212,6 @@ function renderApplicationList() {
     const deletingDraft = form.elements.id.value === button.dataset.applicationDelete;
     state.applications = state.applications.filter(item => item.id !== button.dataset.applicationDelete);
     if (saveState() && deletingDraft) form.dataset.dirty = 'false';
-    renderSchedulePage(); renderApplicationList();
+    renderApplicationPanel(); renderApplicationList();
   }));
 }

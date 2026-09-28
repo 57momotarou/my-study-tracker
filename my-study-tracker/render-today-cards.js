@@ -7,7 +7,7 @@
 function buildTodayCard(item, sem, semId, mode) {
   const { s, doneLes, rec, late, nextLesson } = item;
   const color = getCategoryColor(s.category);
-  const pct   = Math.round(doneLes / s.lessons * 100);
+  const pct   = getCourseProgress(semId, s).percent;
 
   let badgeText, badgeClass;
 
@@ -15,38 +15,16 @@ function buildTodayCard(item, sem, semId, mode) {
     badgeText  = `🔴 ${late}コマ遅刻中`;
     badgeClass = 'badge-danger';
   } else if (mode === 'tomorrow') {
-    badgeText  = `✨ コマ${nextLesson}`;
+    badgeText  = nextLesson ? `✨ コマ${nextLesson}` : '📝 期末';
     badgeClass = 'badge-ok';
   } else {
-    badgeText  = `📅 コマ${nextLesson}`;
+    badgeText  = nextLesson ? `📅 コマ${nextLesson}` : '📝 期末';
     badgeClass = 'badge-warn';
   }
 
-  const nowLbl = doneLes > 0 ? `コマ${doneLes} 視聴済み` : '未視聴';
+  const nowLbl = doneLes > 0 ? `${doneLes}/${s.lessons}コマ視聴済み` : '未視聴';
 
-  // コマ単位ボタン（横スクロール対応）
-  // data-done-les: 完了済みコマ数（スクロール復元用）
-  // data-lesson-w: 1コマのピクセル幅（app.jsのスクロール計算用）
-  const LESSON_W = 39; // 36px + gap 3px
-  let btnHtml = `<div class="chapter-scroll-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;padding-bottom:2px" data-done-les="${doneLes}" data-lesson-w="${LESSON_W}"><div style="display:flex;flex-wrap:nowrap;gap:3px;width:max-content">`;
-  for (let lesson = 1; lesson <= s.lessons; lesson++) {
-    const isDone    = lesson <= doneLes;
-    const isLate_   = !isDone && isLessonLate(lesson, s, sem);
-    const isTarget  = !isDone && lesson <= rec && lesson > doneLes;
-    const isNotYet  = !isLessonAvailable(lesson, s, sem);
-    const noClick   = isNotYet ? 'pointer-events:none;' : '';
-    const opacity   = isNotYet ? 'opacity:0.25;' : '';
-    const disabled  = isNotYet ? ' disabled aria-disabled="true"' : '';
-
-    let btnStyle = '';
-    if (isDone)        btnStyle = `background:${color};color:#000;border-color:${color}`;
-    else if (isLate_)  btnStyle = 'background:var(--red-dim);color:var(--red);border:1px solid var(--red)';
-    else if (isTarget) btnStyle = 'background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)';
-    else               btnStyle = 'background:var(--bg3);color:var(--text3);border:1px solid var(--border)';
-
-    btnHtml += `<button class="lesson-btn${isDone?' done':''}" onclick="toggleLesson('${s.code}',${lesson},${semId})" style="width:36px;height:36px;font-size:11px;${btnStyle}${noClick}${opacity}" title="コマ${lesson}" aria-label="${s.name} コマ${lesson}"${disabled}>${lesson}</button>`;
-  }
-  btnHtml += '</div></div>';
+  const btnHtml = renderLessonButtons(s, sem, semId);
 
   return `
     <div class="today-subject-card" style="border-left:3px solid ${color};margin-bottom:8px">
@@ -67,7 +45,7 @@ function buildTodayCard(item, sem, semId, mode) {
         <span><span style="color:${color}">■</span> 完了</span>
         <span><span style="color:var(--red)">■</span> 遅刻</span>
         <span><span style="color:var(--amber)">■</span> 今週</span>
-        <span style="opacity:0.4">■ 未開講</span>
+        <span>期末まで記録すると完了</span>
       </div>
     </div>`;
   // スクロール復元はapp.jsの_updateTodayAfterToggleで一元管理（rAF二重実行防止）

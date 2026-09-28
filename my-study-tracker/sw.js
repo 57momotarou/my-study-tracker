@@ -1,10 +1,12 @@
 const CACHE_PREFIX = 'my-study-tracker-';
-const CACHE = `${CACHE_PREFIX}v67`;
+const CACHE = `${CACHE_PREFIX}v68`;
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './private-data.js',
+  './study-planner.js',
   './data.js',
   './curriculum.js',
   './student-guide.js',

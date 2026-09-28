@@ -9,19 +9,34 @@ const KEYS = {
   migrated: 'cp-migrated-v1',
   records: 'cp-records-v1',
   applications: 'cp-applications-v1',
+  privateData: 'cp-private-data-v1',
 };
 
-let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], activeSubjectFilter:'all' };
+let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], privateData:null, activeSubjectFilter:'all' };
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); render(); registerSW();
+  loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); setupPrivateData(); render(); registerSW();
 });
 
 const SAVE_JOURNAL = 'cp-save-journal-v1';
 let lastSavedState = null;
 
-function loadState() {
+function loadState(privateOverride, persistMigration = true) {
   recoverStateSave();
+  try {
+    const raw = privateOverride || readStoredJson(KEYS.privateData, null);
+    state.privateData = raw ? validatePrivateData(raw) : null;
+    hydratePrivateData(state.privateData);
+  } catch (error) { state.privateData = null; hydratePrivateData(null); privateDataError = error.message; }
+  if (!privateDataReady) {
+    // 資料が未読み込みでも旧記録を削除・正規化しない。
+    state.enrollments = readStoredJson(KEYS.enrollments, {});
+    state.progress = readStoredJson(KEYS.progress, {});
+    state.records = readStoredJson(KEYS.records, {});
+    state.applications = readStoredJson(KEYS.applications, []);
+    lastSavedState = snapshotStudyState();
+    return;
+  }
   const rawEnrollments = readStoredJson(KEYS.enrollments, {});
   const rawProgress = readStoredJson(KEYS.progress, {});
   const progress = rawProgress && typeof rawProgress === 'object' && !Array.isArray(rawProgress)
@@ -49,7 +64,7 @@ function loadState() {
 
   // 移行後の値を先に保存し、成功した場合だけ完了マーカーを付ける。
   lastSavedState = snapshotStudyState();
-  if (needsMigration) saveState();
+  if (needsMigration && persistMigration) saveState();
 }
 
 function readStoredValue(key) {
@@ -115,13 +130,15 @@ function getDefaultSemesterId() {
   const now = new Date();
   const active = SEMESTERS.find(sem => parseDateValue(sem.start) <= now && now <= endOfDate(sem.end));
   if (active) return active.id;
+  const upcoming = SEMESTERS.find(sem => parseDateValue(sem.start) > now);
+  if (upcoming) return upcoming.id;
   const started = SEMESTERS.filter(sem => parseDateValue(sem.start) <= now);
   return (started[started.length - 1] || SEMESTERS[0]).id;
 }
 
 function snapshotStudyState() {
   return JSON.parse(JSON.stringify({ enrollments: state.enrollments, progress: state.progress,
-    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications }));
+    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications, privateData: state.privateData }));
 }
 
 function restoreStoredValues(previous) {
@@ -153,6 +170,7 @@ function recoverStateSave() {
 
 // 複数キーへの書き込みをジャーナルで保護する。失敗・中断時は直前の記録へ戻す。
 function saveState() {
+  if (!privateDataReady) return false;
   const previous = {};
   let journalWritten = false;
   try {
@@ -163,6 +181,7 @@ function saveState() {
       [KEYS.currentSem]: String(state.currentSemesterId),
       [KEYS.records]: JSON.stringify(state.records),
       [KEYS.applications]: JSON.stringify(state.applications),
+      [KEYS.privateData]: JSON.stringify(state.privateData),
       [KEYS.migrated]: '1',
     };
     for (const key of Object.keys(values)) previous[key] = localStorage.getItem(key);
@@ -179,6 +198,7 @@ function saveState() {
   } catch (error) {
     if (journalWritten) restoreStoredValues(previous);
     if (lastSavedState) Object.assign(state, JSON.parse(JSON.stringify(lastSavedState)));
+    hydratePrivateData(state.privateData);
     console.warn('変更を保存できなかったため、直前の記録に戻しました。', error);
     showStorageWarning();
     return false;
@@ -227,6 +247,8 @@ function setupNav() {
 }
 
 function render() {
+  renderPrivateGate();
+  if (!privateDataReady) return;
   renderHeader();
   renderActivePage();
 }
@@ -243,6 +265,7 @@ function activatePage(pageName, navButton = null) {
 }
 
 function renderActivePage() {
+  if (!privateDataReady) { renderPrivateGate(); return; }
   const activePage = document.querySelector('.page.active');
   if (!activePage) return;
   if (activePage.id === 'page-today') renderToday();
@@ -299,74 +322,43 @@ function getCompletedLessons(code) { return state.progress[code]||0; }
 function getCategoryColor(cat)     { return (CATEGORY_CONFIG[cat]||{}).color||'#64748b'; }
 function renderHeader() {
   const semester = getCurrentSemester();
+  if (!semester) return;
   document.getElementById('header-semester').textContent = semester.name;
+  const version = document.querySelector('.guide-version');
+  if (version) version.textContent = state.privateData?.guideVersion || '';
   document.querySelectorAll('[data-schedule-note]').forEach(element => {
     element.hidden = Boolean(semester.attendance);
     element.textContent = 'この学期の正式な講義日程は未登録です。表示中の締切は概算のため、大学の案内で確認してください。';
   });
 }
 
-// ============================================================
-// コマ記録
-// toggleLesson: コマ単位でトグル（進捗タブ・今日タブのコマボタンから呼ばれる）
-//   押したコマが未完了 → そのコマまで完了にする（lessonNum * 4 を progress に保存）
-//   押したコマが最後の完了コマ → 1つ前のコマまでに戻す（(lessonNum-1) * 4 を保存）
-// toggleChapter: 章単位でトグル（旧互換・未使用）
-// ============================================================
+// 各コマを個別に記録する。旧累積章数は初回の参照値として保持する。
 function toggleLesson(code, lessonNum, semId) {
   const subject = SUBJECT_BY_CODE.get(code);
-  const semester = SEMESTERS.find(sem => sem.id === semId);
-  if (!subject || !semester || !Number.isInteger(lessonNum) || lessonNum < 1 || lessonNum > subject.lessons || !isLessonAvailable(lessonNum, subject, semester)) return;
-  const CPL     = 4;
-  const current = getCompletedLessons(code);         // 現在の章数（コマ数×4）
-  const doneLes = Math.floor(current / CPL);          // 現在の完了コマ数
-
-  if (lessonNum > doneLes) {
-    // 未完了コマを押した → そのコマまで完了
-    state.progress[code] = lessonNum * CPL;
-  } else if (lessonNum === doneLes) {
-    // 最後の完了コマを押した → 1つ前のコマまでに戻す
-    state.progress[code] = (lessonNum - 1) * CPL;
-  } else {
-    // それ以前の完了済みコマを押した → 何もしない
-    return;
-  }
-
-  if (state.progress[code] <= 0) delete state.progress[code];
-
-  saveState();
+  if (!subject || !SEMESTERS.some(s => s.id === semId) || !Number.isInteger(lessonNum) || lessonNum < 1 || lessonNum > subject.lessons) return;
+  const done = new Set(getViewedLessons(semId, code));
+  if (done.has(lessonNum)) done.delete(lessonNum); else done.add(lessonNum);
+  changeStudyRecord(semId, code, { viewedLessons: [...done].sort((a,b) => a-b) });
   rerenderAfterProgressChange();
 }
-
+function toggleFinalExam(code, semId) {
+  changeStudyRecord(semId, code, { examTaken: !getStudyRecord(semId, code).examTaken });
+  rerenderAfterProgressChange();
+}
 function toggleChapter(code, chapterNum, semId) {
-  const subject = SUBJECT_BY_CODE.get(code);
-  const semester = SEMESTERS.find(sem => sem.id === semId);
-  if (!subject || !semester || !Number.isInteger(chapterNum) || chapterNum < 1 || chapterNum > subject.lessons * 4 || !isLessonAvailable(Math.ceil(chapterNum / 4), subject, semester)) return;
+  const subject = SUBJECT_BY_CODE.get(code), sem = SEMESTERS.find(s => s.id === semId);
+  if (!subject || !sem || !Number.isInteger(chapterNum) || chapterNum < 1 || chapterNum > subject.lessons*4 || !isLessonAvailable(Math.ceil(chapterNum/4),subject,sem)) return;
   const current = getCompletedLessons(code);
-  if      (chapterNum === current + 1) state.progress[code] = chapterNum;
-  else if (chapterNum === current)     state.progress[code] = chapterNum - 1;
+  if (chapterNum === current + 1) state.progress[code] = chapterNum;
+  else if (chapterNum === current) state.progress[code] = chapterNum - 1;
   else return;
   if (state.progress[code] <= 0) delete state.progress[code];
-  saveState();
-  rerenderAfterProgressChange();
+  saveState(); rerenderAfterProgressChange();
 }
 
 function rerenderAfterProgressChange() {
-  const activePage = document.querySelector('.page.active');
-  if (activePage?.id === 'page-today') _updateTodayAfterToggle();
-  else renderActivePage();
+  const scrolls = new Map([...document.querySelectorAll('[data-progress-code]')].map(el => [el.dataset.progressCode, el.scrollLeft]));
+  renderActivePage();
+  document.querySelectorAll('[data-progress-code]').forEach(el => { if (scrolls.has(el.dataset.progressCode)) el.scrollLeft = scrolls.get(el.dataset.progressCode); });
 }
-
-// TODAYタブ更新（点滅防止 + 数字ズレ防止）
-function _updateTodayAfterToggle() {
-  renderToday();
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      document.querySelectorAll('#today-timetable .chapter-scroll-wrap').forEach(wrap => {
-        const dl = parseInt(wrap.dataset.doneLes) || 0;
-        const lw = parseInt(wrap.dataset.lessonW) || 39;
-        if (dl > 0) wrap.scrollLeft = dl * lw;
-      });
-    });
-  });
-}
+function _updateTodayAfterToggle() { rerenderAfterProgressChange(); }

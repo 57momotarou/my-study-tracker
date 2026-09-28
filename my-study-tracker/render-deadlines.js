@@ -9,8 +9,8 @@ function showDeadlineModal(subjectCode, semId) {
   if (!s || !sem) return;
 
   const doneChapters = getCompletedLessons(s.code);
-  const done = Math.floor(doneChapters / 4); // コマ単位
-  const partialChapter = doneChapters % 4;
+  const done = getViewedLessons(semId, s.code).length; // コマ単位
+  const partialChapter = Array.isArray(getStudyRecord(semId,s.code).viewedLessons) ? 0 : doneChapters % 4;
   const color = getCategoryColor(s.category);
   const now = new Date();
 
@@ -20,7 +20,7 @@ function showDeadlineModal(subjectCode, semId) {
     const deadline = getLessonDeadline(n, s, sem);
     const available = isLessonAvailable(n, s, sem);
     const isDone = isLessonRecorded(semId, s.code, n);
-    const videoDone = n <= done;
+    const videoDone = isLessonViewed(semId, s.code, n);
     const taskDone = getStudyRecord(semId, s.code).assignments.includes(n);
     const isLate = !isDone && deadline < now;
     const isThisWeek = !isDone && !isLate && calendarDayDiff(deadline, now) <= 7;

@@ -11,6 +11,7 @@ function parseDateValue(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
     if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value) && !/(Z|[+-]\d{2}:\d{2})$/.test(value)) return new Date(value + '+09:00');
   return new Date(value);
 }
 
@@ -32,8 +33,7 @@ function calendarDayDiff(target, origin = new Date()) {
 // 科目と学期から該当する出席認定テーブルキーを返す
 function getAttendanceKey(subject, semester) {
   if (!semester.attendance) return null;
-  if (subject.code === 'SD302E') return 'academic_writing';
-  if (subject.code === 'SD101E') return 'study_skill';
+  if (subject.attendanceKey) return subject.attendanceKey;
   if (subject.deadline_type === '外国語') return 'gaikokugo';
   if (subject.deadline_type === '専門') {
     return subject.open_type === '一斉' ? 'senmon_issai' : 'senmon_jyunji';

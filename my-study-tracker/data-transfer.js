@@ -3,7 +3,7 @@
 // ============================================================
 
 const BACKUP_FORMAT = 'my-study-tracker-backup';
-const BACKUP_VERSION = 2;
+const BACKUP_VERSION = 3;
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 function setupDataTransfer() {
@@ -38,6 +38,7 @@ async function exportStudyData() {
         currentSemesterId: state.currentSemesterId,
         records: normalizeRecords(state.records),
         applications: normalizeApplications(state.applications),
+        privateData: state.privateData,
       },
     };
 
@@ -92,13 +93,14 @@ async function importStudyData(file) {
     if (!accepted) return;
 
     Object.assign(state, imported);
+    hydratePrivateData(state.privateData);
     if (!saveState()) throw new Error('復元データを端末に保存できませんでした。現在の記録は保持しています。');
     // 復元後は古い入力途中の申請を持ち越さない。
     const form = document.getElementById('application-form');
     if (form) form.dataset.dirty = 'false';
 
-    renderHeader();
-    renderActivePage();
+    render();
+    renderStudentGuide();
     showDataTransferStatus(`復元しました（履修 ${enrollmentCount}科目・進捗 ${progressCount}科目）。`, 'success');
   } catch (error) {
     console.error('バックアップの復元に失敗しました。', error);
@@ -125,7 +127,12 @@ function parseBackupPayload(payload) {
   if (!isPlainObject(payload.data.enrollments) || !isPlainObject(payload.data.progress)) {
     throw new Error('バックアップの内容が壊れています。');
   }
-  if (payload.version === 2) {
+  const privateData = payload.version >= 3 ? validatePrivateData(payload.data.privateData) : state.privateData;
+  if (!privateData) throw new Error('旧形式の復元には、先に非公開データを読み込んでください。');
+  const previousPrivate = state.privateData;
+  hydratePrivateData(privateData);
+  try {
+  if (payload.version >= 2) {
     const validEnrollments = Object.entries(payload.data.enrollments).every(([id, codes]) =>
       SEMESTERS.some(sem => String(sem.id) === id) && Array.isArray(codes)
       && codes.every(code => typeof code === 'string' && SUBJECT_BY_CODE.has(code)));
@@ -145,7 +152,9 @@ function parseBackupPayload(payload) {
 
   const records = payload.version === 1 ? {} : validateRecords(payload.data.records);
   const applications = payload.version === 1 ? [] : normalizeApplications(payload.data.applications, true);
-  return { enrollments, progress, currentSemesterId, records, applications };
+  return { enrollments, progress, currentSemesterId, records, applications, privateData };
+  } finally { hydratePrivateData(previousPrivate); }
+
 }
 
 function isPlainObject(value) {
