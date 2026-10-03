@@ -10,7 +10,7 @@ function renderToday() {
   const subjects = getEnrolledSubjects(semId);
 
   document.getElementById('today-date').textContent =
-    today.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+    today.toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'long',day:'numeric',weekday:'long'});
 
   // 学事アラート（期末試験・成績発表）
   renderExamAlerts(sem);
@@ -44,13 +44,14 @@ function renderExamAlerts(sem) {
   el.innerHTML = '';
   if (!sem.exams && !sem.seiseki) return;
   const now = new Date();
+  const daysFromToday = date => Math.round((Date.parse(japanDate(date)) - Date.parse(japanDate(now))) / 86400000);
 
   const alerts = [];
   getRelevantExams(sem).forEach(exam => {
     const end        = exam.date.includes('T') ? parseDateValue(exam.date) : endOfDate(exam.date);
     const start      = exam.start ? parseDateValue(exam.start) : parseDateValue(exam.date);
-    const daysToEnd  = calendarDayDiff(end, now);
-    const daysToStart= calendarDayDiff(start, now);
+    const daysToEnd  = daysFromToday(end);
+    const daysToStart= daysFromToday(start);
     const isActive   = now >= start && now <= end;  // 期間中
     const isPast     = now > end;                   // 終了
     const isUpcoming = !isPast && !isActive;        // 開始前
@@ -61,7 +62,7 @@ function renderExamAlerts(sem) {
   });
   if (sem.seiseki) {
     const d = parseDateValue(sem.seiseki);
-    const days = calendarDayDiff(d, now);
+    const days = daysFromToday(d);
     if (days>=-3 && days<=14) alerts.push({label:'成績発表', daysToEnd:days, isPast:days<0, isSeiseki:true});
   }
   const alertHtml = [];

@@ -84,12 +84,16 @@ function sanitizeGuideHTML(html) {
 function ensurePrivateCompatibility(data) {
   const codes = new Map(data.subjects.map(s => [s.code, s]));
   const sems = new Set(data.semesters.map(s => String(s.id)));
+  const badgeIds = new Set(data.badges.map(b => b.id)), manualIds = new Set(data.badges.filter(b => b.requirements.manual).map(b => b.id));
+  const badgePrefs = readStoredJson(KEYS.badgePreferences, {goals:[],confirmedManual:[]});
   const enrollments = readStoredJson(KEYS.enrollments, {}), records = readStoredJson(KEYS.records, {}), progress = readStoredJson(KEYS.progress, {});
   const valid = Object.entries(enrollments).every(([id, list]) => sems.has(id) && Array.isArray(list) && list.every(c => codes.has(c)))
     && Object.entries(records).every(([id, entries]) => sems.has(id) && Object.entries(entries).every(([code, record]) => codes.has(code)
       && [...(record.assignments || []), ...(record.viewedLessons || [])].every(n => n <= codes.get(code).lessons)))
     && Object.entries(progress).every(([code, n]) => codes.has(code) && n <= codes.get(code).lessons * 4)
-    && readStoredJson(KEYS.applications, []).every(a => sems.has(String(a.semesterId)));
+    && readStoredJson(KEYS.applications, []).every(a => sems.has(String(a.semesterId)))
+    && Array.isArray(badgePrefs?.goals) && badgePrefs.goals.every(id => badgeIds.has(id))
+    && Array.isArray(badgePrefs?.confirmedManual) && badgePrefs.confirmedManual.every(id => manualIds.has(id));
   if (!valid) throw new Error('端末にある科目・学期の記録をすべて引き継げないため、読み込みを中止しました。対応する資料データを確認してください。');
 }
 

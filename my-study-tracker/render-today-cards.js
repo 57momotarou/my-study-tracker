@@ -27,7 +27,7 @@ function buildTodayCard(item, sem, semId, mode) {
   const btnHtml = renderLessonButtons(s, sem, semId);
 
   return `
-    <div class="today-subject-card" style="border-left:3px solid ${color};margin-bottom:8px">
+    <div class="today-subject-card" data-today-code="${s.code}" data-today-mode="${mode}" style="border-left:3px solid ${color};margin-bottom:8px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
           <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:3px"></div>
@@ -40,6 +40,7 @@ function buildTodayCard(item, sem, semId, mode) {
         <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${color}">${pct}%</span>
       </div>
       <div class="prog-wrap" style="margin-bottom:0"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>
+      ${mode==='tomorrow'?`<p class="today-plan-caption">${item.nextSession?`次の予定：${planDateLabel(item.nextSession.day)} ${planTimeLabel(item.nextSession.start)} · ${item.nextSession.kind==='exam'?'期末':`コマ${item.nextSession.lesson}`}`:'予定未配置：予定タブで残りの学習枠を確認してください'}</p>`:''}
       ${btnHtml}
       <div style="display:flex;gap:10px;margin-top:6px;font-size:10px;color:var(--text3)">
         <span><span style="color:${color}">■</span> 完了</span>

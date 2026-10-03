@@ -154,12 +154,23 @@ function buildStudyPlan(semester, now=new Date()) {
     reserveMinutes:sessions.filter(s=>s.reserve).reduce((n,s)=>n+s.minutes,0),unknown:tasks.filter(t=>!t.confirmed).length};
 }
 let plannerView='month',plannerAnchor=null,plannerSemester=null,plannerSelectedDay=null,latestStudyPlan=null;
-function setPlannerView(view) {plannerView=['month','week','overview'].includes(view)?view:'month';renderSchedulePage();}
-function shiftPlannerDate(days) {plannerAnchor=addPlanDays(plannerAnchor,days);renderSchedulePage();}
+let plannerWeekStart=null,plannerWeekToday=null;
+function getPlannerWeekStart(now=new Date()) {
+  const today=japanDate(now);
+  if(!plannerWeekStart||plannerWeekToday!==today){plannerWeekStart=today;plannerWeekToday=today;}
+  return plannerWeekStart;
+}
+function setPlannerView(view,weekStart=null) {
+  plannerView=['month','week','overview'].includes(view)?view:'month';
+  if(plannerView==='week'){plannerWeekToday=japanDate();plannerWeekStart=validCalendarDate(weekStart)?weekStart:plannerWeekToday;}
+  renderSchedulePage();
+}
+function shiftPlannerDate(days) {plannerWeekStart=addPlanDays(getPlannerWeekStart(),days);renderSchedulePage();}
 function initializePlanner(semester,now=new Date()) {
   if(plannerSemester!==semester.id||!plannerAnchor){
     plannerSemester=semester.id;plannerAnchor=japanDate(now)<semester.start?semester.start:japanDate(now);
     plannerSelectedDay=plannerAnchor;scheduleMonthKey=plannerAnchor.slice(0,7)+'-01';
+    plannerWeekStart=japanDate(now);plannerWeekToday=plannerWeekStart;
   }
 }
 function plannerRiskHTML(plan) {
@@ -232,15 +243,16 @@ function renderStudyPlanner(semester,plan) {
       ${!plan.risk.length&&plan.tasks.length?'<p class="plan-ok">残りの授業・課題・期末を締切前に配置しました。</p>':''}
       <ol class="plan-phases"><li>開始済みの授業から、締切順に配置。</li><li>できなかった分は、次に開いたとき・表示中の更新時に自動で再配置。</li><li>通常枠で足りない期間だけ予備枠を使用。確保できない分は要調整として表示。</li></ol></div>
       <div class="card"><h2 class="card-title">週ごとの見通し</h2>${weeks.size?[...weeks].map(([day,w])=>`<button class="plan-week-link" data-plan-week="${day}"><span>${planDateLabel(day)}〜<small>${w.codes.size}科目${w.reserve?` · 予備${hours(w.reserve)}時間`:''}</small></span><strong>${hours(w.minutes)}時間 ›</strong></button>`).join(''):'<p class="settings-note">履修科目と残りの進捗を確認してください。</p>'}</div>`;
-    root.querySelectorAll('[data-plan-week]').forEach(b=>b.addEventListener('click',()=>{plannerAnchor=b.dataset.planWeek;setPlannerView('week');}));
+    root.querySelectorAll('[data-plan-week]').forEach(b=>b.addEventListener('click',()=>setPlannerView('week',b.dataset.planWeek)));
   } else {
-    const monday=addPlanDays(plannerAnchor,-((planDayOfWeek(plannerAnchor)+6)%7));
-    root.innerHTML=`<div class="card"><div class="card-label">WEEK</div><h2 class="card-title">1週間のスケジュール</h2>${plannerDateNav(7)}<p class="plan-day-label">${planDateLabel(monday)}〜${planDateLabel(addPlanDays(monday,6))}</p>${note}${plannerStatusHTML(plan)}
-      <div class="plan-week">${Array.from({length:7},(_,i)=>{const day=addPlanDays(monday,i),info=planDayInfo(day),sessions=plan.sessions.filter(s=>s.day===day);return `<article class="plan-day ${info.holiday?'holiday':''}"><div class="plan-day-heading"><strong>${planDateLabel(day)}</strong><span>${escapeText(info.label)}</span></div>
+    const weekStart=getPlannerWeekStart();
+    root.innerHTML=`<div class="card"><div class="card-label">WEEK</div><h2 class="card-title">1週間のスケジュール</h2>${plannerDateNav(7)}<p class="plan-day-label">${planDateLabel(weekStart)}〜${planDateLabel(addPlanDays(weekStart,6))} <button type="button" class="inline-link" data-plan-today>今日から表示</button></p>${note}${plannerStatusHTML(plan)}
+      <div class="plan-week">${Array.from({length:7},(_,i)=>{const day=addPlanDays(weekStart,i),info=planDayInfo(day),sessions=plan.sessions.filter(s=>s.day===day);return `<article class="plan-day ${info.holiday?'holiday':''}${day===japanDate()?' is-today':''}" data-plan-day="${day}"><div class="plan-day-heading"><strong>${day===japanDate()?'今日 · ':''}${planDateLabel(day)}</strong><span>${escapeText(info.label)}</span></div>
         ${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">祝日未登録：土日のみ休日扱い</p>'}</article>`;}).join('')}</div></div>`;
   }
   root.querySelectorAll('[data-plan-shift]').forEach(b=>b.addEventListener('click',()=>shiftPlannerDate(Number(b.dataset.planShift))));
-  root.querySelector('[data-plan-date]')?.addEventListener('change',e=>{if(validCalendarDate(e.target.value)){plannerAnchor=e.target.value;renderSchedulePage();}});
+  root.querySelector('[data-plan-date]')?.addEventListener('change',e=>{if(validCalendarDate(e.target.value)){plannerWeekStart=e.target.value;plannerWeekToday=japanDate();renderSchedulePage();}});
+  root.querySelector('[data-plan-today]')?.addEventListener('click',()=>setPlannerView('week'));
   bindPlannerActions(root,semester.id);
 }
-function plannerDateNav(step) {return `<div class="planner-date-nav"><button class="data-transfer-btn" data-plan-shift="${-step}" aria-label="前の週">‹</button><input data-plan-date type="date" aria-label="表示する週の日付" value="${plannerAnchor}" min="2000-01-01" max="2100-12-31"><button class="data-transfer-btn" data-plan-shift="${step}" aria-label="次の週">›</button></div>`;}
+function plannerDateNav(step) {return `<div class="planner-date-nav"><button class="data-transfer-btn" data-plan-shift="${-step}" aria-label="7日前から表示">‹</button><input data-plan-date type="date" aria-label="表示を開始する日" value="${getPlannerWeekStart()}" min="2000-01-01" max="2100-12-31"><button class="data-transfer-btn" data-plan-shift="${step}" aria-label="7日後から表示">›</button></div>`;}

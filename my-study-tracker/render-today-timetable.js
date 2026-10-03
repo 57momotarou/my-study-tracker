@@ -8,6 +8,14 @@
 //   3. 8日以上先（daysToNext > 7）    → 先取り推奨 最大2科目
 //   4. 全完了                          → 🎉
 // ============================================================
+function sortAdvanceRecommendations(items, plan) {
+  const nextByCode=new Map();
+  for(const session of plan.sessions) {
+    if(!nextByCode.has(session.code)||session.start<nextByCode.get(session.code).start)nextByCode.set(session.code,session);
+  }
+  return items.filter(i=>!i.allDone).map(i=>({...i,nextSession:nextByCode.get(i.s.code)||null}))
+    .sort((a,b)=>(a.nextSession?.start??Infinity)-(b.nextSession?.start??Infinity)||a.nextDeadline-b.nextDeadline||a.s.code.localeCompare(b.s.code));
+}
 function renderTodayTimetable(subjects, sem, semId) {
   const ttEl = document.getElementById('today-timetable');
   ttEl.innerHTML = '';
@@ -77,13 +85,10 @@ function renderTodayTimetable(subjects, sem, semId) {
   }
 
   // グループ3：先取り推奨（daysToNext > 7）
-  const advanceList = withState
-    .filter(i => !i.allDone)
-    .sort((a, b) => a.nextDeadline - b.nextDeadline)
-    .slice(0, 2);
+  const advanceList = sortAdvanceRecommendations(withState,buildStudyPlan(sem,now)).slice(0,2);
 
   if (advanceList.length > 0) {
-    ttEl.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✨ 先取り推奨（締切まで余裕あり）</div>`
+    ttEl.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✨ 先取り推奨（予定が早い順）</div>`
       + advanceList.map(item => buildTodayCard(item, sem, semId, 'tomorrow')).join('');
     return;
   }

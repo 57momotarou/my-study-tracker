@@ -3,7 +3,7 @@
 // ============================================================
 
 const BACKUP_FORMAT = 'my-study-tracker-backup';
-const BACKUP_VERSION = 3;
+const BACKUP_VERSION = 4;
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 function setupDataTransfer() {
@@ -39,6 +39,7 @@ async function exportStudyData() {
         records: normalizeRecords(state.records),
         applications: normalizeApplications(state.applications),
         privateData: state.privateData,
+        badgePreferences: normalizeBadgePreferences(state.badgePreferences),
       },
     };
 
@@ -88,6 +89,7 @@ async function importStudyData(file) {
     const accepted = window.confirm(
       `履修 ${enrollmentCount}科目・動画進捗 ${progressCount}科目、成績・提出記録 ${Object.values(imported.records).reduce((sum, records) => sum + Object.keys(records).length, 0)}科目、申請予定 ${imported.applications.length}件を復元します。\n` +
       (payload.version === 1 ? '旧形式のため成績・課題・期末・申請予定は空になります。\n' : '') +
+      (payload.version < 4 ? 'この形式にはバッジの目標・追加条件確認がないため、それらは空になります。\n' : `バッジの目標 ${imported.badgePreferences.goals.length}件も復元します。\n`) +
       '現在この端末にあるデータは置き換わります。続けますか？'
     );
     if (!accepted) return;
@@ -152,7 +154,8 @@ function parseBackupPayload(payload) {
 
   const records = payload.version === 1 ? {} : validateRecords(payload.data.records);
   const applications = payload.version === 1 ? [] : normalizeApplications(payload.data.applications, true);
-  return { enrollments, progress, currentSemesterId, records, applications, privateData };
+  const badgePreferences = payload.version >= 4 ? normalizeBadgePreferences(payload.data.badgePreferences, true) : {goals:[],confirmedManual:[]};
+  return { enrollments, progress, currentSemesterId, records, applications, privateData, badgePreferences };
   } finally { hydratePrivateData(previousPrivate); }
 
 }

@@ -41,7 +41,7 @@ function getAllPlannedCodes() {
   return new Set(SEMESTERS.flatMap(semester => getEnrolledCodes(semester.id)));
 }
 
-function getBadgePlan(badge, codes, visiting = new Set()) {
+function getBadgePlan(badge, codes, visiting = new Set(), confirmedManual = new Set()) {
   if (!badge || visiting.has(badge.id)) return { satisfied: false, done: 0, total: 0, checks: [] };
   const next = new Set(visiting).add(badge.id);
   const req = badge.requirements || {};
@@ -60,15 +60,52 @@ function getBadgePlan(badge, codes, visiting = new Set()) {
     checks.push({ label: `${group.type}分野 ${credits}/${group.credits}単位`, done: credits >= group.credits });
   }
   for (const id of [...(req.prerequisite ? [req.prerequisite] : []), ...(req.prerequisites || [])]) {
-    checks.push({ label: `前提：${find(id)?.name || id}`, done: getBadgePlan(find(id), codes, next).satisfied });
+    checks.push({ label: `前提：${find(id)?.name || id}`, done: getBadgePlan(find(id), codes, next, confirmedManual).satisfied });
   }
   if (req.prerequisiteAny) checks.push({
     label: '前提：' + req.prerequisiteAny.map(id => find(id)?.name || id).join(' / ') + ' のいずれか',
-    done: req.prerequisiteAny.some(id => getBadgePlan(find(id), codes, next).satisfied),
+    done: req.prerequisiteAny.some(id => getBadgePlan(find(id), codes, next, confirmedManual).satisfied),
   });
-  if (req.manual) checks.push({ label: '卒研テーマ・追加条件は大学で確認', done: false });
+  if (req.manual) checks.push({ label: '卒研テーマ・追加条件の確認', done: confirmedManual.has(badge.id) });
   const done = checks.filter(check => check.done).length;
   return { satisfied: checks.length > 0 && done === checks.length, done, total: checks.length, checks };
+}
+
+// バッジの獲得は、いずれか一つの学期で全コマ＋期末を終えた科目から計算する。
+// 別々の学期の途中記録を足し合わせず、単位・成績の判定とも分ける。
+function getCompletedCourseCodes() {
+  const codes = new Set();
+  for (const sem of SEMESTERS) for (const subject of getRecordedSubjects(sem.id)) {
+    if (getCourseProgress(sem.id, subject).complete) codes.add(subject.code);
+  }
+  return codes;
+}
+function getBadgeAchievement(badge, completed = getCompletedCourseCodes()) {
+  return getBadgePlan(badge, completed, new Set(), new Set(state.badgePreferences?.confirmedManual || []));
+}
+function normalizeBadgePreferences(value, strict = false) {
+  const invalid = () => { if (strict) throw new Error('バッジの目標・追加条件確認の内容が不正です。'); };
+  if (!isPlainObject(value)) { invalid(); return { goals: [], confirmedManual: [] }; }
+  const result = {};
+  for (const key of ['goals', 'confirmedManual']) {
+    const ids = value[key];
+    if (!Array.isArray(ids) || ids.length > 300) { invalid(); result[key] = []; continue; }
+    result[key] = [];
+    for (const id of ids) {
+      const badge = BADGES.find(b => b.id === id);
+      if (!badge || (key === 'confirmedManual' && !badge.requirements.manual) || result[key].includes(id)) { invalid(); continue; }
+      result[key].push(id);
+    }
+  }
+  return result;
+}
+function toggleBadgePreference(key, id) {
+  const badge = BADGES.find(b => b.id === id);
+  if (!badge || !['goals','confirmedManual'].includes(key) || (key === 'confirmedManual' && !badge.requirements.manual)) return false;
+  const prefs = normalizeBadgePreferences(state.badgePreferences), ids = new Set(prefs[key]);
+  if (ids.has(id)) ids.delete(id); else ids.add(id);
+  state.badgePreferences = { ...prefs, [key]: [...ids] };
+  return saveState();
 }
 
 function getRelevantExams(semester) {

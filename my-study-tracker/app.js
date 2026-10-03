@@ -10,9 +10,10 @@ const KEYS = {
   records: 'cp-records-v1',
   applications: 'cp-applications-v1',
   privateData: 'cp-private-data-v1',
+  badgePreferences: 'cp-badges-v1',
 };
 
-let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], privateData:null, activeSubjectFilter:'all' };
+let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], privateData:null, badgePreferences:{goals:[],confirmedManual:[]}, activeSubjectFilter:'all' };
 
 document.addEventListener('DOMContentLoaded', () => {
   loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); setupPrivateData(); setupCalendarTouchGuard(); setupScheduleRefresh(); render(); registerSW();
@@ -34,6 +35,7 @@ function loadState(privateOverride, persistMigration = true) {
     state.progress = readStoredJson(KEYS.progress, {});
     state.records = readStoredJson(KEYS.records, {});
     state.applications = readStoredJson(KEYS.applications, []);
+    state.badgePreferences = readStoredJson(KEYS.badgePreferences, {goals:[],confirmedManual:[]});
     lastSavedState = snapshotStudyState();
     return;
   }
@@ -56,6 +58,7 @@ function loadState(privateOverride, persistMigration = true) {
   state.progress = normalizeProgress(progress);
   state.records = normalizeRecords(readStoredJson(KEYS.records, {}));
   state.applications = normalizeApplications(readStoredJson(KEYS.applications, []));
+  state.badgePreferences = normalizeBadgePreferences(readStoredJson(KEYS.badgePreferences, {}));
 
   const storedSemesterId = Number.parseInt(readStoredValue(KEYS.currentSem), 10);
   state.currentSemesterId = SEMESTERS.some(sem => sem.id === storedSemesterId)
@@ -138,7 +141,7 @@ function getDefaultSemesterId() {
 
 function snapshotStudyState() {
   return JSON.parse(JSON.stringify({ enrollments: state.enrollments, progress: state.progress,
-    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications, privateData: state.privateData }));
+    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications, privateData: state.privateData, badgePreferences: state.badgePreferences }));
 }
 
 function restoreStoredValues(previous) {
@@ -182,6 +185,7 @@ function saveState() {
       [KEYS.records]: JSON.stringify(state.records),
       [KEYS.applications]: JSON.stringify(state.applications),
       [KEYS.privateData]: JSON.stringify(state.privateData),
+      [KEYS.badgePreferences]: JSON.stringify(state.badgePreferences),
       [KEYS.migrated]: '1',
     };
     for (const key of Object.keys(values)) previous[key] = localStorage.getItem(key);
