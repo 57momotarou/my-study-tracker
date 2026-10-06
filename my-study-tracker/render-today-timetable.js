@@ -13,7 +13,10 @@ function sortAdvanceRecommendations(items, plan) {
   for(const session of plan.sessions) {
     if(!nextByCode.has(session.code)||session.start<nextByCode.get(session.code).start)nextByCode.set(session.code,session);
   }
-  return items.filter(i=>!i.allDone).map(i=>({...i,nextSession:nextByCode.get(i.s.code)||null}))
+  return items.filter(i=>!i.allDone).map(i=>{
+    const nextSession=nextByCode.get(i.s.code)||null;
+    return {...i,nextSession,...(nextSession ? {nextLesson:nextSession.kind==='exam' ? null : nextSession.lesson, nextDeadline:nextSession.deadline ?? i.nextDeadline} : {})};
+  })
     .sort((a,b)=>(a.nextSession?.start??Infinity)-(b.nextSession?.start??Infinity)||a.nextDeadline-b.nextDeadline||a.s.code.localeCompare(b.s.code));
 }
 function renderTodayTimetable(subjects, sem, semId) {
@@ -54,7 +57,7 @@ function renderTodayTimetable(subjects, sem, semId) {
     ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
       <div style="font-size:32px;margin-bottom:8px">🎉</div>
       <div style="font-size:15px;font-weight:700">全科目のコマ・期末が完了！</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px">課題提出と正式な成績は「進捗」で確認できます</div></div>`;
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">正式な成績は「進捗」で登録できます</div></div>`;
     return;
   }
 
@@ -88,7 +91,7 @@ function renderTodayTimetable(subjects, sem, semId) {
   const advanceList = sortAdvanceRecommendations(withState,buildStudyPlan(sem,now)).slice(0,2);
 
   if (advanceList.length > 0) {
-    ttEl.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✨ 先取り推奨（予定が早い順）</div>`
+    ttEl.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✨ 先取りおすすめ（カレンダーの予定順）</div>`
       + advanceList.map(item => buildTodayCard(item, sem, semId, 'tomorrow')).join('');
     return;
   }
@@ -97,5 +100,5 @@ function renderTodayTimetable(subjects, sem, semId) {
   ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
     <div style="font-size:32px;margin-bottom:8px">🎉</div>
     <div style="font-size:15px;font-weight:700">コマ・期末の記録が完了！</div>
-    <div style="font-size:12px;color:var(--text3);margin-top:4px">課題提出と正式な成績は「進捗」で確認できます</div></div>`;
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">正式な成績は「進捗」で登録できます</div></div>`;
 }

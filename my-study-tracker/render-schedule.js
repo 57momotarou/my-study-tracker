@@ -32,6 +32,7 @@ function renderMonthSchedule(subjects,sem,semId,plan) {
   const [year,month]=scheduleMonthKey.split('-').map(Number),firstDow=planDayOfWeek(scheduleMonthKey),days=new Date(Date.UTC(year,month,0)).getUTCDate();
   document.getElementById('schedule-month-label').textContent=`${year}年${month}月`;
   const today=japanDate(),exams=getRelevantExams(sem),el=document.getElementById('schedule-month');
+  const studiedDays = new Set(getStudyEntries().map(e=>e.date));
   const byDay=new Map();plan.sessions.forEach(s=>{if(!byDay.has(s.day))byDay.set(s.day,[]);byDay.get(s.day).push(s);});
   const deadlineMap=new Map();for(const s of subjects)for(let n=1;n<=s.lessons;n++){const d=japanDate(getLessonDeadline(n,s,sem));if(d.slice(0,7)!==scheduleMonthKey.slice(0,7))continue;if(!deadlineMap.has(d))deadlineMap.set(d,0);deadlineMap.set(d,deadlineMap.get(d)+1);}
   let html='<div class="month-weekdays">'+['日','月','火','水','木','金','土'].map(d=>`<span>${d}</span>`).join('')+'</div><div class="month-grid">';
@@ -39,12 +40,13 @@ function renderMonthSchedule(subjects,sem,semId,plan) {
   for(let n=1;n<=days;n++) {
     const day=`${year}-${String(month).padStart(2,'0')}-${String(n).padStart(2,'0')}`,info=planDayInfo(day),sessions=byDay.get(day)||[],skip=(state.privateData.planner.skipDates||[]).includes(day);
     const dayExams=exams.filter(e=>japanDate(parseDateValue(e.date))===day),apps=getApplications(semId).filter(a=>a.date===day),count=deadlineMap.get(day)||0;
-    html+=`<button type="button" class="month-day${day===today?' is-today':''}${info.holiday?' is-holiday':''}${skip?' is-skipped':''}" data-calendar-day="${day}" aria-pressed="${plannerSelectedDay===day}" aria-label="${planDateLabel(day)}、学習${sessions.length}枠${skip?'、勉強しない日':''}、詳細を表示">
-      <span class="month-day-number">${n}</span>${skip?'<span class="month-rest">休み</span>':sessions.slice(0,2).map(s=>`<span class="month-study-label" title="${escapeText(s.label)}">${escapeText(SUBJECT_BY_CODE.get(s.code).name)}<small>${s.kind==='exam'?'期末':`コマ${s.lesson}`}</small></span>`).join('')}
+    html+=`<button type="button" class="month-day${day===today?' is-today':''}${info.holiday?' is-holiday':''}${skip?' is-skipped':''}${studiedDays.has(day)?' has-study-record':''}" data-calendar-day="${day}" aria-pressed="${plannerSelectedDay===day}" aria-label="${planDateLabel(day)}、学習${sessions.length}枠${studiedDays.has(day)?'、🍑 勉強した日':''}${skip?'、勉強しない日':''}、詳細を表示">
+      <span class="month-day-top"><span class="month-day-number">${n}</span>${studiedDays.has(day)?'<span class="month-peach" aria-hidden="true">🍑</span>':''}</span>${skip?'<span class="month-rest">休み</span>':sessions.slice(0,2).map(s=>`<span class="month-study-label" title="${escapeText(s.label)}">${escapeText(SUBJECT_BY_CODE.get(s.code).name)}<small>${s.kind==='exam'?'期末':`コマ${s.lesson}`}</small></span>`).join('')}
       ${sessions.length>2?`<span class="month-more">＋${sessions.length-2}枠</span>`:''}
       ${count?`<span class="month-deadline-label">締切${count}件</span>`:''}${dayExams.length?'<span class="month-exam-label">期末締切</span>':''}${apps.length?'<span class="month-personal-label">自分の予定</span>':''}</button>`;
   }
-  html+='</div><p class="month-legend"><span class="month-study-key">■ その日にやる科目</span><span class="month-deadline-key">■ 大学の締切</span></p><p class="settings-note">日付をタップすると科目・コマ・学習時間が下に表示されます。</p>';
+  const studiedCount = [...studiedDays].filter(day=>day.slice(0,7)===scheduleMonthKey.slice(0,7)).length;
+  html+=`</div><p class="month-legend"><span class="month-study-key">■ その日にやる科目</span><span class="month-deadline-key">■ 大学の締切</span><span>🍑 勉強した日</span></p><p class="month-study-total">🍑 この月は${studiedCount}日勉強しました</p><p class="settings-note">色を付けた日に🍑がつきます。日付をタップすると記録を確認し、学習日を変更できます。</p>`;
   el.innerHTML=html;el.querySelectorAll('[data-calendar-day]').forEach(b=>b.addEventListener('click',()=>selectScheduleDay(b.dataset.calendarDay)));
   document.getElementById('schedule-plan-status').innerHTML=plannerStatusHTML(plan);
   renderScheduleDayDetails(plannerSelectedDay,sem,plan);
@@ -54,9 +56,10 @@ function renderScheduleDayDetails(day,semester,plan) {
   const sessions=plan.sessions.filter(s=>s.day===day),info=planDayInfo(day),deadlines=deadlinesForPlanDay(day,semester);
   const exams=getRelevantExams(semester).filter(e=>japanDate(parseDateValue(e.date))===day),apps=getApplications(semester.id).filter(e=>e.date===day);
   el.innerHTML=`<div class="selected-study-heading"><h3>${planDateLabel(day)}にやること</h3><span>${escapeText(info.label)}</span></div>
+    ${studyDayRecordsHTML(day)}
     ${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}
     ${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">この年の祝日は未登録です。</p>'}
-    ${deadlines.length||exams.length?`<details class="day-deadlines"><summary>この日の大学締切 ${deadlines.length+exams.length}件</summary>${deadlines.map(d=>`<p>${escapeText(d.subject.name)} コマ${d.n}<small>${planTimeLabel(d.deadline)} · ${d.done?'動画・課題済み':d.late?'期限超過':'未完了'}</small></p>`).join('')}${exams.map(e=>`<p>${escapeText(e.label)}<small>${planTimeLabel(parseDateValue(e.date))}まで</small></p>`).join('')}</details>`:''}
+    ${deadlines.length||exams.length?`<details class="day-deadlines"><summary>この日の大学締切 ${deadlines.length+exams.length}件</summary>${deadlines.map(d=>`<p>${escapeText(d.subject.name)} コマ${d.n}<small>${planTimeLabel(d.deadline)} · ${d.done?'視聴・課題提出済み':d.late?'期限超過':'未完了'}</small></p>`).join('')}${exams.map(e=>`<p>${escapeText(e.label)}<small>${planTimeLabel(parseDateValue(e.date))}まで</small></p>`).join('')}</details>`:''}
     ${apps.map(a=>`<div class="application-item"><strong>${escapeText(a.title)}</strong><p class="settings-note">${a.allDay?'終日':escapeText(a.time)} · ${a.done?'対応済み':'自分の予定'}</p></div>`).join('')}`;
   bindPlannerActions(el,semester.id);
 }

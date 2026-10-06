@@ -889,3 +889,32 @@ input, select, textarea { font-size:16px; }
 .badge-manual-check { display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.8;padding:12px 0; }
 .badge-manual-check input { width:18px;height:18px;flex-shrink:0;margin-top:3px;accent-color:var(--green); }
 .plan-day.is-today { border-color:var(--blue); }.today-plan-caption { font-size:11px;color:#a6cfff;margin:8px 0; }
+
+/* 学習日の記録と、目標から選ぶ次学期の科目 */
+.month-day-top { display:flex;align-items:center;justify-content:space-between;gap:2px;width:100%; }
+.month-peach { font-size:14px;line-height:1.2;flex-shrink:0; }
+.month-day.has-study-record { border-bottom:2px solid #f4a1b0; }
+.month-study-total { margin:12px 0 4px;color:#ffc4cf;font-size:13px;font-weight:700; }
+.study-day-records { margin:12px 0;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border); }
+.study-day-records h4 { font-size:13px;color:#ffc4cf;margin:0 0 10px; }
+.study-date-row { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,145px);gap:10px;align-items:center;padding:8px 0;font-size:12px; }
+.study-date-row>span { min-width:0;overflow-wrap:anywhere; }
+.study-date-row small { display:block;color:var(--text3);font-size:10px;margin-top:3px; }
+.study-date-row input { width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:8px 5px;border:1px solid var(--border);border-radius:7px;background:var(--bg3);color:var(--text);color-scheme:dark;font:inherit;font-size:16px;-webkit-appearance:none;appearance:none; }
+.study-date-row input::-webkit-date-and-time-value { text-align:left;min-width:0; }
+.study-date-row input::-webkit-datetime-edit { min-width:0;padding:0; }
+.badge-enrollment-suggestions { margin-bottom:16px;padding:14px 0;border-bottom:1px solid var(--border); }
+.badge-enrollment-suggestions h3 { font-size:14px;margin:0 0 8px;color:#b9d9fc; }
+.badge-candidate-group { border:1px solid var(--border);border-radius:9px;padding:12px;margin:12px 0; }
+.badge-candidate-group>summary { color:var(--amber);font-size:13px;cursor:pointer;overflow-wrap:anywhere; }
+.badge-candidate-group>summary small { display:block;color:var(--text3);font-size:11px;margin-top:5px; }
+.badge-enrollment-list { list-style:none;padding:0;margin:6px 0; }
+.badge-enrollment-course { border-bottom:1px solid var(--border);padding:12px 0;overflow-wrap:anywhere; }
+.badge-enrollment-course>div { display:flex;align-items:flex-start;justify-content:space-between;gap:8px; }
+.badge-enrollment-course strong { font-size:12px;min-width:0; }
+.candidate-tag { font-size:10px;color:#b9d9fc;background:#172b45;border-radius:5px;padding:3px 5px;flex-shrink:0; }
+.badge-enrollment-course small,.badge-enrollment-course p { display:block;font-size:10px;color:var(--text3);line-height:1.8;margin:5px 0 0; }
+@media (max-width:360px) {
+  .study-date-row { grid-template-columns:minmax(0,1fr) minmax(0,135px);gap:6px; }
+  .badge-enrollment-course>div { flex-direction:column;gap:5px; }
+}

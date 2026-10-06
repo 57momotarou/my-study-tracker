@@ -1,4 +1,4 @@
-// 学期ごとの成績・提出・受験記録。動画の旧保存形式は変更しない。
+// 着色は視聴・課題提出をまとめた一段階の完了記録。旧保存キーを引き継ぐ。
 const GRADE_POINTS = Object.freeze({ A: 4, B: 3, C: 2, D: 1, F: 0 });
 const GRADE_LABELS = Object.freeze({ A: 'A', B: 'B', C: 'C', D: 'D', F: 'F（不合格）', K: 'K（履修放棄）', P: 'P（単位認定）' });
 
@@ -21,7 +21,13 @@ function normalizeRecords(value) {
           ? [...new Set(record.assignments.filter(n => Number.isInteger(n) && n >= 1 && n <= subject.lessons))].sort((a, b) => a - b) : [],
         examTaken: record.examTaken === true,
         ...(Array.isArray(record.viewedLessons) ? { viewedLessons: [...new Set(record.viewedLessons.filter(n => Number.isInteger(n) && n >= 1 && n <= subject.lessons))].sort((a,b) => a-b) } : {}),
+        ...(isPlainObject(record.studyDates) ? { studyDates: Object.fromEntries(Object.entries(record.studyDates).filter(([unit, date]) => validStudyUnit(unit, subject) && validCalendarDate(date))) } : {}),
       };
+      // 以前どちらか一方で記録したコマも、今回の一段階の完了として引き継ぐ。
+      if (Array.isArray(records[code].viewedLessons)) {
+        const done = [...new Set([...records[code].viewedLessons, ...records[code].assignments])].sort((a,b) => a-b);
+        records[code].viewedLessons = done; records[code].assignments = [...done];
+      }
     });
     if (Object.keys(records).length) result[semester.id] = records;
   });
@@ -38,7 +44,8 @@ function validateRecords(value) {
           || !(record.grade === '' || Object.hasOwn(GRADE_LABELS, record.grade))
           || typeof record.examTaken !== 'boolean' || !Array.isArray(record.assignments)
           || record.assignments.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)
-          || (Object.hasOwn(record, 'viewedLessons') && (!Array.isArray(record.viewedLessons) || record.viewedLessons.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)))) {
+          || (Object.hasOwn(record, 'viewedLessons') && (!Array.isArray(record.viewedLessons) || record.viewedLessons.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)))
+          || (Object.hasOwn(record, 'studyDates') && (!isPlainObject(record.studyDates) || Object.entries(record.studyDates).some(([unit,date]) => !validStudyUnit(unit,subject) || !validCalendarDate(date))))) {
         throw new Error('成績・提出記録の内容が不正です。');
       }
     }
@@ -52,9 +59,9 @@ function getStudyRecord(semId, code) {
 
 function getViewedLessons(semId, code) {
   const record = getStudyRecord(semId, code);
-  if (Array.isArray(record.viewedLessons)) return record.viewedLessons;
+  if (Array.isArray(record.viewedLessons)) return [...new Set([...record.viewedLessons, ...(record.assignments || [])])].sort((a,b) => a-b);
   const count = Math.min(SUBJECT_BY_CODE.get(code)?.lessons || 0, Math.floor(getCompletedLessons(code) / 4));
-  return Array.from({length:count}, (_, i) => i + 1);
+  return [...new Set([...Array.from({length:count}, (_, i) => i + 1), ...(record.assignments || [])])].sort((a,b) => a-b);
 }
 function isLessonViewed(semId, code, lesson) { return getViewedLessons(semId, code).includes(lesson); }
 function getCourseProgress(semId, subject) {
@@ -90,24 +97,67 @@ function changeStudyRecord(semId, code, change) {
   return saveState();
 }
 
-function setAssignment(semId, code, lesson, checked) {
-  const subject = SUBJECT_BY_CODE.get(code);
-  const sem = SEMESTERS.find(item => item.id === semId);
-  if (!subject || !sem || !Number.isInteger(lesson) || lesson < 1 || lesson > subject.lessons
-      || !isLessonAvailable(lesson, subject, sem)) return false;
-  const assignments = new Set(getStudyRecord(semId, code).assignments);
-  if (checked) assignments.add(lesson); else assignments.delete(lesson);
-  return changeStudyRecord(semId, code, { assignments: [...assignments].sort((a, b) => a - b) });
+function validStudyUnit(unit, subject) {
+  return unit === 'exam' || (/^[1-9]\d*$/.test(unit) && Number(unit) <= subject.lessons);
 }
+function setLessonCompletion(semId, code, lesson, checked) {
+  const subject = SUBJECT_BY_CODE.get(code);
+  if (!subject || !SEMESTERS.some(s => s.id === semId) || !Number.isInteger(lesson) || lesson < 1 || lesson > subject.lessons) return false;
+  const done = new Set(getViewedLessons(semId, code)), record = getStudyRecord(semId, code), studyDates = {...record.studyDates};
+  if (checked) {
+    // 再度「完了」を指定しても、本人が変更した日付を上書きしない。
+    if (!done.has(lesson)) studyDates[lesson] = japanDate();
+    done.add(lesson);
+  } else { done.delete(lesson); delete studyDates[lesson]; }
+  const lessons = [...done].sort((a,b) => a-b);
+  return changeStudyRecord(semId, code, {viewedLessons:lessons, assignments:[...lessons], studyDates});
+}
+function setAssignment(semId, code, lesson, checked) { return setLessonCompletion(semId, code, lesson, checked); }
 
 function isLessonRecorded(semId, code, lesson) {
-  return isLessonViewed(semId, code, lesson) && getStudyRecord(semId, code).assignments.includes(lesson);
+  return isLessonViewed(semId, code, lesson);
 }
 
 function getAttendanceSummary(semId, subject) {
-  const record = getStudyRecord(semId, subject.code);
-  const count = record.assignments.filter(n => isLessonViewed(semId, subject.code, n)).length;
+  const count = getViewedLessons(semId, subject.code).length;
   return { count, required: Math.ceil(subject.lessons * 2 / 3) };
+}
+
+function setStudyDate(semId, code, unit, date) {
+  const subject = SUBJECT_BY_CODE.get(code), record = getStudyRecord(semId, code);
+  if (!subject || !validStudyUnit(String(unit),subject) || !validCalendarDate(date) || date > japanDate()
+      || !(unit === 'exam' ? record.examTaken : isLessonRecorded(semId,code,Number(unit)))) return false;
+  return changeStudyRecord(semId,code,{studyDates:{...record.studyDates,[unit]:date}});
+}
+function getStudyEntries(day = null) {
+  const entries = [];
+  for (const sem of SEMESTERS) for (const subject of getRecordedSubjects(sem.id)) {
+    const record = getStudyRecord(sem.id,subject.code), units = [...getViewedLessons(sem.id,subject.code).map(String), ...(record.examTaken ? ['exam'] : [])];
+    for (const unit of units) {
+      const date = record.studyDates?.[unit];
+      if (validCalendarDate(date) && (!day || date === day)) entries.push({semId:sem.id, code:subject.code, unit, date,
+        label:`${subject.name} ${unit === 'exam' ? '期末' : `コマ${unit}`}`, semester:sem.name});
+    }
+  }
+  return entries.sort((a,b) => a.date.localeCompare(b.date) || a.semId-b.semId || a.code.localeCompare(b.code) || (a.unit === 'exam' ? 999 : Number(a.unit))-(b.unit === 'exam' ? 999 : Number(b.unit)));
+}
+function studyDateInputHTML(semId, code, unit) {
+  const subject = SUBJECT_BY_CODE.get(code), date = getStudyRecord(semId,code).studyDates?.[unit] || '';
+  return `<input type="date" data-study-date="${unit}" data-study-code="${code}" data-study-sem="${semId}" value="${date}" min="2000-01-01" max="${japanDate()}" aria-label="${escapeText(subject.name)} ${unit === 'exam' ? '期末' : `コマ${unit}`}の学習日">`;
+}
+function studyDayRecordsHTML(day) {
+  const entries = getStudyEntries(day);
+  if (!entries.length) return '';
+  return `<section class="study-day-records"><h4>🍑 この日に勉強した記録 · ${entries.length}件</h4>${entries.map(e => `<label class="study-date-row"><span>${escapeText(e.label)}<small>${escapeText(e.semester)}</small></span>${studyDateInputHTML(e.semId,e.code,e.unit)}</label>`).join('')}<p class="settings-note">深夜に記録した分も、学習日を前日などへ変更できます。</p></section>`;
+}
+function bindStudyDateInputs(container, onSaved) {
+  container.querySelectorAll('[data-study-date]').forEach(input => input.addEventListener('change', () => {
+    const {studySem,studyCode,studyDate} = input.dataset;
+    const saved = setStudyDate(Number(studySem),studyCode,studyDate,input.value);
+    input.value = getStudyRecord(Number(studySem),studyCode).studyDates?.[studyDate] || '';
+    input.blur();
+    if (saved) onSaved(studyCode,studyDate);
+  }));
 }
 
 function getGradeSummary(semId = null) {
@@ -135,45 +185,27 @@ function getGradeSummary(semId = null) {
 }
 
 function renderSubjectChecks(subject, semId) {
-  const sem = SEMESTERS.find(item => item.id === semId);
   const record = getStudyRecord(semId, subject.code);
   const attendance = getAttendanceSummary(semId, subject);
-  const rows = Array.from({ length: subject.lessons }, (_, index) => {
-    const n = index + 1;
-    const available = isLessonAvailable(n, subject, sem);
-    return `<label class="assignment-check"><input type="checkbox" data-assignment="${n}" data-code="${subject.code}"
-      ${record.assignments.includes(n) ? 'checked' : ''} ${available ? '' : 'disabled'}
-      aria-label="${escapeText(subject.name)} 第${n}回の課題提出"><span>${n}回</span></label>`;
-  }).join('');
+  const units = [...getViewedLessons(semId,subject.code).map(String), ...(record.examTaken ? ['exam'] : [])];
+  const rows = units.map(unit => `<label class="study-date-row"><span>${unit === 'exam' ? '期末' : `コマ${unit}`}<small>${record.studyDates?.[unit] ? '学習日' : '日付未記録'}</small></span>${studyDateInputHTML(semId,subject.code,unit)}</label>`).join('');
   return `<details class="study-checks" data-checks-code="${subject.code}">
-    <summary>課題 ${record.assignments.length}/${subject.lessons}回 · 期末 ${record.examTaken ? '受験済み' : '未記録'}</summary>
-    <p class="settings-note">提出した回だけチェックしてください。動画の記録とは別に保存します。</p>
-    <div class="assignment-grid">${rows}</div>
-    <label class="exam-check"><input type="checkbox" data-exam="${subject.code}" ${record.examTaken ? 'checked' : ''}>期末試験を受験した</label>
-    <p class="settings-note">動画＋課題の記録：${attendance.count}/${subject.lessons}回。3分の2の目安：${attendance.required}回。
+    <summary>🍑 学習日を確認・変更</summary>
+    <p class="settings-note">色を付けた日を学習日として保存します。日付をまたいだ分は変更できます。以前の記録に日付は自動で付けません。</p>
+    ${rows || '<p class="settings-note">コマや期末を完了にすると、学習日がここに表示されます。</p>'}
+    <p class="settings-note">視聴・課題提出済み：${attendance.count}/${subject.lessons}回。3分の2の目安：${attendance.required}回。
     正式な出席・受験可否はCloud Campusで確認してください。</p>
   </details>`;
 }
 
 function bindStudyChecks(container, semId) {
-  container.querySelectorAll('[data-assignment]').forEach(input => input.addEventListener('change', () => {
-    const code = input.dataset.code;
-    setAssignment(semId, code, Number(input.dataset.assignment), input.checked);
-    refreshStudyChecks(code, input.dataset.assignment);
-  }));
-  container.querySelectorAll('[data-exam]').forEach(input => input.addEventListener('change', () => {
-    const code = input.dataset.exam;
-    changeStudyRecord(semId, code, { examTaken: input.checked });
-    refreshStudyChecks(code, 'exam');
-  }));
+  bindStudyDateInputs(container,refreshStudyChecks);
 }
 
 function refreshStudyChecks(code, field) {
   const opened = [...document.querySelectorAll('[data-checks-code][open]')].map(item => item.dataset.checksCode);
   renderProgressPage();
   document.querySelectorAll('[data-checks-code]').forEach(item => { item.open = opened.includes(item.dataset.checksCode); });
-  const selector = field === 'exam' ? `[data-exam="${code}"]` : `[data-code="${code}"][data-assignment="${field}"]`;
-  document.querySelector(selector)?.focus({ preventScroll: true });
 }
 
 let progressView = 'learning';

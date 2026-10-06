@@ -89,7 +89,8 @@ function ensurePrivateCompatibility(data) {
   const enrollments = readStoredJson(KEYS.enrollments, {}), records = readStoredJson(KEYS.records, {}), progress = readStoredJson(KEYS.progress, {});
   const valid = Object.entries(enrollments).every(([id, list]) => sems.has(id) && Array.isArray(list) && list.every(c => codes.has(c)))
     && Object.entries(records).every(([id, entries]) => sems.has(id) && Object.entries(entries).every(([code, record]) => codes.has(code)
-      && [...(record.assignments || []), ...(record.viewedLessons || [])].every(n => n <= codes.get(code).lessons)))
+      && [...(record.assignments || []), ...(record.viewedLessons || [])].every(n => n <= codes.get(code).lessons)
+      && Object.keys(record.studyDates || {}).every(unit => validStudyUnit(unit,codes.get(code)))))
     && Object.entries(progress).every(([code, n]) => codes.has(code) && n <= codes.get(code).lessons * 4)
     && readStoredJson(KEYS.applications, []).every(a => sems.has(String(a.semesterId)))
     && Array.isArray(badgePrefs?.goals) && badgePrefs.goals.every(id => badgeIds.has(id))

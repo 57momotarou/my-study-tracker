@@ -11,10 +11,16 @@ function renderBadgesPage() {
       const a = status.get(b.id);
       return `<button type="button" class="badge-goal-link" data-badge-open="${b.id}"><span>★ ${escapeText(b.name)}<small>${a.satisfied ? '✓ 獲得済み' : `あと${a.total-a.done}条件 · 必要な科目を見る`}</small></span><span aria-hidden="true">›</span></button>`;
     }).join('') : '<p class="settings-note">下の「目標にする」で、欲しいバッジを登録できます。</p>'}</div>
+    ${renderGoalEnrollmentCandidates()}
     <div class="badge-rank-filters" aria-label="獲得・目標で絞り込み">${[['all','すべて'],['goals','目標'],['earned','獲得済み']].map(([value,label]) => `<button class="filter-btn${badgeStatusFilter===value?' active':''}" data-badge-status="${value}" aria-pressed="${badgeStatusFilter===value}">${label}</button>`).join('')}</div>
     <div class="badge-rank-filters" aria-label="ランクで絞り込み">${['all',...ranks].map(rank => `<button class="filter-btn${badgeRankFilter===rank?' active':''}" data-badge-rank="${rank}" aria-pressed="${badgeRankFilter===rank}">${rank==='all'?'全ランク':BADGE_LEVEL_CONFIG[rank].label}</button>`).join('')}</div>`;
   document.querySelectorAll('[data-badge-rank]').forEach(b => b.addEventListener('click', () => { badgeRankFilter=b.dataset.badgeRank; renderBadgesPage(); }));
   document.querySelectorAll('[data-badge-status]').forEach(b => b.addEventListener('click', () => { badgeStatusFilter=b.dataset.badgeStatus; renderBadgesPage(); }));
+  document.querySelector('[data-next-enrollment]')?.addEventListener('click',event=>{
+    state.currentSemesterId=Number(event.currentTarget.dataset.nextEnrollment);
+    if (!saveState()) return;
+    renderHeader(); activatePage('settings'); document.querySelector('[data-settings-tab="enrollment"]')?.click();
+  });
   const container = document.getElementById('badge-list-container'); container.replaceChildren();
   for (const rank of ranks.filter(r => badgeRankFilter==='all' || badgeRankFilter===r)) {
     const level = BADGE_LEVEL_CONFIG[rank];

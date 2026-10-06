@@ -3,7 +3,7 @@
 // ============================================================
 
 const BACKUP_FORMAT = 'my-study-tracker-backup';
-const BACKUP_VERSION = 4;
+const BACKUP_VERSION = 5;
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 function setupDataTransfer() {
@@ -90,6 +90,7 @@ async function importStudyData(file) {
       `履修 ${enrollmentCount}科目・動画進捗 ${progressCount}科目、成績・提出記録 ${Object.values(imported.records).reduce((sum, records) => sum + Object.keys(records).length, 0)}科目、申請予定 ${imported.applications.length}件を復元します。\n` +
       (payload.version === 1 ? '旧形式のため成績・課題・期末・申請予定は空になります。\n' : '') +
       (payload.version < 4 ? 'この形式にはバッジの目標・追加条件確認がないため、それらは空になります。\n' : `バッジの目標 ${imported.badgePreferences.goals.length}件も復元します。\n`) +
+      (payload.version < 5 ? '以前の完了分で学習日が未記録のものには、日付を自動追加しません。\n' : `🍑 学習日も復元します。\n`) +
       '現在この端末にあるデータは置き換わります。続けますか？'
     );
     if (!accepted) return;

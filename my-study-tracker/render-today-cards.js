@@ -22,7 +22,7 @@ function buildTodayCard(item, sem, semId, mode) {
     badgeClass = 'badge-warn';
   }
 
-  const nowLbl = doneLes > 0 ? `${doneLes}/${s.lessons}コマ視聴済み` : '未視聴';
+  const nowLbl = doneLes > 0 ? `${doneLes}/${s.lessons}コマ提出済み` : '未完了';
 
   const btnHtml = renderLessonButtons(s, sem, semId);
 
@@ -36,7 +36,7 @@ function buildTodayCard(item, sem, semId, mode) {
         <span class="today-subject-badge ${badgeClass}" style="flex-shrink:0">${badgeText}</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:11px;color:var(--text3)">動画：${nowLbl}</span>
+        <span style="font-size:11px;color:var(--text3)">視聴・課題：${nowLbl}</span>
         <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${color}">${pct}%</span>
       </div>
       <div class="prog-wrap" style="margin-bottom:0"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>

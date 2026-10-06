@@ -34,7 +34,10 @@ function renderStudentGuide(query = '') {
     summary.textContent = section.title;
     const content = document.createElement('div');
     content.className = 'guide-content';
-    content.innerHTML = sanitizeGuideHTML(section.html);
+    // 非公開資料内の旧アプリ操作説明だけを現在の一段階の記録に合わせる。
+    const html = section.html.replace(/<p>「進捗」の動画ボタンは視聴記録です。[^<]*<\/p>/g,
+      '<p>「進捗」でコマに色を付けると、視聴・課題提出済みとして記録します。全コマと期末で学習完了です。学習日は🍑の記録から変更できます。正式な出席・提出状況はCloud Campusで確認してください。</p>');
+    content.innerHTML = sanitizeGuideHTML(html);
     const searchable = `${section.title} ${section.tags} ${content.textContent}`.normalize('NFKC').toLocaleLowerCase();
     if (!terms.every(term => searchable.includes(term))) return;
     const source = document.createElement('p');

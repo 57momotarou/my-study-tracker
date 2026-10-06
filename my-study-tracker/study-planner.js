@@ -54,11 +54,10 @@ function pendingStudyTasks(semester) {
   for (const s of getEnrolledSubjects(semester.id)) {
     const record = getStudyRecord(semester.id, s.code);
     for (let n = 1; n <= s.lessons; n++) {
-      const viewed = isLessonViewed(semester.id, s.code, n), submitted = record.assignments.includes(n);
-      if (viewed && submitted) continue;
-      const minutes = (viewed ? 0 : profile.lessonMinutes - profile.assignmentMinutes) + (submitted ? 0 : profile.assignmentMinutes);
+      if (isLessonRecorded(semester.id, s.code, n)) continue;
+      const minutes = profile.lessonMinutes;
       tasks.push({ id: `${s.code}-${n}`, code: s.code, lesson: n, kind: 'lesson',
-        label: `${s.name} コマ${n}${viewed ? ' 課題' : submitted ? ' 視聴' : ' 視聴・課題'}`,
+        label: `${s.name} コマ${n} 視聴・課題`,
         minutes, remaining: minutes, start: getLessonStart(n, s, semester).getTime(),
         deadline: getLessonDeadline(n, s, semester).getTime(), confirmed: Boolean(confirmedLessonDeadline(s, semester, n)) });
     }
@@ -108,7 +107,7 @@ function allocateStudyTasks(sourceTasks, slots, useTargets) {
       if(minutes<1)break;
       const end=cursor+minutes*60000;
       sessions.push({day:slot.day,start:cursor,end,taskId:task.id,code:task.code,lesson:task.lesson,kind:task.kind,label:task.label,
-        minutes,partial:minutes<task.minutes,reserve:slot.reserve,confirmed:task.confirmed,deadline:task.deadline,late:false});
+        minutes,partial:minutes<task.minutes,reserve:slot.reserve,weekendAdjustment:slot.reserve && isPlanWeekend(slot.day),confirmed:task.confirmed,deadline:task.deadline,late:false});
       task.remaining-=minutes;task.finish=end;cursor=end;
     }
   }
@@ -124,7 +123,7 @@ function allocateWithReserves(tasks, primary, reserve, chosen, useTargets) {
     for(const task of missing) {
       const end=useTargets?task.target:task.deadline;
       let shortage=task.remaining;
-      for(const slot of [...reserve].sort((a,b)=>b.start-a.start)) {
+      for(const slot of [...reserve].sort((a,b)=>Number(isPlanWeekend(b.day))-Number(isPlanWeekend(a.day)) || b.start-a.start)) {
         if(chosen.has(slot.id))continue;
         const usable=Math.floor((Math.min(slot.end,end)-Math.max(slot.start,task.start))/60000);
         if(usable<=0||(task.kind==='exam'&&usable<task.minutes))continue;
@@ -137,6 +136,7 @@ function allocateWithReserves(tasks, primary, reserve, chosen, useTargets) {
   }
   return allocation;
 }
+function isPlanWeekend(day) { return [0,6].includes(planDayOfWeek(day)); }
 function buildStudyPlan(semester, now=new Date()) {
   const profile=state.privateData.planner,lead=(profile.leadDays||0)*86400000;
   const source=pendingStudyTasks(semester).map(t=>({...t,target:Math.min(t.deadline,Math.max(t.start+t.minutes*60000,t.deadline-lead))}));
@@ -184,7 +184,9 @@ function plannerRiskHTML(plan) {
 }
 function plannerStatusHTML(plan) {
   const p=state.privateData.planner;
-  return `<p class="settings-note">未完了分は${planTimeLabel(plan.generatedAt)}時点で自動調整。できた分を記録すると再配置します。できない日は「この日は勉強しない」で先に除外できます。</p>
+  const weekendMinutes = plan.sessions.filter(s=>s.weekendAdjustment).reduce((n,s)=>n+s.minutes,0);
+  return `<p class="settings-note">未完了分は${planTimeLabel(plan.generatedAt)}時点で自動調整。通常枠で足りない期間は土日の予備枠を優先します。色を付けたコマは課題も提出済みとして再配置から外します。</p>
+    ${weekendMinutes ? `<p class="plan-ok">土日の夜に${weekendMinutes}分を追加して調整しています。</p>` : ''}
     ${(p.scheduleRevision||0)<2?'<p class="plan-warning">生活時間の更新があります。今回の非公開JSONを設定 → データから読み直してください。</p>':''}${plannerRiskHTML(plan)}`;
 }
 function toggleSkippedStudyDay(day) {
@@ -201,22 +203,17 @@ function skipStudyDayButton(day) {
   return `<button type="button" class="data-transfer-btn skip-study-day" data-skip-study-day="${day}" aria-pressed="${skipped}">${skipped?'この日の学習を再開':'この日は勉強しない'}</button>`;
 }
 function planSessionHTML(s,semId=state.currentSemesterId) {
-  const record=getStudyRecord(semId,s.code),subject=SUBJECT_BY_CODE.get(s.code),sem=SEMESTERS.find(s=>s.id===semId);
   const controls=s.kind==='exam'?`<button class="plan-record-btn" data-plan-exam="${s.code}">期末を受験済みにする</button>`:
-    `<button class="plan-record-btn" data-plan-viewed="${s.code}" data-plan-lesson="${s.lesson}" aria-pressed="${isLessonViewed(semId,s.code,s.lesson)}">${isLessonViewed(semId,s.code,s.lesson)?'✓ 視聴済み':'視聴済みにする'}</button>
-    <button class="plan-record-btn" data-plan-assignment="${s.code}" data-plan-lesson="${s.lesson}" aria-pressed="${record.assignments.includes(s.lesson)}" ${isLessonAvailable(s.lesson,subject,sem)?'':'disabled'}>${record.assignments.includes(s.lesson)?'✓ 課題提出済み':'課題提出済みにする'}</button>`;
-  return `<article class="plan-session" data-plan-task="${s.taskId}"><time>${planTimeLabel(s.start)}〜${planTimeLabel(s.end)}${s.reserve?' · 予備枠':''}</time>
+    `<button class="plan-record-btn" data-plan-viewed="${s.code}" data-plan-lesson="${s.lesson}" aria-pressed="${isLessonRecorded(semId,s.code,s.lesson)}">${isLessonRecorded(semId,s.code,s.lesson)?'✓ 視聴・課題提出済み':'視聴・課題提出済みにする'}</button>`;
+  return `<article class="plan-session" data-plan-task="${s.taskId}"><time>${planTimeLabel(s.start)}〜${planTimeLabel(s.end)}${s.weekendAdjustment?' · 土日調整':s.reserve?' · 予備枠':''}</time>
     <strong>${escapeText(s.label)}${s.partial?`（この枠で${s.minutes}分）`:''}</strong><small>締切 ${planDateLabel(japanDate(new Date(s.deadline)))} ${planTimeLabel(s.deadline)}${s.confirmed?'':' · 日時未確認'}</small>
     <div class="plan-record-actions">${controls}</div></article>`;
 }
 function bindPlannerActions(root,semId=state.currentSemesterId) {
   root.querySelectorAll('[data-skip-study-day]').forEach(b=>b.addEventListener('click',()=>toggleSkippedStudyDay(b.dataset.skipStudyDay)));
   root.querySelectorAll('[data-plan-viewed]').forEach(b=>b.addEventListener('click',()=>toggleLesson(b.dataset.planViewed,Number(b.dataset.planLesson),semId)));
-  root.querySelectorAll('[data-plan-assignment]').forEach(b=>b.addEventListener('click',()=>{
-    const code=b.dataset.planAssignment,n=Number(b.dataset.planLesson);
-    setAssignment(semId,code,n,!getStudyRecord(semId,code).assignments.includes(n));renderSchedulePage();
-  }));
   root.querySelectorAll('[data-plan-exam]').forEach(b=>b.addEventListener('click',()=>toggleFinalExam(b.dataset.planExam,semId)));
+  bindStudyDateInputs(root,()=>renderSchedulePage());
 }
 function planDayEmptyText(day,semester,plan) {
   if((state.privateData.planner.skipDates||[]).includes(day))return '勉強しない日。未完了分は別の日へ再配置しました。';
@@ -233,7 +230,7 @@ function renderStudyPlanner(semester,plan) {
   document.getElementById('month-card').hidden=plannerView!=='month';root.hidden=plannerView==='month';
   if(plannerView==='month')return;
   const hours=n=>(n/60).toLocaleString('ja-JP',{maximumFractionDigits:1});
-  const note=`<p class="settings-note">授業＋課題${p.lessonMinutes}分・期末枠${p.examMinutes}分を目安に、${p.leadDays||0}日前の完了を優先します。実際の所要時間は科目に合わせてください。予備枠は必要な日のみ使います。</p>`;
+  const note=`<p class="settings-note">授業＋課題${p.lessonMinutes}分・期末枠${p.examMinutes}分を目安に、${p.leadDays||0}日前の完了を優先します。予備枠は必要な期間だけ、土日を先に使います。実際の所要時間は科目に合わせてください。</p>`;
   if(plannerView==='overview') {
     const baseMinutes=kind=>p[kind].filter(b=>b.kind==='study'&&!b.reserve).reduce((n,b)=>n+plannerMinutes(b.end)-plannerMinutes(b.start),0);
     const weeks=new Map();for(const s of plan.sessions){const day=addPlanDays(s.day,-((planDayOfWeek(s.day)+6)%7));if(!weeks.has(day))weeks.set(day,{minutes:0,codes:new Set(),reserve:0});const w=weeks.get(day);w.minutes+=s.minutes;w.codes.add(s.code);if(s.reserve)w.reserve+=s.minutes;}
@@ -241,14 +238,14 @@ function renderStudyPlanner(semester,plan) {
       <div class="record-stats"><div><strong>${hours(plan.required)}<small>時間</small></strong><span>残りの学習量</span></div><div><strong>${hours(baseMinutes('workday')*5+baseMinutes('holiday')*2)}<small>時間/週</small></strong><span>通常の学習枠</span></div><div><strong>${hours(plan.reserveMinutes)}<small>時間</small></strong><span>必要な予備枠の合計</span></div></div>
       <p class="settings-note">${escapeText(p.note)}</p>${note}${plannerStatusHTML(plan)}
       ${!plan.risk.length&&plan.tasks.length?'<p class="plan-ok">残りの授業・課題・期末を締切前に配置しました。</p>':''}
-      <ol class="plan-phases"><li>開始済みの授業から、締切順に配置。</li><li>できなかった分は、次に開いたとき・表示中の更新時に自動で再配置。</li><li>通常枠で足りない期間だけ予備枠を使用。確保できない分は要調整として表示。</li></ol></div>
+      <ol class="plan-phases"><li>開始済みの授業から、締切順に配置。</li><li>できなかった分は、次に開いたとき・表示中の更新時に自動で再配置。</li><li>不足分は土日の夜の予備枠を優先。土日だけでは間に合わない場合はほかの予備枠も使い、入らない分は要調整として表示。</li></ol></div>
       <div class="card"><h2 class="card-title">週ごとの見通し</h2>${weeks.size?[...weeks].map(([day,w])=>`<button class="plan-week-link" data-plan-week="${day}"><span>${planDateLabel(day)}〜<small>${w.codes.size}科目${w.reserve?` · 予備${hours(w.reserve)}時間`:''}</small></span><strong>${hours(w.minutes)}時間 ›</strong></button>`).join(''):'<p class="settings-note">履修科目と残りの進捗を確認してください。</p>'}</div>`;
     root.querySelectorAll('[data-plan-week]').forEach(b=>b.addEventListener('click',()=>setPlannerView('week',b.dataset.planWeek)));
   } else {
     const weekStart=getPlannerWeekStart();
     root.innerHTML=`<div class="card"><div class="card-label">WEEK</div><h2 class="card-title">1週間のスケジュール</h2>${plannerDateNav(7)}<p class="plan-day-label">${planDateLabel(weekStart)}〜${planDateLabel(addPlanDays(weekStart,6))} <button type="button" class="inline-link" data-plan-today>今日から表示</button></p>${note}${plannerStatusHTML(plan)}
       <div class="plan-week">${Array.from({length:7},(_,i)=>{const day=addPlanDays(weekStart,i),info=planDayInfo(day),sessions=plan.sessions.filter(s=>s.day===day);return `<article class="plan-day ${info.holiday?'holiday':''}${day===japanDate()?' is-today':''}" data-plan-day="${day}"><div class="plan-day-heading"><strong>${day===japanDate()?'今日 · ':''}${planDateLabel(day)}</strong><span>${escapeText(info.label)}</span></div>
-        ${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">祝日未登録：土日のみ休日扱い</p>'}</article>`;}).join('')}</div></div>`;
+        ${studyDayRecordsHTML(day)}${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">祝日未登録：土日のみ休日扱い</p>'}</article>`;}).join('')}</div></div>`;
   }
   root.querySelectorAll('[data-plan-shift]').forEach(b=>b.addEventListener('click',()=>shiftPlannerDate(Number(b.dataset.planShift))));
   root.querySelector('[data-plan-date]')?.addEventListener('change',e=>{if(validCalendarDate(e.target.value)){plannerWeekStart=e.target.value;plannerWeekToday=japanDate();renderSchedulePage();}});

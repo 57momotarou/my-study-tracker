@@ -1,4 +1,4 @@
-const APP_VERSION = '70';
+const APP_VERSION = '71';
 let pwaRegistration = null;
 let pendingAppReload = false;
 let appReloadStarted = false;
@@ -13,7 +13,8 @@ function setUpdateStatus(message) {
 
 function applyPendingUpdate() {
   if (!pendingAppReload || appReloadStarted) return;
-  if (document.getElementById('application-form')?.dataset.dirty === 'true' || dataTransferInProgress) {
+  if (document.getElementById('application-form')?.dataset.dirty === 'true' || dataTransferInProgress
+      || document.activeElement?.matches('[data-study-date]')) {
     let banner = document.getElementById('update-pending');
     if (!banner) {
       banner = document.createElement('div'); banner.id = 'update-pending'; banner.setAttribute('role', 'status');
@@ -62,6 +63,7 @@ function registerSW() {
     pwaRegistration = registration; checkAppUpdate();
   }).catch(error => { setUpdateStatus('更新機能を登録できませんでした。通信状態を確認してください。'); console.warn(error); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkAppUpdate(); });
+  document.addEventListener('focusout', () => { if (pendingAppReload) window.setTimeout(applyPendingUpdate,0); });
   window.addEventListener('pageshow', () => checkAppUpdate());
   window.addEventListener('focus', () => checkAppUpdate());
   window.addEventListener('online', () => checkAppUpdate(true));

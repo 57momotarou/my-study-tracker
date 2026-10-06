@@ -340,13 +340,13 @@ function renderHeader() {
 function toggleLesson(code, lessonNum, semId) {
   const subject = SUBJECT_BY_CODE.get(code);
   if (!subject || !SEMESTERS.some(s => s.id === semId) || !Number.isInteger(lessonNum) || lessonNum < 1 || lessonNum > subject.lessons) return;
-  const done = new Set(getViewedLessons(semId, code));
-  if (done.has(lessonNum)) done.delete(lessonNum); else done.add(lessonNum);
-  changeStudyRecord(semId, code, { viewedLessons: [...done].sort((a,b) => a-b) });
+  setLessonCompletion(semId, code, lessonNum, !isLessonRecorded(semId, code, lessonNum));
   rerenderAfterProgressChange();
 }
 function toggleFinalExam(code, semId) {
-  changeStudyRecord(semId, code, { examTaken: !getStudyRecord(semId, code).examTaken });
+  const record = getStudyRecord(semId,code), examTaken = !record.examTaken, studyDates = {...record.studyDates};
+  if (examTaken) studyDates.exam = japanDate(); else delete studyDates.exam;
+  changeStudyRecord(semId, code, { examTaken, studyDates });
   rerenderAfterProgressChange();
 }
 function toggleChapter(code, chapterNum, semId) {

@@ -56,7 +56,6 @@
     <!-- ===== 今日タブ ===== -->
     <div class="page active" id="page-today">
       <p class="settings-note" data-schedule-note hidden></p>
-      <div id="today-exam-alerts"></div>
       <div id="today-alerts"></div>
 
       <div class="card">
@@ -81,7 +80,7 @@
         <div id="semester-progress-selector" class="filter-row"></div>
       </div>
       <div class="progress-tabs" aria-label="進捗の表示">
-        <button type="button" data-progress-view="learning" aria-pressed="true" onclick="setProgressView('learning')">コマ・期末・課題</button>
+        <button type="button" data-progress-view="learning" aria-pressed="true" onclick="setProgressView('learning')">コマ・期末</button>
         <button type="button" data-progress-view="grades" aria-pressed="false" onclick="setProgressView('grades')">成績・単位</button>
       </div>
       <div id="progress-subject-list"></div>
@@ -201,7 +200,7 @@
       <div class="card" id="data-transfer-card">
         <div class="card-label">DATA</div>
         <div class="card-title">データの引き継ぎ</div>
-        <p class="data-transfer-description">非公開資料・生活時間・履修・進捗・成績・課題・期末・自分の予定・バッジの目標と追加条件確認をまとめてバックアップできます。同じURLでの通常更新では、端末の記録をそのまま引き継ぎます。</p>
+        <p class="data-transfer-description">非公開資料・生活時間・履修・進捗・成績・課題・期末・自分の予定・バッジの目標と追加条件確認・🍑の学習日をまとめてバックアップできます。同じURLでの通常更新では、端末の記録をそのまま引き継ぎます。</p>
         <div class="data-transfer-actions">
           <button type="button" class="data-transfer-btn primary" id="data-export-btn">バックアップを保存</button>
           <button type="button" class="data-transfer-btn" id="data-import-btn">バックアップを復元</button>
@@ -238,6 +237,7 @@
   <script src="./curriculum.js"></script>
   <script src="./attendance.js"></script>
   <script src="./study-records.js"></script>
+  <script src="./badge-candidates.js"></script>
   <script src="./calendar-export.js"></script>
   <script src="./pwa-update.js"></script>
   <script src="./render-today.js"></script>

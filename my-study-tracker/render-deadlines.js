@@ -41,7 +41,7 @@ function showDeadlineModal(subjectCode, semId) {
         <span style="font-size:14px;width:20px;text-align:center">${statusIcon}</span>
         <span style="font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);width:32px">コマ${n}</span>
         <span style="font-size:13px;${deadlineStyle};flex:1">〜 ${dateStr} 12:00</span>
-        <span style="font-size:10px;color:var(--text2)">動画${videoDone ? '✓' : '—'}<br>課題${taskDone ? '✓' : '—'}</span>
+        <span style="font-size:10px;color:var(--text2)">${isDone ? '視聴・提出済み' : '未完了'}</span>
         ${isNotYet && !isDone ? '<span style="font-size:10px;color:var(--text3)">未開講</span>' : ''}
         ${isLate && !isNotYet ? `<span style="font-size:10px;color:var(--red)">遅刻中</span>` : ''}
         ${isThisWeek && !isNotYet ? `<span style="font-size:10px;color:var(--amber)">今週期限</span>` : ''}
@@ -71,7 +71,7 @@ function showDeadlineModal(subjectCode, semId) {
         <div>
           <div style="font-size:10px;font-family:'Space Mono',monospace;color:var(--amber);letter-spacing:2px;margin-bottom:4px">DEADLINES</div>
           <div style="font-size:15px;font-weight:700">${s.name}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">${done}/${s.lessons}コマ視聴済み${partialChapter ? `（次のコマは第${partialChapter}章まで完了）` : ''}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${done}/${s.lessons}コマ提出済み${partialChapter ? `（次のコマは第${partialChapter}章まで完了）` : ''}</div>
         </div>
         <button aria-label="閉じる" onclick="document.getElementById('deadline-modal').remove()" style="
           background:var(--bg3);border:none;color:var(--text2);
