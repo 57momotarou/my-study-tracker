@@ -1,4 +1,4 @@
-const APP_VERSION = '71';
+const APP_VERSION = '72';
 let pwaRegistration = null;
 let pendingAppReload = false;
 let appReloadStarted = false;
@@ -14,7 +14,8 @@ function setUpdateStatus(message) {
 function applyPendingUpdate() {
   if (!pendingAppReload || appReloadStarted) return;
   if (document.getElementById('application-form')?.dataset.dirty === 'true' || dataTransferInProgress
-      || document.activeElement?.matches('[data-study-date]')) {
+      || document.activeElement?.matches('input,select,textarea') || document.getElementById('quiz-modal')
+      || document.querySelector('form[data-dirty="true"]')) {
     let banner = document.getElementById('update-pending');
     if (!banner) {
       banner = document.createElement('div'); banner.id = 'update-pending'; banner.setAttribute('role', 'status');

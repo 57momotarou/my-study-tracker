@@ -2,12 +2,7 @@
 // my-study-tracker - render-today-timetable.js
 // TODAYタブ：表示対象の判定ロジック（締切ベース）
 // ============================================================
-// 表示ルール：
-//   1. 期限切れ（late > 0）           → 遅刻中 締切近い順・1科目 + あとN科目バナー
-//   2. 7日以内に締切（daysToNext <= 7）→ 全科目表示
-//   3. 8日以上先（daysToNext > 7）    → 先取り推奨 最大2科目
-//   4. 全完了                          → 🎉
-// ============================================================
+// 月カレンダーと同じ朝6時の計画順。未配置は最後に締切順で表示する。
 function sortAdvanceRecommendations(items, plan) {
   const nextByCode=new Map();
   for(const session of plan.sessions) {
@@ -61,44 +56,9 @@ function renderTodayTimetable(subjects, sem, semId) {
     return;
   }
 
-  // グループ1：期限切れ（late > 0）
-  const lateList = withState
-    .filter(i => !i.allDone && i.late > 0)
-    .sort((a, b) => a.nextDeadline - b.nextDeadline);
+  const ordered=sortAdvanceRecommendations(withState,getScheduledStudyPlan(sem,now));
+  ttEl.innerHTML=ordered.map(item=>buildTodayCard(item,sem,semId,item.late?'overdue':item.daysToNext<=7?'today':'tomorrow')).join('');
+  return;
 
-  if (lateList.length > 0) {
-    const total = lateList.length;
-    let html = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">🔴 遅刻中（締切が近い順）全${total}科目</div>`;
-    html += buildTodayCard(lateList[0], sem, semId, 'overdue');
-    if (total > 1) {
-      html += `<div style="font-size:12px;color:var(--red);font-weight:700;padding:10px 12px;background:var(--red-dim);border:1px solid var(--red);border-radius:8px;text-align:center">🔴 あと ${total - 1} 科目も遅刻中です</div>`;
-    }
-    ttEl.innerHTML = html;
-    return;
-  }
 
-  // グループ2：7日以内に締切（daysToNext <= 7）
-  const urgentList = withState
-    .filter(i => !i.allDone && i.daysToNext <= 7)
-    .sort((a, b) => a.nextDeadline - b.nextDeadline);
-
-  if (urgentList.length > 0) {
-    ttEl.innerHTML = urgentList.map(item => buildTodayCard(item, sem, semId, 'today')).join('');
-    return;
-  }
-
-  // グループ3：先取り推奨（daysToNext > 7）
-  const advanceList = sortAdvanceRecommendations(withState,buildStudyPlan(sem,now)).slice(0,2);
-
-  if (advanceList.length > 0) {
-    ttEl.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">✨ 先取りおすすめ（カレンダーの予定順）</div>`
-      + advanceList.map(item => buildTodayCard(item, sem, semId, 'tomorrow')).join('');
-    return;
-  }
-
-  // フォールバック
-  ttEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--green)">
-    <div style="font-size:32px;margin-bottom:8px">🎉</div>
-    <div style="font-size:15px;font-weight:700">コマ・期末の記録が完了！</div>
-    <div style="font-size:12px;color:var(--text3);margin-top:4px">正式な成績は「進捗」で登録できます</div></div>`;
 }

@@ -55,10 +55,9 @@ function renderUpcoming(subjects, sem) {
   let html='';
   if (!items.length&&!html) { el.innerHTML=`<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">2週間以内の締切はありません 🎉</div>`; return; }
   items.sort((a,b)=>a.dl-b.dl);
-  html+=`<p class="settings-note">コマに色を付けると課題提出済みになり、一覧から消えます。<button class="inline-link" onclick="progressView='learning';activatePage('progress',document.querySelector('[data-page=progress]'))">進捗を記録</button></p>`;
   html+=items.map(({s,n,dl,isLate,days})=>{
     const color=getCategoryColor(s.category);
-    const dateStr=dl.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
+    const dateStr=dl.toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',weekday:'short'});
     let ls,lt,rs='';
     if(isLate)       {ls='color:var(--red)';  lt='遅刻中';        rs='border-left:3px solid var(--red);padding-left:10px';}
     else if(days<=3) {ls='color:var(--red)';  lt=`あと${days}日`; rs='border-left:3px solid var(--red);padding-left:10px';}
@@ -68,7 +67,7 @@ function renderUpcoming(subjects, sem) {
       <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
-        <div style="font-size:11px;color:var(--text3)">コマ${n} ・ 〜${dateStr} 12:00<br>視聴・課題提出 未完了</div>
+        <div style="font-size:11px;color:var(--text3)">コマ${n} ・ ${dateStr} ${planTimeLabel(dl.getTime())}</div>
       </div>
       <span style="font-size:11px;font-weight:700;${ls};flex-shrink:0">${lt}</span></div>`;
   }).join('');

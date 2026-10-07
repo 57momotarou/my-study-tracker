@@ -918,3 +918,50 @@ input, select, textarea { font-size:16px; }
   .study-date-row { grid-template-columns:minmax(0,1fr) minmax(0,135px);gap:6px; }
   .badge-enrollment-course>div { flex-direction:column;gap:5px; }
 }
+
+/* v72：予定と記録を分け、目標は右上の星で選ぶ。 */
+.settings-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.record-caption { color:var(--text3);font-size:12px;line-height:1.7;margin:8px 0; }
+.badge-plan-item { position:relative;gap:0; }
+.badge-plan-item .badge-plan-card>strong { padding-right:44px; }
+.badge-goal-btn { position:absolute;right:4px;top:4px;width:44px;min-height:44px;padding:0;border:0;background:transparent;font-size:25px;line-height:1; }
+.badge-goal-btn[aria-pressed=true] { border:0;background:transparent; }
+.badge-favorite-icon { font-size:24px!important;background:transparent!important;border:0!important;width:44px;min-height:44px;padding:0!important; }
+.favorite-credit-summary { margin:16px 0;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border); }
+.favorite-credit-summary h3 { font-size:14px;margin-bottom:12px; }
+.subject-row.favorite-needed { border-color:#b89b48;background:#302c2026;box-shadow:inset 3px 0 0 var(--amber); }
+.favorite-subject-label { color:var(--amber);font-size:11px;line-height:1.6;margin-top:5px;overflow-wrap:anywhere; }
+.month-study-total { display:flex;align-items:center;justify-content:center;gap:10px;margin:18px 0 24px;padding:14px 4px;color:#ffc4cf;font-size:16px;flex-wrap:wrap; }
+.month-study-total[hidden] { display:none; }
+.month-study-total strong { font-family:'Space Mono',monospace;font-size:42px;line-height:1; }
+.month-study-total strong small { font-family:'Noto Sans JP',sans-serif;font-size:18px;margin-left:4px; }
+.today-first-deadline { color:var(--text3);font-size:10px;line-height:1.6; }
+.scholarship-card { border-color:#375472; }.scholarship-card.needs-attention { border-color:var(--red); }
+.quiz-course-summary { display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;color:var(--text3);font-size:11px;padding:12px 0 2px; }
+.quiz-course-summary strong { color:var(--blue); }.quiz-course-summary .score-low { color:var(--red); }
+.quiz-course-summary .inline-link { min-height:32px;font-size:11px; }
+.quiz-dialog { max-width:440px; }.quiz-dialog h2 { font-size:17px;line-height:1.6; }
+.quiz-inputs,.evaluation-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0; }
+.quiz-inputs label,.evaluation-grid label,.simulation-controls label,.simulation-choice,.simulation-add { display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;color:var(--text2); }
+.quiz-inputs input,.evaluation-grid input,.simulation-controls input,.simulation-controls select,.simulation-course select,.simulation-choice select,.simulation-add select { display:block;width:100%;max-width:100%;min-width:0;padding:10px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg3);color:var(--text);font:inherit;font-size:16px;box-sizing:border-box;color-scheme:dark; }
+.quiz-preview { font-size:18px;color:var(--amber);margin-bottom:18px; }
+.quiz-actions { display:flex;gap:10px;flex-wrap:wrap; }.quiz-actions>button { min-height:44px; }
+.record-course { border-top:1px solid var(--border);padding:14px 0; }.record-course>summary { font-size:14px;font-weight:700;cursor:pointer;line-height:1.7; }
+.record-unit-list { margin-top:12px; }.record-unit-row { display:grid;grid-template-columns:52px minmax(0,145px) minmax(0,1fr);gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px; }
+.record-unit-row input { display:block;max-width:100%;width:100%;min-width:0;padding:8px 5px;border:1px solid var(--border);border-radius:7px;background:var(--bg3);color:var(--text);font:inherit;font-size:16px;box-sizing:border-box;color-scheme:dark;-webkit-appearance:none;appearance:none; }
+.record-unit-row input::-webkit-date-and-time-value { min-width:0;text-align:left; }.record-unit-row input::-webkit-datetime-edit { min-width:0;padding:0; }
+.score-edit { font:inherit;font-size:12px;color:var(--blue);border:1px solid var(--border);border-radius:7px;background:var(--bg3);padding:8px 4px;min-height:42px; }
+.evaluation-form { padding-top:20px; }.evaluation-form h3 { font-size:13px; }
+.simulation-entry { display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:17px;margin-bottom:18px;border:1px solid #365b83;border-radius:10px;background:#102944;color:#b8dbff;font:inherit;font-size:14px;cursor:pointer;text-align:left; }
+.simulation-back { margin-bottom:18px;min-height:40px; }.simulation-controls { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0; }
+.simulation-checks { display:flex;flex-direction:column;gap:12px;font-size:13px;margin:18px 0; }.simulation-checks label { display:flex;align-items:flex-start;gap:8px; }
+.simulation-checks input { width:18px;height:18px;accent-color:var(--amber); }.simulation-choice { margin:15px 0; }
+.simulation-result>p { font-size:13px;line-height:1.7;margin:12px 0; }.simulation-semester-heading { display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px; }
+.simulation-semester-heading h2 { font-size:15px; }.simulation-semester-heading>strong { color:var(--amber);font-size:17px;white-space:nowrap; }
+.simulation-term-count { display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--text3);font-size:11px;margin-bottom:12px; }
+.simulation-course { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,150px) 32px;gap:8px;align-items:center;border-top:1px solid var(--border);padding:12px 0; }
+.simulation-course>div { min-width:0; }.simulation-course strong { font-size:12px;line-height:1.6;overflow-wrap:anywhere; }.simulation-course small { display:block;color:var(--text3);font-size:10px;margin-top:4px; }
+.simulation-course select { padding:8px 5px;font-size:16px; }.simulation-remove { border:0;background:none;color:var(--text3);font-size:22px;min-height:44px; }
+.simulation-add { margin-top:16px; }
+@media(max-width:480px){.simulation-course { grid-template-columns:minmax(0,1fr) 32px; }.simulation-course select { grid-column:1;grid-row:2; }.simulation-remove { grid-column:2;grid-row:1 / span 2; }.simulation-controls { grid-template-columns:1fr; }}
+@media(max-width:360px){.record-unit-row { grid-template-columns:44px minmax(0,1fr); }.record-unit-row .score-edit { grid-column:2; }.month-study-total { gap:7px;font-size:14px; }}

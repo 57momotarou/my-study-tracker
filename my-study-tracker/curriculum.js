@@ -6,6 +6,7 @@ function termOrder(term) { const [year, season] = term.split('-'); return semest
 function getSubjectAvailability(subject, semester) {
   const order = semesterOrder(semester.year, semester.season);
   if (subject.legacy) return { selectable: false, note: '旧科目・新規開講は資料で未確認' };
+  if (Array.isArray(subject.available) && !subject.available.includes(semester.season)) return {selectable:false,note:'この学期は開講予定なし'};
   if (subject.offered_from && order < termOrder(subject.offered_from)) {
     return { selectable: false, note: `${subject.offered_from.replace('-', '年')}に開講予定` };
   }
@@ -83,9 +84,9 @@ function getCompletedCourseCodes() {
 function getBadgeAchievement(badge, completed = getCompletedCourseCodes()) {
   return getBadgePlan(badge, completed, new Set(), new Set(state.badgePreferences?.confirmedManual || []));
 }
-function normalizeBadgePreferences(value, strict = false) {
+function normalizeBadgePreferences(value, strict = false, choices=state.simulation?.choices||{}, covered) {
   const invalid = () => { if (strict) throw new Error('バッジの目標・追加条件確認の内容が不正です。'); };
-  if (!isPlainObject(value)) { invalid(); return { goals: [], confirmedManual: [] }; }
+  if (!isPlainObject(value)) { invalid(); return { goals: [], confirmedManual: [],favoriteRoots:[] }; }
   const result = {};
   for (const key of ['goals', 'confirmedManual']) {
     const ids = value[key];
@@ -97,12 +98,29 @@ function normalizeBadgePreferences(value, strict = false) {
       result[key].push(id);
     }
   }
+  const roots=Object.hasOwn(value,'favoriteRoots')?value.favoriteRoots:result.goals;
+  if(!Array.isArray(roots)||roots.length>300||roots.some(id=>!BADGES.some(b=>b.id===id)||!result.goals.includes(id))||new Set(roots).size!==roots.length||(roots.length===0&&result.goals.length>0)){invalid();result.favoriteRoots=[...result.goals];}
+  else result.favoriteRoots=[...roots];
+  result.goals=expandFavoriteGoals(result.favoriteRoots,choices,covered);
   return result;
 }
 function toggleBadgePreference(key, id) {
   const badge = BADGES.find(b => b.id === id);
   if (!badge || !['goals','confirmedManual'].includes(key) || (key === 'confirmedManual' && !badge.requirements.manual)) return false;
   const prefs = normalizeBadgePreferences(state.badgePreferences), ids = new Set(prefs[key]);
+  if(key==='goals'){
+    const covered=new Set([...getAllPlannedCodes(),...getGradeSummary().passedCodes]);
+    let roots=prefs.favoriteRoots;
+    if(ids.has(id))roots=roots.filter(root=>!getBadgeCourseSelection(BADGES.find(b=>b.id===root),covered,effectiveBadgeChoices(roots,state.simulation?.choices||{})).badges.has(id));
+    else {
+      roots=[...roots,id];
+      const part=getBadgeCourseSelection(badge,covered,effectiveBadgeChoices(roots,state.simulation?.choices||{})),choices={...state.simulation?.choices};
+      part.groups.filter(g=>g.kind==='badge').forEach(g=>{choices[g.key]=g.selected;});
+      state.simulation={...state.simulation,choices};
+    }
+    state.badgePreferences={...prefs,favoriteRoots:roots,goals:expandFavoriteGoals(roots)};
+    return saveState();
+  }
   if (ids.has(id)) ids.delete(id); else ids.add(id);
   state.badgePreferences = { ...prefs, [key]: [...ids] };
   return saveState();

@@ -3,7 +3,7 @@
 // ============================================================
 
 const BACKUP_FORMAT = 'my-study-tracker-backup';
-const BACKUP_VERSION = 5;
+const BACKUP_VERSION = 6;
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 function setupDataTransfer() {
@@ -40,6 +40,8 @@ async function exportStudyData() {
         applications: normalizeApplications(state.applications),
         privateData: state.privateData,
         badgePreferences: normalizeBadgePreferences(state.badgePreferences),
+        planSnapshots:normalizePlanSnapshots(state.planSnapshots),
+        simulation:normalizeSimulation(state.simulation),
       },
     };
 
@@ -91,6 +93,7 @@ async function importStudyData(file) {
       (payload.version === 1 ? '旧形式のため成績・課題・期末・申請予定は空になります。\n' : '') +
       (payload.version < 4 ? 'この形式にはバッジの目標・追加条件確認がないため、それらは空になります。\n' : `バッジの目標 ${imported.badgePreferences.goals.length}件も復元します。\n`) +
       (payload.version < 5 ? '以前の完了分で学習日が未記録のものには、日付を自動追加しません。\n' : `🍑 学習日も復元します。\n`) +
+      (payload.version < 6 ? '小テスト・評価配分・履修シミュレーション・朝6時の固定予定がない旧形式です。新しい項目は初期状態になります。\n' : '小テスト・評価配分・履修シミュレーション・固定予定も復元します。\n') +
       '現在この端末にあるデータは置き換わります。続けますか？'
     );
     if (!accepted) return;
@@ -155,8 +158,11 @@ function parseBackupPayload(payload) {
 
   const records = payload.version === 1 ? {} : validateRecords(payload.data.records);
   const applications = payload.version === 1 ? [] : normalizeApplications(payload.data.applications, true);
-  const badgePreferences = payload.version >= 4 ? normalizeBadgePreferences(payload.data.badgePreferences, true) : {goals:[],confirmedManual:[]};
-  return { enrollments, progress, currentSemesterId, records, applications, privateData, badgePreferences };
+  const simulation=payload.version>=6?normalizeSimulation(payload.data.simulation,true,currentSemesterId):normalizeSimulation({},false,currentSemesterId);
+  const planSnapshots=payload.version>=6?normalizePlanSnapshots(payload.data.planSnapshots,true):{};
+  const covered=new Set([...Object.values(enrollments).flat(),...Object.values(records).flatMap(rs=>Object.entries(rs).filter(([,record])=>Object.hasOwn(GRADE_POINTS,record.grade)&&record.grade!=='F').map(([code])=>code))]);
+  const badgePreferences = payload.version >= 4 ? normalizeBadgePreferences(payload.data.badgePreferences, true, simulation.choices,covered) : {goals:[],confirmedManual:[],favoriteRoots:[]};
+  return { enrollments, progress, currentSemesterId, records, applications, privateData, badgePreferences,simulation,planSnapshots };
   } finally { hydratePrivateData(previousPrivate); }
 
 }

@@ -22,6 +22,8 @@ function normalizeRecords(value) {
         examTaken: record.examTaken === true,
         ...(Array.isArray(record.viewedLessons) ? { viewedLessons: [...new Set(record.viewedLessons.filter(n => Number.isInteger(n) && n >= 1 && n <= subject.lessons))].sort((a,b) => a-b) } : {}),
         ...(isPlainObject(record.studyDates) ? { studyDates: Object.fromEntries(Object.entries(record.studyDates).filter(([unit, date]) => validStudyUnit(unit, subject) && validCalendarDate(date))) } : {}),
+        ...(isPlainObject(record.quizScores) ? {quizScores:normalizeQuizScores(record.quizScores,subject)} : {}),
+        ...(isPlainObject(record.evaluation) && validEvaluation(record.evaluation) ? {evaluation:{...record.evaluation}} : {}),
       };
       // 以前どちらか一方で記録したコマも、今回の一段階の完了として引き継ぐ。
       if (Array.isArray(records[code].viewedLessons)) {
@@ -45,7 +47,9 @@ function validateRecords(value) {
           || typeof record.examTaken !== 'boolean' || !Array.isArray(record.assignments)
           || record.assignments.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)
           || (Object.hasOwn(record, 'viewedLessons') && (!Array.isArray(record.viewedLessons) || record.viewedLessons.some(n => !Number.isInteger(n) || n < 1 || n > subject.lessons)))
-          || (Object.hasOwn(record, 'studyDates') && (!isPlainObject(record.studyDates) || Object.entries(record.studyDates).some(([unit,date]) => !validStudyUnit(unit,subject) || !validCalendarDate(date))))) {
+          || (Object.hasOwn(record, 'studyDates') && (!isPlainObject(record.studyDates) || Object.entries(record.studyDates).some(([unit,date]) => !validStudyUnit(unit,subject) || !validCalendarDate(date))))
+          || (Object.hasOwn(record,'quizScores') && (!isPlainObject(record.quizScores) || Object.entries(record.quizScores).some(([unit,score])=>!validStudyUnit(unit,subject)||unit==='exam'||!validQuizScore(score))))
+          || (Object.hasOwn(record,'evaluation') && !validEvaluation(record.evaluation))) {
         throw new Error('成績・提出記録の内容が不正です。');
       }
     }
@@ -185,17 +189,7 @@ function getGradeSummary(semId = null) {
 }
 
 function renderSubjectChecks(subject, semId) {
-  const record = getStudyRecord(semId, subject.code);
-  const attendance = getAttendanceSummary(semId, subject);
-  const units = [...getViewedLessons(semId,subject.code).map(String), ...(record.examTaken ? ['exam'] : [])];
-  const rows = units.map(unit => `<label class="study-date-row"><span>${unit === 'exam' ? '期末' : `コマ${unit}`}<small>${record.studyDates?.[unit] ? '学習日' : '日付未記録'}</small></span>${studyDateInputHTML(semId,subject.code,unit)}</label>`).join('');
-  return `<details class="study-checks" data-checks-code="${subject.code}">
-    <summary>🍑 学習日を確認・変更</summary>
-    <p class="settings-note">色を付けた日を学習日として保存します。日付をまたいだ分は変更できます。以前の記録に日付は自動で付けません。</p>
-    ${rows || '<p class="settings-note">コマや期末を完了にすると、学習日がここに表示されます。</p>'}
-    <p class="settings-note">視聴・課題提出済み：${attendance.count}/${subject.lessons}回。3分の2の目安：${attendance.required}回。
-    正式な出席・受験可否はCloud Campusで確認してください。</p>
-  </details>`;
+  return quizCourseSummaryHTML(semId,subject);
 }
 
 function bindStudyChecks(container, semId) {
@@ -226,24 +220,20 @@ function renderGradeSummary(semId) {
       <div><strong>${all.earnedCredits}<small>単位</small></strong><span>全学期の修得記録</span></div>
       <div><strong>${formatGPA(all)}</strong><span>全学期の参考GPA</span></div>
     </div>
-    <p class="settings-note">A=4・B=3・C=2・D=1・F=0。Fも単位数の分母に含み、K・P・未登録は除きます。
-    この学期のGPA対象：${semester.gpaCredits}単位。修得単位は同じ科目を1回だけ数えます。</p>
+    <p class="record-caption">GPA対象：この学期 ${semester.gpaCredits}単位</p>
     <details class="plan-missing"><summary>MC卒業要件に照らした修得記録を見る</summary>
       <p class="settings-note">A〜Dの登録分を要件に割り当て：${plan.counted}/${r.total}単位。
       専門 ${plan.totals['専門']}/${r.specialized}・教養 ${plan.totals['教養']}/${r.liberal}・外国語 ${plan.totals['外国語']}/${r.foreignRequired+r.foreignElective}・共通割当 ${plan.common}/${r.common}。
       Pのみの認定 ${all.recognizedCredits}単位は区分未確認のため、この判定には含めません。</p>
       <p class="settings-note">未修得の必修：${plan.missing.length ? plan.missing.map(code => escapeText(SUBJECT_BY_CODE.get(code).name)).join('、') : '登録上はなし'}。</p>
-      <p class="settings-note">履修予定は設定の「履修計画」で確認できます。卒業・認定単位の正式な判定は大学で確認してください。</p>
     </details>
-    <p class="settings-note">参考GPAは登録した全履修回を集計します。再履修時の公式な扱いは大学で確認してください。${all.repeated ? '同じ科目の複数学期の成績が含まれています。' : ''}</p>
   </div>
 `;
 }
 function renderGrades(container, semId) {
   const subjects = getRecordedSubjects(semId);
-  container.innerHTML = `<div id="grade-summary">${renderGradeSummary(semId)}</div>
+  container.innerHTML = `<div id="grade-summary">${renderGradeSummary(semId)}${scholarshipSummaryHTML(semId)}</div>
   <div class="card"><div class="card-title">この学期の成績を登録</div>
-    <p class="settings-note">大学で発表された評価を選択してください。変更は自動保存されます。</p>
     ${subjects.length ? subjects.map(subject => `<label class="grade-row"><span><strong>${escapeText(subject.name)}</strong>
       <small>${subject.code} · ${subject.credits}単位${getEnrolledCodes(semId).includes(subject.code) ? '' : ' · 履修選択を解除した記録'}</small></span>
       <select class="record-select" data-grade="${subject.code}" aria-label="${escapeText(subject.name)}の成績">
@@ -254,7 +244,7 @@ function renderGrades(container, semId) {
     const code = select.dataset.grade;
     changeStudyRecord(semId, code, { grade: select.value });
     select.value = getStudyRecord(semId, code).grade;
-    document.getElementById('grade-summary').innerHTML = renderGradeSummary(semId);
+    document.getElementById('grade-summary').innerHTML = renderGradeSummary(semId)+scholarshipSummaryHTML(semId);
     select.blur();
   }));
 }

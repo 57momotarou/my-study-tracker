@@ -5,6 +5,7 @@
 
 function renderSettingsPage() {
   renderApplicationPanel();
+  renderStudyRecords();renderAppHelp();
   // 学期タブ
   const tabsEl = document.getElementById('semester-tabs');
   tabsEl.innerHTML = '';
@@ -26,6 +27,7 @@ function renderSettingsPage() {
   filterEl.innerHTML = '';
   [
     { key: 'all', label: 'すべて' },
+    { key: 'favorites', label: '⭐ 目標科目' },
     { key: '専門', label: '💻 専門' },
     { key: '教養', label: '🌿 教養' },
     { key: '外国語', label: '🌐 外国語' },
@@ -50,7 +52,9 @@ function renderSettingsPage() {
     getEnrolledCodes(sem.id).forEach(code => enrolledInOtherSems.add(code));
   });
 
-  const baseList = state.activeSubjectFilter === 'all'
+  const favoritePlan=getFavoriteCoursePlan();
+  const highlights=favoriteCourseHighlights(favoritePlan),allPlanned=getAllPlannedCodes();
+  const baseList = state.activeSubjectFilter === 'favorites' ? ALL_SUBJECTS.filter(s=>highlights.has(s.code)) : state.activeSubjectFilter === 'all'
     ? ALL_SUBJECTS
     : ALL_SUBJECTS.filter(s => s.category === state.activeSubjectFilter);
 
@@ -85,13 +89,14 @@ function renderSettingsPage() {
         ? `<span style="font-size:10px;color:var(--blue);margin-left:4px;">○一斉</span>`
         : '';
       listHtml += `
-        <button type="button" class="subject-row ${isChecked ? 'checked' : ''}" data-code="${s.code}" aria-pressed="${isChecked}" ${disabled ? 'disabled' : ''}>
+        <button type="button" class="subject-row ${isChecked ? 'checked' : ''}${highlights.has(s.code)&&!allPlanned.has(s.code)?' favorite-needed':''}" data-code="${s.code}" aria-pressed="${isChecked}" ${disabled ? 'disabled' : ''}>
           <div class="subject-row-check" style="${isChecked ? `background:${color};border-color:${color}` : ''}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div class="subject-row-info">
             <div class="subject-row-name">${s.name}${openTag}</div>
             <div class="subject-row-meta">${s.code} ・ ${subjectType} ・ ${s.lessons}回</div>
+            ${highlights.has(s.code)?`<div class="favorite-subject-label">⭐ ${highlights.get(s.code).needed?(!allPlanned.has(s.code)?'目標に必要・未選択':'目標科目'):'目標の選択候補'} · ${escapeText([...highlights.get(s.code).reasons].join('、'))}</div>`:''}
             ${notes.length ? `<div class="subject-note">${notes.join(' / ')}</div>` : ''}
           </div>
           <div class="subject-row-credits">${s.credits}単位</div>

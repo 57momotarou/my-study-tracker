@@ -11,9 +11,11 @@ const KEYS = {
   applications: 'cp-applications-v1',
   privateData: 'cp-private-data-v1',
   badgePreferences: 'cp-badges-v1',
+  planSnapshots: 'cp-plan-snapshots-v1',
+  simulation: 'cp-simulation-v1',
 };
 
-let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], privateData:null, badgePreferences:{goals:[],confirmedManual:[]}, activeSubjectFilter:'all' };
+let state = { currentSemesterId:1, enrollments:{}, progress:{}, records:{}, applications:[], privateData:null, badgePreferences:{goals:[],confirmedManual:[]}, planSnapshots:{}, simulation:{}, activeSubjectFilter:'all' };
 
 document.addEventListener('DOMContentLoaded', () => {
   loadState(); setupNav(); setupDataTransfer(); setupSettingsHub(); setupPrivateData(); setupCalendarTouchGuard(); setupScheduleRefresh(); render(); registerSW();
@@ -36,6 +38,8 @@ function loadState(privateOverride, persistMigration = true) {
     state.records = readStoredJson(KEYS.records, {});
     state.applications = readStoredJson(KEYS.applications, []);
     state.badgePreferences = readStoredJson(KEYS.badgePreferences, {goals:[],confirmedManual:[]});
+    state.planSnapshots = readStoredJson(KEYS.planSnapshots, {});
+    state.simulation = readStoredJson(KEYS.simulation, {});
     lastSavedState = snapshotStudyState();
     return;
   }
@@ -58,12 +62,14 @@ function loadState(privateOverride, persistMigration = true) {
   state.progress = normalizeProgress(progress);
   state.records = normalizeRecords(readStoredJson(KEYS.records, {}));
   state.applications = normalizeApplications(readStoredJson(KEYS.applications, []));
-  state.badgePreferences = normalizeBadgePreferences(readStoredJson(KEYS.badgePreferences, {}));
+  state.planSnapshots = normalizePlanSnapshots(readStoredJson(KEYS.planSnapshots, {}));
 
   const storedSemesterId = Number.parseInt(readStoredValue(KEYS.currentSem), 10);
   state.currentSemesterId = SEMESTERS.some(sem => sem.id === storedSemesterId)
     ? storedSemesterId
     : getDefaultSemesterId();
+  state.simulation = normalizeSimulation(readStoredJson(KEYS.simulation, {}));
+  state.badgePreferences = normalizeBadgePreferences(readStoredJson(KEYS.badgePreferences, {}));
 
   // 移行後の値を先に保存し、成功した場合だけ完了マーカーを付ける。
   lastSavedState = snapshotStudyState();
@@ -141,7 +147,8 @@ function getDefaultSemesterId() {
 
 function snapshotStudyState() {
   return JSON.parse(JSON.stringify({ enrollments: state.enrollments, progress: state.progress,
-    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications, privateData: state.privateData, badgePreferences: state.badgePreferences }));
+    currentSemesterId: state.currentSemesterId, records: state.records, applications: state.applications, privateData: state.privateData, badgePreferences: state.badgePreferences,
+    planSnapshots:state.planSnapshots, simulation:state.simulation }));
 }
 
 function restoreStoredValues(previous) {
@@ -178,6 +185,8 @@ function saveState() {
   let journalWritten = false;
   try {
     if (!recoverStateSave()) throw new Error('前の保存を回復できませんでした。');
+    state.simulation=normalizeSimulation(state.simulation);
+    state.badgePreferences=normalizeBadgePreferences(state.badgePreferences);
     const values = {
       [KEYS.enrollments]: JSON.stringify(state.enrollments),
       [KEYS.progress]: JSON.stringify(state.progress),
@@ -186,6 +195,8 @@ function saveState() {
       [KEYS.applications]: JSON.stringify(state.applications),
       [KEYS.privateData]: JSON.stringify(state.privateData),
       [KEYS.badgePreferences]: JSON.stringify(state.badgePreferences),
+      [KEYS.planSnapshots]: JSON.stringify(state.planSnapshots),
+      [KEYS.simulation]: JSON.stringify(state.simulation),
       [KEYS.migrated]: '1',
     };
     for (const key of Object.keys(values)) previous[key] = localStorage.getItem(key);
@@ -277,6 +288,7 @@ function renderActivePage() {
   else if (activePage.id === 'page-settings') renderSettingsPage();
   else if (activePage.id === 'page-badges') renderBadgesPage();
   else if (activePage.id === 'page-progress') renderProgressPage();
+  else if (activePage.id === 'page-simulation') renderSimulationPage();
 }
 
 // ============================================================
@@ -340,8 +352,8 @@ function renderHeader() {
 function toggleLesson(code, lessonNum, semId) {
   const subject = SUBJECT_BY_CODE.get(code);
   if (!subject || !SEMESTERS.some(s => s.id === semId) || !Number.isInteger(lessonNum) || lessonNum < 1 || lessonNum > subject.lessons) return;
-  setLessonCompletion(semId, code, lessonNum, !isLessonRecorded(semId, code, lessonNum));
-  rerenderAfterProgressChange();
+  if (!isLessonRecorded(semId, code, lessonNum)) { showQuizModal(semId,code,lessonNum,true); return; }
+  if (setLessonCompletion(semId, code, lessonNum, false)) rerenderAfterProgressChange();
 }
 function toggleFinalExam(code, semId) {
   const record = getStudyRecord(semId,code), examTaken = !record.examTaken, studyDates = {...record.studyDates};

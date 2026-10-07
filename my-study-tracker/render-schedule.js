@@ -3,7 +3,7 @@ let scheduleMonthKey=null;
 let lastScheduleMinute=-1;
 function renderSchedulePage() {
   const sem=getCurrentSemester();if(!sem||!privateDataReady)return;
-  initializePlanner(sem);latestStudyPlan=buildStudyPlan(sem);
+  initializePlanner(sem);latestStudyPlan=getScheduledStudyPlan(sem);
   lastScheduleMinute=Math.floor(Date.now()/60000);
   renderMonthSchedule(getEnrolledSubjects(sem.id),sem,sem.id,latestStudyPlan);
   renderStudyPlanner(sem,latestStudyPlan);
@@ -28,7 +28,7 @@ function deadlinesForPlanDay(day,semester) {
   return items;
 }
 function renderMonthSchedule(subjects,sem,semId,plan) {
-  initializePlanner(sem);plan=plan||buildStudyPlan(sem);latestStudyPlan=plan;
+  initializePlanner(sem);plan=plan||getScheduledStudyPlan(sem);latestStudyPlan=plan;
   const [year,month]=scheduleMonthKey.split('-').map(Number),firstDow=planDayOfWeek(scheduleMonthKey),days=new Date(Date.UTC(year,month,0)).getUTCDate();
   document.getElementById('schedule-month-label').textContent=`${year}年${month}月`;
   const today=japanDate(),exams=getRelevantExams(sem),el=document.getElementById('schedule-month');
@@ -46,7 +46,8 @@ function renderMonthSchedule(subjects,sem,semId,plan) {
       ${count?`<span class="month-deadline-label">締切${count}件</span>`:''}${dayExams.length?'<span class="month-exam-label">期末締切</span>':''}${apps.length?'<span class="month-personal-label">自分の予定</span>':''}</button>`;
   }
   const studiedCount = [...studiedDays].filter(day=>day.slice(0,7)===scheduleMonthKey.slice(0,7)).length;
-  html+=`</div><p class="month-legend"><span class="month-study-key">■ その日にやる科目</span><span class="month-deadline-key">■ 大学の締切</span><span>🍑 勉強した日</span></p><p class="month-study-total">🍑 この月は${studiedCount}日勉強しました</p><p class="settings-note">色を付けた日に🍑がつきます。日付をタップすると記録を確認し、学習日を変更できます。</p>`;
+  html+=`</div><p class="month-legend"><span class="month-study-key">■ 学習予定</span><span class="month-deadline-key">■ 締切</span><span>🍑 学習日</span></p>`;
+  const total=document.getElementById('month-study-total');if(total){total.hidden=plannerView!=='month';total.innerHTML=`<span>🍑 この月は</span><strong>${studiedCount}<small>日</small></strong><span>勉強しました</span>`;}
   el.innerHTML=html;el.querySelectorAll('[data-calendar-day]').forEach(b=>b.addEventListener('click',()=>selectScheduleDay(b.dataset.calendarDay)));
   document.getElementById('schedule-plan-status').innerHTML=plannerStatusHTML(plan);
   renderScheduleDayDetails(plannerSelectedDay,sem,plan);
@@ -56,18 +57,21 @@ function renderScheduleDayDetails(day,semester,plan) {
   const sessions=plan.sessions.filter(s=>s.day===day),info=planDayInfo(day),deadlines=deadlinesForPlanDay(day,semester);
   const exams=getRelevantExams(semester).filter(e=>japanDate(parseDateValue(e.date))===day),apps=getApplications(semester.id).filter(e=>e.date===day);
   el.innerHTML=`<div class="selected-study-heading"><h3>${planDateLabel(day)}にやること</h3><span>${escapeText(info.label)}</span></div>
-    ${studyDayRecordsHTML(day)}
+    ${getStudyEntries(day).length?'<p class="record-caption">🍑 勉強した日</p>':''}
     ${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}
-    ${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">この年の祝日は未登録です。</p>'}
+    ${skipStudyDayButton(day)}
     ${deadlines.length||exams.length?`<details class="day-deadlines"><summary>この日の大学締切 ${deadlines.length+exams.length}件</summary>${deadlines.map(d=>`<p>${escapeText(d.subject.name)} コマ${d.n}<small>${planTimeLabel(d.deadline)} · ${d.done?'視聴・課題提出済み':d.late?'期限超過':'未完了'}</small></p>`).join('')}${exams.map(e=>`<p>${escapeText(e.label)}<small>${planTimeLabel(parseDateValue(e.date))}まで</small></p>`).join('')}</details>`:''}
     ${apps.map(a=>`<div class="application-item"><strong>${escapeText(a.title)}</strong><p class="settings-note">${a.allDay?'終日':escapeText(a.time)} · ${a.done?'対応済み':'自分の予定'}</p></div>`).join('')}`;
   bindPlannerActions(el,semester.id);
 }
 function refreshScheduleForTime() {
-  if(!privateDataReady||document.visibilityState==='hidden'||!document.getElementById('page-schedule')?.classList.contains('active'))return;
+  if(!privateDataReady||document.visibilityState==='hidden')return;
   if(document.activeElement?.matches('input,select,textarea'))return;
-  if(lastScheduleMinute===Math.floor(Date.now()/60000))return;
-  renderSchedulePage();
+  if(document.getElementById('quiz-modal')||document.querySelector('form[data-dirty="true"]'))return;
+  const sem=getCurrentSemester(),snapshot=state.planSnapshots?.[sem.id];
+  if(snapshot?.cycle===reallocationCycle()&&lastScheduleMinute===Math.floor(Date.now()/60000))return;
+  if(document.getElementById('page-schedule')?.classList.contains('active'))renderSchedulePage();
+  else if(document.getElementById('page-today')?.classList.contains('active')){renderToday();lastScheduleMinute=Math.floor(Date.now()/60000);}
 }
 function setupScheduleRefresh() {
   document.addEventListener('visibilitychange',refreshScheduleForTime);

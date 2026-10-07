@@ -22,7 +22,8 @@ function buildTodayCard(item, sem, semId, mode) {
     badgeClass = 'badge-warn';
   }
 
-  const nowLbl = doneLes > 0 ? `${doneLes}/${s.lessons}コマ提出済み` : '未完了';
+  const missing=Array.from({length:s.lessons},(_,i)=>i+1).filter(n=>!isLessonRecorded(semId,s.code,n));
+  const firstDeadline=missing.length?Math.min(...missing.map(n=>getLessonDeadline(n,s,sem).getTime())):null;
 
   const btnHtml = renderLessonButtons(s, sem, semId);
 
@@ -36,18 +37,13 @@ function buildTodayCard(item, sem, semId, mode) {
         <span class="today-subject-badge ${badgeClass}" style="flex-shrink:0">${badgeText}</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:11px;color:var(--text3)">視聴・課題：${nowLbl}</span>
+        <span class="today-first-deadline">${firstDeadline!==null?`最初の未完了締切 ${planDateLabel(japanDate(new Date(firstDeadline)))} ${planTimeLabel(firstDeadline)}`:''}</span>
         <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:${color}">${pct}%</span>
       </div>
       <div class="prog-wrap" style="margin-bottom:0"><div class="prog-bar" style="width:${pct}%;background:${color}"></div></div>
       ${mode==='tomorrow'?`<p class="today-plan-caption">${item.nextSession?`次の予定：${planDateLabel(item.nextSession.day)} ${planTimeLabel(item.nextSession.start)} · ${item.nextSession.kind==='exam'?'期末':`コマ${item.nextSession.lesson}`}`:'予定未配置：予定タブで残りの学習枠を確認してください'}</p>`:''}
       ${btnHtml}
-      <div style="display:flex;gap:10px;margin-top:6px;font-size:10px;color:var(--text3)">
-        <span><span style="color:${color}">■</span> 完了</span>
-        <span><span style="color:var(--red)">■</span> 遅刻</span>
-        <span><span style="color:var(--amber)">■</span> 今週</span>
-        <span>期末まで記録すると完了</span>
-      </div>
+      ${quizCourseSummaryHTML(semId,s)}
     </div>`;
   // スクロール復元はapp.jsの_updateTodayAfterToggleで一元管理（rAF二重実行防止）
 }

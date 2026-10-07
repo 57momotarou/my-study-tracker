@@ -86,16 +86,23 @@ function ensurePrivateCompatibility(data) {
   const sems = new Set(data.semesters.map(s => String(s.id)));
   const badgeIds = new Set(data.badges.map(b => b.id)), manualIds = new Set(data.badges.filter(b => b.requirements.manual).map(b => b.id));
   const badgePrefs = readStoredJson(KEYS.badgePreferences, {goals:[],confirmedManual:[]});
+  const simulation=readStoredJson(KEYS.simulation,{}),snapshots=readStoredJson(KEYS.planSnapshots,{});
   const enrollments = readStoredJson(KEYS.enrollments, {}), records = readStoredJson(KEYS.records, {}), progress = readStoredJson(KEYS.progress, {});
   const valid = Object.entries(enrollments).every(([id, list]) => sems.has(id) && Array.isArray(list) && list.every(c => codes.has(c)))
     && Object.entries(records).every(([id, entries]) => sems.has(id) && Object.entries(entries).every(([code, record]) => codes.has(code)
       && [...(record.assignments || []), ...(record.viewedLessons || [])].every(n => n <= codes.get(code).lessons)
-      && Object.keys(record.studyDates || {}).every(unit => validStudyUnit(unit,codes.get(code)))))
+      && Object.keys(record.studyDates || {}).every(unit => validStudyUnit(unit,codes.get(code)))
+      && Object.keys(record.quizScores || {}).every(unit => unit!=='exam'&&validStudyUnit(unit,codes.get(code)))))
     && Object.entries(progress).every(([code, n]) => codes.has(code) && n <= codes.get(code).lessons * 4)
     && readStoredJson(KEYS.applications, []).every(a => sems.has(String(a.semesterId)))
     && Array.isArray(badgePrefs?.goals) && badgePrefs.goals.every(id => badgeIds.has(id))
     && Array.isArray(badgePrefs?.confirmedManual) && badgePrefs.confirmedManual.every(id => manualIds.has(id));
-  if (!valid) throw new Error('端末にある科目・学期の記録をすべて引き継げないため、読み込みを中止しました。対応する資料データを確認してください。');
+  const additional=(!badgePrefs.favoriteRoots||badgePrefs.favoriteRoots.every(id=>badgeIds.has(id)))
+    && Object.entries(simulation.courses||{}).every(([id,list])=>sems.has(id)&&Array.isArray(list)&&list.every(c=>codes.has(c)))
+    && ['startSemesterId','endSemesterId'].every(k=>simulation[k]===undefined||sems.has(String(simulation[k])))
+    && Object.entries(simulation.choices||{}).every(([key,choice])=>{const [id,kind,index]=key.split(':');const b=data.badges.find(b=>b.id===id);return b&&(kind==='badge'?b.requirements.prerequisiteAny?.includes(choice):b.requirements.anyCodeGroups?.[Number(index)]?.includes(choice));})
+    && Object.entries(snapshots).every(([id,snapshot])=>sems.has(id)&&Array.isArray(snapshot.sessions)&&snapshot.sessions.every(s=>{const match=/^(.+)-(exam|[1-9]\d*)$/.exec(s.taskId);return match&&codes.has(match[1])&&validStudyUnit(match[2],codes.get(match[1]));}));
+  if (!valid||!additional) throw new Error('端末にある科目・学期の記録をすべて引き継げないため、読み込みを中止しました。対応する資料データを確認してください。');
 }
 
 function setupPrivateData() {

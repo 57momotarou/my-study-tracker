@@ -72,7 +72,7 @@ function pendingStudyTasks(semester) {
   }
   return tasks.sort((a,b) => a.deadline - b.deadline || a.code.localeCompare(b.code) || (a.lesson || 999) - (b.lesson || 999));
 }
-// 過去の予定を完了と推定しない。毎回、現在の未完了記録から締切前だけに割り当てる。
+// 過去の予定を完了と推定しない。割当の再生成は日本時間6時の周期ごと。
 function getStudySlots(semester, now) {
   const today = japanDate(now), startDate = today > semester.start ? today : semester.start, slots = [];
   const skipped = new Set(state.privateData.planner.skipDates || []);
@@ -138,20 +138,84 @@ function allocateWithReserves(tasks, primary, reserve, chosen, useTargets) {
 }
 function isPlanWeekend(day) { return [0,6].includes(planDayOfWeek(day)); }
 function buildStudyPlan(semester, now=new Date()) {
-  const profile=state.privateData.planner,lead=(profile.leadDays||0)*86400000;
-  const source=pendingStudyTasks(semester).map(t=>({...t,target:Math.min(t.deadline,Math.max(t.start+t.minutes*60000,t.deadline-lead))}));
+  const source=pendingStudyTasks(semester).map(t=>({...t,target:t.deadline}));
   const {startDate,slots}=getStudySlots(semester,now),usable=slots.filter(s=>!s.skipped&&!s.conflict.length);
   const primary=usable.filter(s=>!s.reserve),reserve=usable.filter(s=>s.reserve),chosen=new Set();
   const overdue=source.filter(t=>t.deadline<=now.getTime()),pending=source.filter(t=>t.deadline>now.getTime());
-  let allocation=allocateWithReserves(pending,primary,reserve,chosen,true);
-  // 余裕日数を確保できない場合も、本来の締切までは利用する。締切後には割り当てない。
-  if(allocation.tasks.some(t=>t.remaining>0))allocation=allocateWithReserves(pending,primary,reserve,chosen,false);
+  const allocation=allocateWithReserves(pending,primary,reserve,chosen,false);
   const tasks=[...allocation.tasks,...overdue],sessions=allocation.sessions.sort((a,b)=>a.start-b.start);
   return {startDate,endDate:semester.end,generatedAt:now.getTime(),tasks,sessions,slots,
     capacity:usable.reduce((n,s)=>n+Math.floor((s.end-s.start)/60000),0),
     required:tasks.reduce((n,t)=>n+t.minutes,0),remaining:tasks.reduce((n,t)=>n+t.remaining,0),
     risk:tasks.filter(t=>t.remaining>0),overdue,nearDeadline:allocation.tasks.filter(t=>!t.remaining&&t.finish>t.target),
     reserveMinutes:sessions.filter(s=>s.reserve).reduce((n,s)=>n+s.minutes,0),unknown:tasks.filter(t=>!t.confirmed).length};
+}
+function reallocationCycle(now=new Date()) {
+  const day=japanDate(now);return now.getTime()<planTime(day,'06:00')?addPlanDays(day,-1):day;
+}
+function planTaskIdentity(taskId,semester) {
+  if(typeof taskId!=='string')return null;
+  const match=/^(.+)-(exam|[1-9]\d*)$/.exec(taskId),subject=match&&SUBJECT_BY_CODE.get(match[1]);
+  if(!subject||!semester||!validStudyUnit(match[2],subject))return null;
+  return {subject,code:subject.code,unit:match[2]};
+}
+function normalizePlanSnapshots(value,strict=false) {
+  const result={},invalid=()=>{if(strict)throw new Error('朝6時の学習計画の形式が不正です。');};
+  if(!isPlainObject(value)){invalid();return result;}
+  for(const [id,snapshot] of Object.entries(value)) {
+    const semester=SEMESTERS.find(s=>String(s.id)===id);
+    if(!semester||!isPlainObject(snapshot)||!validCalendarDate(snapshot.cycle)||typeof snapshot.basis!=='string'||snapshot.basis.length>40||!Array.isArray(snapshot.sessions)||snapshot.sessions.length>8000){invalid();continue;}
+    const sessions=[];
+    for(const session of snapshot.sessions){
+      const task=planTaskIdentity(session?.taskId,semester);
+      if(!isPlainObject(session)||!task||!Number.isSafeInteger(session.start)||!Number.isSafeInteger(session.end)||session.end<=session.start||session.end-session.start>240*60000
+        ||session.start<planTime(semester.start,'00:00')||session.end>planTime(semester.end,'24:00')||typeof session.reserve!=='boolean'){invalid();continue;}
+      sessions.push({taskId:session.taskId,start:session.start,end:session.end,reserve:session.reserve});
+    }
+    sessions.sort((a,b)=>a.start-b.start);
+    if(sessions.some((s,i)=>i>0&&s.start<sessions[i-1].end)){invalid();continue;}
+    result[id]={cycle:snapshot.cycle,basis:snapshot.basis,sessions};
+  }
+  return result;
+}
+function studyPlanBasis(semester) {
+  const text=JSON.stringify([semester,getEnrolledSubjects(semester.id),state.privateData.planner,getApplications(semester.id)]);
+  let hash=2166136261;for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619);}
+  return String(hash>>>0);
+}
+function getScheduledStudyPlan(semester,now=new Date()) {
+  const cycle=reallocationCycle(now),anchor=new Date(planTime(cycle,'06:00')),basis=studyPlanBasis(semester);
+  let snapshot=state.planSnapshots?.[semester.id];
+  if(!snapshot||snapshot.cycle!==cycle){
+    const created=buildStudyPlan(semester,anchor);
+    snapshot={cycle,basis,sessions:created.sessions.map(s=>({taskId:s.taskId,start:s.start,end:s.end,reserve:s.reserve}))};
+    state.planSnapshots={...state.planSnapshots,[semester.id]:snapshot};
+    saveState();
+  }
+  const tasks=pendingStudyTasks(semester).map(t=>({...t,target:t.deadline,finish:null})),byId=new Map(tasks.map(t=>[t.id,t]));
+  const {startDate,slots}=getStudySlots(semester,anchor),sessions=[];
+  for(const s of snapshot.sessions){
+    const task=byId.get(s.taskId),day=japanDate(new Date(s.start));
+    if(!task||task.remaining<=0||s.start<task.start||s.end>task.deadline||(state.privateData.planner.skipDates||[]).includes(day)||planEventConflicts(day,s.start,s.end,semester.id).length)continue;
+    const minutes=Math.min(task.remaining,(s.end-s.start)/60000);
+    if(task.kind==='exam'&&minutes<task.minutes)continue;
+    sessions.push({...s,day,end:s.start+minutes*60000,code:task.code,lesson:task.lesson,kind:task.kind,label:task.label,minutes,
+      partial:minutes<task.minutes,weekendAdjustment:s.reserve&&isPlanWeekend(day),confirmed:task.confirmed,deadline:task.deadline,late:false});
+    task.remaining-=minutes;task.finish=s.start+minutes*60000;
+  }
+  // 完了を解除した授業がある場合、期末を授業より前へ置かない。次の6時に再配置。
+  for(const task of tasks.filter(t=>t.kind==='exam'&&!t.remaining)){
+    if(tasks.some(t=>t.code===task.code&&t.kind==='lesson'&&(t.remaining>0||t.finish>task.finish-task.minutes*60000))){
+      for(let i=sessions.length-1;i>=0;i--)if(sessions[i].taskId===task.id)sessions.splice(i,1);
+      task.remaining=task.minutes;task.finish=null;
+    }
+  }
+  const overdue=tasks.filter(t=>t.deadline<=now.getTime()&&(t.remaining>0||sessions.some(s=>s.taskId===t.id))),risk=tasks.filter(t=>t.remaining>0);
+  return {startDate,endDate:semester.end,generatedAt:anchor.getTime(),cycle,tasks,sessions,slots,
+    required:tasks.reduce((n,t)=>n+t.minutes,0),remaining:tasks.reduce((n,t)=>n+t.remaining,0),risk,overdue,nearDeadline:[],
+    capacity:slots.filter(s=>!s.skipped&&!s.conflict.length).reduce((n,s)=>n+(s.end-s.start)/60000,0),
+    reserveMinutes:sessions.filter(s=>s.reserve).reduce((n,s)=>n+s.minutes,0),unknown:tasks.filter(t=>!t.confirmed).length,
+    pendingChanges:snapshot.basis!==basis,nextReallocation:planTime(addPlanDays(cycle,1),'06:00')};
 }
 let plannerView='month',plannerAnchor=null,plannerSemester=null,plannerSelectedDay=null,latestStudyPlan=null;
 let plannerWeekStart=null,plannerWeekToday=null;
@@ -177,15 +241,14 @@ function plannerRiskHTML(plan) {
   const hours=n=>(n/60).toLocaleString('ja-JP',{maximumFractionDigits:1});
   let html='';
   if(plan.risk.length)html+=`<details class="plan-warning"><summary>締切前に入らない学習 ${plan.risk.length}件（残り${hours(plan.remaining)}時間）</summary>
-    <p>通常枠と予備枠を使っても収まりません。以下は締切後へ自動で押し出さず、要調整として残しています。</p><ul>${plan.risk.map(t=>`<li>${escapeText(t.label)}：${t.remaining}分不足${plan.overdue.some(o=>o.id===t.id)?'・すでに期限超過':''}</li>`).join('')}</ul></details>`;
+    <ul>${plan.risk.map(t=>`<li>${escapeText(t.label)}：${t.remaining}分${plan.overdue.some(o=>o.id===t.id)?'・期限超過':'・未配置'}</li>`).join('')}</ul></details>`;
   if(plan.nearDeadline.length)html+=`<p class="plan-warning">${plan.nearDeadline.length}件は余裕日数を確保できず、締切直前の予定です。</p>`;
-  if(plan.unknown)html+='<p class="settings-note">概算・期末日時未確認を含むため、正式な締切も確認してください。</p>';
   return html;
 }
 function plannerStatusHTML(plan) {
   const p=state.privateData.planner;
   const weekendMinutes = plan.sessions.filter(s=>s.weekendAdjustment).reduce((n,s)=>n+s.minutes,0);
-  return `<p class="settings-note">未完了分は${planTimeLabel(plan.generatedAt)}時点で自動調整。通常枠で足りない期間は土日の予備枠を優先します。色を付けたコマは課題も提出済みとして再配置から外します。</p>
+  return `${plan.pendingChanges?'<p class="plan-warning">予定の変更は、次の朝6時に再配置へ反映します。</p>':''}
     ${weekendMinutes ? `<p class="plan-ok">土日の夜に${weekendMinutes}分を追加して調整しています。</p>` : ''}
     ${(p.scheduleRevision||0)<2?'<p class="plan-warning">生活時間の更新があります。今回の非公開JSONを設定 → データから読み直してください。</p>':''}${plannerRiskHTML(plan)}`;
 }
@@ -203,22 +266,15 @@ function skipStudyDayButton(day) {
   return `<button type="button" class="data-transfer-btn skip-study-day" data-skip-study-day="${day}" aria-pressed="${skipped}">${skipped?'この日の学習を再開':'この日は勉強しない'}</button>`;
 }
 function planSessionHTML(s,semId=state.currentSemesterId) {
-  const controls=s.kind==='exam'?`<button class="plan-record-btn" data-plan-exam="${s.code}">期末を受験済みにする</button>`:
-    `<button class="plan-record-btn" data-plan-viewed="${s.code}" data-plan-lesson="${s.lesson}" aria-pressed="${isLessonRecorded(semId,s.code,s.lesson)}">${isLessonRecorded(semId,s.code,s.lesson)?'✓ 視聴・課題提出済み':'視聴・課題提出済みにする'}</button>`;
-  return `<article class="plan-session" data-plan-task="${s.taskId}"><time>${planTimeLabel(s.start)}〜${planTimeLabel(s.end)}${s.weekendAdjustment?' · 土日調整':s.reserve?' · 予備枠':''}</time>
-    <strong>${escapeText(s.label)}${s.partial?`（この枠で${s.minutes}分）`:''}</strong><small>締切 ${planDateLabel(japanDate(new Date(s.deadline)))} ${planTimeLabel(s.deadline)}${s.confirmed?'':' · 日時未確認'}</small>
-    <div class="plan-record-actions">${controls}</div></article>`;
+  return `<article class="plan-session" data-plan-task="${s.taskId}"><strong>${escapeText(s.label.replace(' 視聴・課題',''))}</strong><small>締切 ${planDateLabel(japanDate(new Date(s.deadline)))}${s.confirmed?'':' · 概算'}${s.weekendAdjustment?' · 土日調整':''}</small></article>`;
 }
 function bindPlannerActions(root,semId=state.currentSemesterId) {
   root.querySelectorAll('[data-skip-study-day]').forEach(b=>b.addEventListener('click',()=>toggleSkippedStudyDay(b.dataset.skipStudyDay)));
-  root.querySelectorAll('[data-plan-viewed]').forEach(b=>b.addEventListener('click',()=>toggleLesson(b.dataset.planViewed,Number(b.dataset.planLesson),semId)));
-  root.querySelectorAll('[data-plan-exam]').forEach(b=>b.addEventListener('click',()=>toggleFinalExam(b.dataset.planExam,semId)));
-  bindStudyDateInputs(root,()=>renderSchedulePage());
 }
 function planDayEmptyText(day,semester,plan) {
-  if((state.privateData.planner.skipDates||[]).includes(day))return '勉強しない日。未完了分は別の日へ再配置しました。';
+  if((state.privateData.planner.skipDates||[]).includes(day))return '勉強しない日';
   if(day<semester.start)return '開講前：資料確認・学習準備。';
-  if(day<japanDate())return '過去の未完了分を、今後の締切前の枠へ再配置します。入らない分は要調整として表示します。';
+  if(day<japanDate())return 'この日の学習予定はありません';
   if(day>semester.end)return '学期終了後：復習・次学期の準備。';
   if(plan.slots.some(s=>s.day===day&&s.conflict.length))return '自分の予定を優先します。空いた枠は休息・復習に。';
   return '授業の割当はありません。休息・復習に使えます。';
@@ -230,22 +286,22 @@ function renderStudyPlanner(semester,plan) {
   document.getElementById('month-card').hidden=plannerView!=='month';root.hidden=plannerView==='month';
   if(plannerView==='month')return;
   const hours=n=>(n/60).toLocaleString('ja-JP',{maximumFractionDigits:1});
-  const note=`<p class="settings-note">授業＋課題${p.lessonMinutes}分・期末枠${p.examMinutes}分を目安に、${p.leadDays||0}日前の完了を優先します。予備枠は必要な期間だけ、土日を先に使います。実際の所要時間は科目に合わせてください。</p>`;
+  const note='';
   if(plannerView==='overview') {
     const baseMinutes=kind=>p[kind].filter(b=>b.kind==='study'&&!b.reserve).reduce((n,b)=>n+plannerMinutes(b.end)-plannerMinutes(b.start),0);
     const weeks=new Map();for(const s of plan.sessions){const day=addPlanDays(s.day,-((planDayOfWeek(s.day)+6)%7));if(!weeks.has(day))weeks.set(day,{minutes:0,codes:new Set(),reserve:0});const w=weeks.get(day);w.minutes+=s.minutes;w.codes.add(s.code);if(s.reserve)w.reserve+=s.minutes;}
     root.innerHTML=`<div class="card"><div class="card-label">OVERVIEW</div><h2 class="card-title">全体の学習計画</h2><p>${escapeText(semester.name)}</p>
       <div class="record-stats"><div><strong>${hours(plan.required)}<small>時間</small></strong><span>残りの学習量</span></div><div><strong>${hours(baseMinutes('workday')*5+baseMinutes('holiday')*2)}<small>時間/週</small></strong><span>通常の学習枠</span></div><div><strong>${hours(plan.reserveMinutes)}<small>時間</small></strong><span>必要な予備枠の合計</span></div></div>
-      <p class="settings-note">${escapeText(p.note)}</p>${note}${plannerStatusHTML(plan)}
+      ${plannerStatusHTML(plan)}
       ${!plan.risk.length&&plan.tasks.length?'<p class="plan-ok">残りの授業・課題・期末を締切前に配置しました。</p>':''}
-      <ol class="plan-phases"><li>開始済みの授業から、締切順に配置。</li><li>できなかった分は、次に開いたとき・表示中の更新時に自動で再配置。</li><li>不足分は土日の夜の予備枠を優先。土日だけでは間に合わない場合はほかの予備枠も使い、入らない分は要調整として表示。</li></ol></div>
+      </div>
       <div class="card"><h2 class="card-title">週ごとの見通し</h2>${weeks.size?[...weeks].map(([day,w])=>`<button class="plan-week-link" data-plan-week="${day}"><span>${planDateLabel(day)}〜<small>${w.codes.size}科目${w.reserve?` · 予備${hours(w.reserve)}時間`:''}</small></span><strong>${hours(w.minutes)}時間 ›</strong></button>`).join(''):'<p class="settings-note">履修科目と残りの進捗を確認してください。</p>'}</div>`;
     root.querySelectorAll('[data-plan-week]').forEach(b=>b.addEventListener('click',()=>setPlannerView('week',b.dataset.planWeek)));
   } else {
     const weekStart=getPlannerWeekStart();
     root.innerHTML=`<div class="card"><div class="card-label">WEEK</div><h2 class="card-title">1週間のスケジュール</h2>${plannerDateNav(7)}<p class="plan-day-label">${planDateLabel(weekStart)}〜${planDateLabel(addPlanDays(weekStart,6))} <button type="button" class="inline-link" data-plan-today>今日から表示</button></p>${note}${plannerStatusHTML(plan)}
       <div class="plan-week">${Array.from({length:7},(_,i)=>{const day=addPlanDays(weekStart,i),info=planDayInfo(day),sessions=plan.sessions.filter(s=>s.day===day);return `<article class="plan-day ${info.holiday?'holiday':''}${day===japanDate()?' is-today':''}" data-plan-day="${day}"><div class="plan-day-heading"><strong>${day===japanDate()?'今日 · ':''}${planDateLabel(day)}</strong><span>${escapeText(info.label)}</span></div>
-        ${studyDayRecordsHTML(day)}${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="settings-note">${planDayEmptyText(day,semester,plan)}</p>`}${skipStudyDayButton(day)}${info.confirmed?'':'<p class="settings-note">祝日未登録：土日のみ休日扱い</p>'}</article>`;}).join('')}</div></div>`;
+        ${getStudyEntries(day).length?'<p class="record-caption">🍑 勉強した日</p>':''}${sessions.map(s=>planSessionHTML(s,semester.id)).join('')||`<p class="record-caption">${planDayEmptyText(day,semester,plan)}</p>`}${skipStudyDayButton(day)}</article>`;}).join('')}</div></div>`;
   }
   root.querySelectorAll('[data-plan-shift]').forEach(b=>b.addEventListener('click',()=>shiftPlannerDate(Number(b.dataset.planShift))));
   root.querySelector('[data-plan-date]')?.addEventListener('change',e=>{if(validCalendarDate(e.target.value)){plannerWeekStart=e.target.value;plannerWeekToday=japanDate();renderSchedulePage();}});

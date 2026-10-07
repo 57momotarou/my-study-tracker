@@ -7,6 +7,8 @@ function setupSettingsHub() {
       button.setAttribute('aria-selected', String(selected));
       document.getElementById(`settings-${button.dataset.settingsTab}`).hidden = !selected;
     });
+    if(tab.dataset.settingsTab==='records')renderStudyRecords();
+    if(tab.dataset.settingsTab==='help')renderAppHelp();
   }));
   tabs.forEach((tab, index) => tab.addEventListener('keydown', event => {
     if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
@@ -36,7 +38,7 @@ function renderStudentGuide(query = '') {
     content.className = 'guide-content';
     // 非公開資料内の旧アプリ操作説明だけを現在の一段階の記録に合わせる。
     const html = section.html.replace(/<p>「進捗」の動画ボタンは視聴記録です。[^<]*<\/p>/g,
-      '<p>「進捗」でコマに色を付けると、視聴・課題提出済みとして記録します。全コマと期末で学習完了です。学習日は🍑の記録から変更できます。正式な出席・提出状況はCloud Campusで確認してください。</p>');
+      '<p>「進捗」でコマに色を付けると、視聴・課題提出済みとして記録します。全コマと期末で学習完了です。学習日・点数の編集は設定の「学習記録」にまとめています。正式な出席・提出状況はCloud Campusで確認してください。</p>');
     content.innerHTML = sanitizeGuideHTML(html);
     const searchable = `${section.title} ${section.tags} ${content.textContent}`.normalize('NFKC').toLocaleLowerCase();
     if (!terms.every(term => searchable.includes(term))) return;
